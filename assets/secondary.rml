@@ -1,0 +1,10 @@
+<rml>
+<head>
+    <title>Secondary Window</title>
+    <link type="text/rcss" href="main.rcss"/>
+</head>
+<body>
+	<p>This is the secondary window.</p>
+	<button onclick="onButtonClick()">Click Me</button>
+</body>
+</rml>

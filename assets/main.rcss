@@ -1,0 +1,23 @@
+body
+{
+    font-family: "Nokia Sans";
+    background: #0f172a;
+    color: #e2e8f0;
+    margin: 0;
+    padding: 32dp;
+	font-size: 20dp;
+}
+
+
+h1
+{
+    margin: 0 0 8dp 0;
+    font-size: 20dp;
+}
+
+p
+{
+    margin: 0;
+    line-height: 1.4;
+}
+

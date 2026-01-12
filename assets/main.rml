@@ -1,0 +1,11 @@
+<rml>
+<head>
+    <title>RmlUi Multi-window Demo</title>
+    <link type="text/rcss" href="main.rcss"/>
+</head>
+<body>
+	<p>This is the primary window.</p>
+	<button onclick="onButtonClick()">Click Me</button>
+</body>
+</rml>
+

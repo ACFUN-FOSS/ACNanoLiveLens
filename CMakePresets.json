@@ -7,10 +7,9 @@
 			"binaryDir": "${sourceDir}/BUILD",
 			"cacheVariables": {
 				"CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-				"CMAKE_BUILD_TYPE": "Debug"
-			},
-			"toolset": {
-				"value": "host=x64,version=14"
+				"CMAKE_BUILD_TYPE": "Debug",
+				"CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+				"NLLENS_ASSETS_DIR_OVERRIDE": "assets"
 			}
 		}
 	]

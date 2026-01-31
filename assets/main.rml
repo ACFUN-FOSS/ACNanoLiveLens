@@ -4,8 +4,21 @@
     <link type="text/rcss" href="main.rcss"/>
 </head>
 <body>
-	<p>This is the primary window.</p>
-	<button onclick="onButtonClick()">Click Me</button>
+    <winframe>
+		<div class="content">
+			<p>This is the primary window.</p>
+			<br></br>
+			<p>This is the primary window.</p>
+			<br></br>
+			<p>This is the primary window.</p>
+			<br></br>
+			<p>This crash handler will only appear when run without debugger.</p>
+			<br></br>
+			<button id="test-btn-1" class="test-btn">Click Me To Crash</button>
+			<button id="test-btn-2" class="test-btn">Click Me To Crash</button>
+		</div>
+    </winframe>
+
 </body>
 </rml>
 

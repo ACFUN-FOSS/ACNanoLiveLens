@@ -896,6 +896,7 @@ void RenderInterface_GL3::BeginFrame()
 	glEnable(GL_BLEND);
 	glBlendEquation(GL_FUNC_ADD);
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 #if !defined(RMLUI_PLATFORM_EMSCRIPTEN) && !defined(__ANDROID__)
 	// We do blending in nonlinear sRGB space because that is the common practice and gives results that we are used to.
@@ -908,6 +909,8 @@ void RenderInterface_GL3::BeginFrame()
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
 	glDisable(GL_DEPTH_TEST);
+
+	glEnable(GL_MULTISAMPLE); // Enable multisampling
 
 	SetTransform(nullptr);
 
@@ -1001,7 +1004,7 @@ void RenderInterface_GL3::EndFrame()
 
 void RenderInterface_GL3::Clear()
 {
-	glClearColor(0, 0, 0, 1);
+	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
 }
 

@@ -1,57 +1,101 @@
-#include <RmlUIWin/window_manager.h>
+#include <RmlUIWin/window_manager.hxx>
 #include <RmlUi_Backend.h>
 #include <RmlUi/Debugger.h>
+#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memsafety.hxx>
+#include <EatiEssentials/special.hxx>
 
-using namespace rmlui_wrapper;
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
-int main() {
-    // 初始化后端
-    Backend::Initialize("RmlUi App", 800, 600, true);
+#include "appstate.hxx"
+#include "sound/sound.hxx"
+#include "assets.hxx"
+#include "rmluipp.hxx"
+#include "rmlui_sys.hxx"
+#include "custom_elements.hxx"
+#include "platform/crash_handler.hxx"
 
-    // 设置 RmlUi 接口
-    Rml::SetSystemInterface(Backend::GetSystemInterface());
-    Rml::SetRenderInterface(Backend::GetRenderInterface());
-    Rml::Initialise();
+using namespace RmlUIWin;
+using namespace Essentials::Memory;
+
+void rmluiMain() {
+    RmlUISystem rmlui{ *Backend::GetSystemInterface(), *Backend::GetRenderInterface() };
 
     // 載入字體
-    Rml::LoadFontFace("assets/NokiaSans-Regular.ttf");
+    Rml::LoadFontFace((getAssetsDir() / "NokiaSans-Regular.ttf").string());
+
+    registerCustomElements(rmlui);
+
+    //Essentials::Special::callNullptr();
 
     {
         // 使用窗口管理器管理所有窗口
-        WinManager windowManager;
-        
+        auto &winMan = getAppState().winManager;
+
         // 第一個窗口使用主窗口（在 Backend::Initialize 時已創建）
-        auto mainWin = std::make_unique<UiWin>("main", Rml::Vector2i(800, 600), "assets/main.rml", true);
+        // 主窗口創建時大小忽略傳入的大小
+        auto mainWin = newBox(UiWin{ "main", {}, getAssetsDir() / "main.rml", true });
         // 後續窗口自動創建新窗口，加載不同的 RML 文件
-        auto secondaryWin = std::make_unique<UiWin>("RmlUi App - Secondary", Rml::Vector2i(800, 600), "assets/secondary.rml", false);
-        auto thirdWin = std::make_unique<UiWin>("RmlUi App - Third", Rml::Vector2i(800, 600), "assets/third.rml", false);
+        //auto secondaryWin = newBox(UiWin{ "RmlUi App - Secondary", {800, 600}, "assets/secondary.rml", false });
+        //auto thirdWin = newBox(UiWin{ "RmlUi App - Third", {800, 600}, "assets/third.rml", false });
+
+
+		auto &mainWinRootEle = UNWRAP(mainWin->getContext().GetRootElement());
+		SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
+		mainWinRootEleEventMan.on("test-btn-1", "click", [](auto &&_) {
+			assert(false);
+		});
+		mainWinRootEleEventMan.on("test-btn-2", "click", [](auto&& _) {
+			Essentials::Special::callNullptr();
+		});
 
         // 使用std::move將窗口所有權轉移給管理器
-        windowManager.transferWin(std::move(mainWin));
-        windowManager.transferWin(std::move(secondaryWin));
-        windowManager.transferWin(std::move(thirdWin));
+        winMan.transferWin(std::move(mainWin));
+        //windowManager.transferWin(std::move(secondaryWin));
+        //windowManager.transferWin(std::move(thirdWin));
 
         bool running = true;
-        while (running && windowManager.hasOpenWins()) {
+        while (running && winMan.hasOpenWins()) {
             // 处理输入和窗口事件
             running = Backend::ProcessEvents(false);
 
             // 更新所有窗口
-            windowManager.updateAll();
-            
+            winMan.updateAll();
+
             // 渲染所有窗口
-            windowManager.renderAll();
-            
+            winMan.renderAll();
+
             // 清理已關閉的窗口
-            windowManager.cleanupClosedWindows();
+            winMan.cleanupClosedWindows();
         }
     }
+}
 
-    // 关闭 RmlUi
-    Rml::Shutdown();
+
+
+
+int crashHandlerProtectedMain() {
+#ifdef WIN32
+    system("chcp 65001");
+#endif
+    initSound();
+
+    // 初始化后端
+    Backend::Initialize("RmlUi App", 800, 600, true);
+
+    //Essentials::Special::callNullptr();
+    rmluiMain();
 
     // 关闭后端
     Backend::Shutdown();
-
     return 0;
 }
+
+
+int main() {
+    runProtectedMain();
+}
+

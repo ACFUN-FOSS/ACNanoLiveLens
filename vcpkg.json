@@ -1,8 +1,24 @@
 {
   "dependencies": [
+    "boost-dll",
+    "boost-stacktrace",
+    "cxxopts",
     "glad",
     "glfw3",
-    "rmlui",
-    "ms-gsl"
+    "libiconv",
+    "libui",
+    "miniaudio",
+    "ms-gsl",
+    "portaudio",
+    "reflectcpp",
+    {
+      "name": "rmlui",
+      "default-features": false,
+      "features": [
+        "freetype",
+        "svg"
+      ]
+    },
+    "boost-process"
   ]
 }

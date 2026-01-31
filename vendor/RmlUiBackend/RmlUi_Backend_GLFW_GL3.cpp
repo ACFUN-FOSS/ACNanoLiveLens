@@ -229,7 +229,12 @@ static GLFWwindow* CreateWindowInternal(const char* name, int width, int height,
 	glfwWindowHint(GLFW_RESIZABLE, allow_resize ? GLFW_TRUE : GLFW_FALSE);
 	glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
 
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	//glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	glfwWindowHint(GLFW_SAMPLES, 32); // Request 32 samples per pixel
+
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
+	glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
 	GLFWwindow* window = glfwCreateWindow(width, height, name, nullptr, shared);
 	if (!window)
@@ -253,9 +258,6 @@ bool Backend::Initialize(const char* name, int width, int height, bool allow_res
 
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
-	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
-	
-	
 
 	// Load the OpenGL functions.
 	Rml::String renderer_message;
@@ -290,6 +292,21 @@ bool Backend::Initialize(const char* name, int width, int height, bool allow_res
 	SetupCallbacks(window);
 
 	return true;
+}
+
+void Backend::OnRmlShutdown()
+{
+	RMLUI_ASSERT(data);
+	for (auto& w : data->windows) {
+		glfwSetWindowContentScaleCallback(w->glfw_win, nullptr);
+		glfwSetFramebufferSizeCallback(w->glfw_win, nullptr);
+		glfwSetScrollCallback(w->glfw_win, nullptr);
+		glfwSetMouseButtonCallback(w->glfw_win, nullptr);
+		glfwSetCursorPosCallback(w->glfw_win, nullptr);
+		glfwSetCursorEnterCallback(w->glfw_win, nullptr);
+		glfwSetCharCallback(w->glfw_win, nullptr);
+		glfwSetKeyCallback(w->glfw_win, nullptr);
+	}
 }
 
 void Backend::Shutdown()
@@ -391,6 +408,41 @@ void Backend::AttachContext(GLFWwindow* window, Rml::Context* context, KeyDownCa
 		}
 	}
 	RMLUI_ASSERTMSG(false, "Window not managed by backend.");
+}
+
+Rml::Vector2i Backend::GetWindowSize(GLFWwindow* window)
+{
+	RMLUI_ASSERT(data && window);
+	auto winIt = std::ranges::find_if(
+		data->windows,
+		[window](const std::unique_ptr<WindowData>& w) { return w->glfw_win == window; }
+	);
+	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
+	Rml::Vector2i size;
+	glfwGetFramebufferSize(window, &size.x, &size.y);
+	return size;
+}
+
+Rml::Vector2i Backend::GetWindowPos(GLFWwindow *window) {
+	RMLUI_ASSERT(data && window);
+	auto winIt = std::ranges::find_if(
+		data->windows,
+		[window](const std::unique_ptr<WindowData> &w) { return w->glfw_win == window; }
+	);
+	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
+	Rml::Vector2i pos;
+	glfwGetWindowPos(window, &pos.x, &pos.y);
+	return pos;
+}
+
+void Backend::SetWindowPos(GLFWwindow *window, Rml::Vector2i pos) {
+	RMLUI_ASSERT(data && window);
+	auto winIt = std::ranges::find_if(
+		data->windows,
+		[window](const std::unique_ptr<WindowData> &w) { return w->glfw_win == window; }
+	);
+	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
+	glfwSetWindowPos(window, pos.x, pos.y);
 }
 
 bool Backend::ProcessEvents(bool power_save)

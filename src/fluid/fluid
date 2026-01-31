@@ -1,0 +1,30 @@
+# data file for the Fltk User Interface Designer (fluid)
+version 1.0311
+header_name {.h}
+code_name {.cpp}
+class CrashDlg {open
+} {
+  Function {makeWin()} {open
+  } {
+    Fl_Window {} {
+      label {死了} open
+      xywh {661 459 667 429} type Double labelsize 20 visible
+    } {
+      Fl_Box {} {
+        image {x2.png} xywh {15 12 69 73}
+      }
+      Fl_Box {} {
+        label {应用程序遇到错误，不能继续运行。
+請 發送 以下 錯誤報告 至 developers。}
+        xywh {100 15 545 35} align 21
+      }
+      Fl_Text_Display msg {selected
+        xywh {102 60 543 320}
+      }
+      Fl_Return_Button {} {
+        label {善}
+        xywh {570 390 75 25}
+      }
+    }
+  }
+}

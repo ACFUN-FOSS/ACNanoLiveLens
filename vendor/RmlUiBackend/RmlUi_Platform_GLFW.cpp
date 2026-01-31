@@ -32,6 +32,7 @@
 #include <RmlUi/Core/Math.h>
 #include <RmlUi/Core/StringUtilities.h>
 #include <GLFW/glfw3.h>
+#include <math.h>
 
 #define GLFW_HAS_EXTRA_CURSORS (GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 4)
 
@@ -71,6 +72,12 @@ void SystemInterface_GLFW::SetWindow(GLFWwindow* in_window)
 double SystemInterface_GLFW::GetElapsedTime()
 {
 	return glfwGetTime();
+}
+
+Rml::Vector2i SystemInterface_GLFW::GetMousePosition() {
+	double mosuePosX = NAN, mosuePosY = NAN;
+	glfwGetCursorPos(window, &mosuePosX, &mosuePosY);
+	return { static_cast<int>(mosuePosX), static_cast<int>(mosuePosY) };
 }
 
 void SystemInterface_GLFW::SetMouseCursor(const Rml::String& cursor_name)

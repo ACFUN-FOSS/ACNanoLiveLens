@@ -46,6 +46,7 @@ public:
 
 	double GetElapsedTime() override;
 
+	Rml::Vector2i GetMousePosition();
 	void SetMouseCursor(const Rml::String& cursor_name) override;
 
 	void SetClipboardText(const Rml::String& text) override;

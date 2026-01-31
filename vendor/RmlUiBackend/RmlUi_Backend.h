@@ -61,8 +61,16 @@ bool ShouldWindowClose(GLFWwindow* window);
 GLFWwindow* GetMainWindow();
 // Associate a RmlUi context and key callback with a specific window.
 void AttachContext(GLFWwindow* window, Rml::Context* context, KeyDownCallback key_down_callback = nullptr);
+
+Rml::Vector2i GetWindowSize(GLFWwindow* window);
+Rml::Vector2i GetWindowPos(GLFWwindow *window);
+void SetWindowPos(GLFWwindow *window, Rml::Vector2i pos);
+
 // Closes windows and release all resources owned by the backend, including the system and render interfaces.
 void Shutdown();
+
+// 斷絕與 Rml 的關係（context、回調等）
+void OnRmlShutdown();
 
 // Returns a pointer to the custom system interface which should be provided to RmlUi.
 Rml::SystemInterface* GetSystemInterface();

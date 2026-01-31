@@ -1,0 +1,15 @@
+function(AddMiniaudioTarget)
+    find_path(MINIAUDIO_INCLUDE_DIRS "miniaudio.h")
+    if(NOT MINIAUDIO_INCLUDE_DIRS)
+        message(FATAL_ERROR "miniaudio.h not found")
+    endif()
+    add_library(Miniaudio INTERFACE)
+    target_include_directories(Miniaudio INTERFACE ${MINIAUDIO_INCLUDE_DIRS})
+
+    if(UNIX)
+        find_package(Threads REQUIRED)
+        target_link_libraries(Miniaudio INTERFACE ${CMAKE_DL_LIBS} Threads::Threads)
+    endif()
+
+    add_library(corrected_targets::Miniaudio ALIAS Miniaudio)
+endfunction()

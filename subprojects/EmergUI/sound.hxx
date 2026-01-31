@@ -1,0 +1,6 @@
+#ifndef NANOLIVELENS_EMERG_UI_SOUND_HXX
+#define NANOLIVELENS_EMERG_UI_SOUND_HXX
+
+void crashSound();
+
+#endif

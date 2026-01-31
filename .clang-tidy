@@ -1,0 +1,2 @@
+WarningsAsErrors: on
+Checks: 'bugprone-*,clang-analyzer-*,cppcoreguidelines-*,modernize-*,-modernize-use-trailing-return-type,-bugprone-easily-swappable-parameters,-cppcoreguidelines-avoid-magic-numbers'

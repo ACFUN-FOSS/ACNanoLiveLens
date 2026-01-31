@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 创建库
 add_library(rmlui_win
-    private/window_manager.cpp
+    private/window_manager.cxx
 )
 
 # 链接依赖
@@ -18,6 +18,8 @@ target_link_libraries(rmlui_win
     RmlUi::RmlUi
     glfw
     Microsoft.GSL::GSL
+	PUBLIC
+	EatiEssentials
 )
 
 # 导出头文件

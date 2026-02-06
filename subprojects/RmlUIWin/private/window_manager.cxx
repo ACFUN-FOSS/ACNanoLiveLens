@@ -63,18 +63,29 @@ static bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdenti
         // We arrive here when no priority keys are detected and the key was not consumed by the context. Check for shortcuts of lower priority.
         if (key == Rml::Input::KI_R && key_modifier & Rml::Input::KM_CTRL)
         {
-            std::cout << "Reloading RML: ";
+            std::cout << "RML reloading candidate: ";
+            for (int i = 0; i < context->GetNumDocuments(); i++) {
+                Rml::ElementDocument* document = context->GetDocument(i);
+                const Rml::String& src = document->GetSourceURL();
+                std::cout << src << ' ';
+                if (src.size() > 4 && src.substr(src.size() - 4) == ".rml")
+                    std::cout << " -- YES";
+                else
+                    std::cout << " -- NO";
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+
             for (int i = 0; i < context->GetNumDocuments(); i++)
             {
                 Rml::ElementDocument* document = context->GetDocument(i);
                 const Rml::String& src = document->GetSourceURL();
                 if (src.size() > 4 && src.substr(src.size() - 4) == ".rml")
                 {
+                    std::println("Reloading: {}", src);
                     document->ReloadStyleSheet();
-                    std::cout << src << ' ';
                 }
             }
-            std::cout << std::endl;
         }
         else
         {

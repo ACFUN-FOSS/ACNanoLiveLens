@@ -7,15 +7,15 @@
 #include <string>
 #include <sstream>
 #include <type_traits>
-#include <gsl/gsl>
+#include <cstdint>
 
 namespace Essentials::Misc
 {
 
 template <typename T>
-concept TypeCanConvertToAddr = std::is_convertible_v<T, void *>;
+concept AddrLike = std::is_convertible_v<T, void *>;
 
-template <TypeCanConvertToAddr T>
+template <AddrLike T>
 std::string ptrToHex(T ptr) {
     std::stringstream ss;
     ss << std::hex << static_cast<void *>(ptr);

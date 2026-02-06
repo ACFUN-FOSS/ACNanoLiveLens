@@ -62,7 +62,7 @@
 
 // Determines the anti-aliasing quality when creating layers. Enables better-looking visuals, especially when transforms are applied.
 #ifndef RMLUI_NUM_MSAA_SAMPLES
-	#define RMLUI_NUM_MSAA_SAMPLES 2
+	#define RMLUI_NUM_MSAA_SAMPLES 16
 #endif
 
 #define MAX_NUM_STOPS 16
@@ -909,8 +909,6 @@ void RenderInterface_GL3::BeginFrame()
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
 	glDisable(GL_DEPTH_TEST);
-
-	glEnable(GL_MULTISAMPLE); // Enable multisampling
 
 	SetTransform(nullptr);
 

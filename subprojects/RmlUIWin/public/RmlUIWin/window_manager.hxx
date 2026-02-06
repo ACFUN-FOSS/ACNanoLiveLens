@@ -94,6 +94,8 @@ public:
 
     [[nodiscard]] UiWin *getWinOfElement(const Rml::Element &element) const;
 
+	std::vector<std::function<void()>> reloadCbs;
+
 
 private:
     std::vector<std::unique_ptr<UiWin>> wins_;

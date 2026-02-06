@@ -18,10 +18,14 @@
 #include "custom_elements.hxx"
 #include "platform/crash_handler.hxx"
 
+#include <EatiEssentials/io.hxx>
+
+
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
+using namespace Essentials::IO;
 
-void rmluiMain() {
+static void rmluiMain() {
     RmlUISystem rmlui{ *Backend::GetSystemInterface(), *Backend::GetRenderInterface() };
 
     // 載入字體
@@ -45,12 +49,16 @@ void rmluiMain() {
 
 		auto &mainWinRootEle = UNWRAP(mainWin->getContext().GetRootElement());
 		SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
-		mainWinRootEleEventMan.on("test-btn-1", "click", [](auto &&_) {
-			assert(false);
+		mainWinRootEleEventMan.on("test-btn-1", "click", [&](auto &&_) {
+			//assert(false);
+			UNWRAP(findChildOrSelfById(&mainWinRootEle, "winframe"))
+				.SetInnerRML(readFile(getAssetsDir() / "winframe.rml"));
 		});
-		mainWinRootEleEventMan.on("test-btn-2", "click", [](auto&& _) {
+		mainWinRootEleEventMan.on("test-btn-2", "click", [](auto &&_) {
 			Essentials::Special::callNullptr();
 		});
+
+		//auto d = reinterpret_cast<char *>(3);	// test core guidelines chcker
 
         // 使用std::move將窗口所有權轉移給管理器
         winMan.transferWin(std::move(mainWin));

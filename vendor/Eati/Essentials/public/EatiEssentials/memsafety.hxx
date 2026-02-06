@@ -11,20 +11,26 @@ namespace Essentials::Memory
 
 // Lifetimebound attribute
 #if defined(_MSC_VER) // MSVC
+#ifndef __clang__   // Ignore for clang-based tools
 #define LIFETIMEBOUND [[msvc::lifetimebound]]
 #include <CppCoreCheck/Warnings.h>
 #pragma warning(default: CPPCORECHECK_LIFETIME_WARNINGS) // Enable lifetimebound warnings
+#endif  // __clang__
 
-#elif defined(__clang__) // Clang
+#elif defined(__GNUC__) // GCC
+#ifndef __clang__   // Ignore for clang-based tools
 #define LIFETIMEBOUND [[clang::lifetimebound]]
+#endif  // __clang__
 
-#elif defined(__GNUC__)
-#define LIFETIMEBOUND
-
-#else
+#elif defined(__clang__)
 #define LIFETIMEBOUND
 
 #endif
+
+#ifndef LIFETIMEBOUND
+#define LIFETIMEBOUND
+#endif
+
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define C_MOVE(x) x
@@ -42,16 +48,18 @@ namespace Essentials::Memory
 #endif
 */
 
+// TODO: Replace macro to function template?
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define UNWRAP(x) \
-    [](auto ptr) -> decltype(*ptr)&{ \
+    [](auto ptr) -> decltype(*ptr) & { \
         assert(ptr != nullptr && "Null pointer dereference"); \
         return *ptr; \
     }(x)
 
+// TODO: Replace macro to function template?
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define EXCEPT(x, failMsg) \
-	[&](auto ptr) -> decltype(*ptr)&{ \
+	[&](auto ptr) -> decltype(*ptr) & { \
 		std::string msg = failMsg; \
 		if (!ptr) { \
 			std::println(std::cerr, "EXCEPT failed: {}", msg); \

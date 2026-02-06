@@ -2,7 +2,10 @@
 
 #include <print>
 #include <iostream>
+#include <algorithm>
 #include <RmlUI/Core/Geometry.h>
+
+#include "defs.h"
 
 ElementNotFoundErr::ElementNotFoundErr(std::string_view elementId)
     : std::runtime_error{
@@ -84,12 +87,61 @@ void SimpleEventListener::ProcessEvent(Rml::Event &event) {
 	callback_(event);
 }
 
+std::function<void(Rml::Event &)> &SimpleEventListener::getCallback() {
+	return callback_;
+}
 
-SimpleEventListenerManager::SimpleEventListenerManager(Rml::Element &element)
+
+SimpleEventListenerManager::SimpleEventListenerManager(Rml::Element &element LIFETIMEBOUND)
     : element_{ &element } { }
 
+
+bool SimpleEventListenerManager::BindingRecord::operator==(const BindingRecord &other) const {
+	return childElementId == other.childElementId && event == other.event;
+}
+
+size_t SimpleEventListenerManager::BindingRecord::Hasher::operator()(const BindingRecord &record) const {
+	size_t h1 = std::hash<std::string_view>{ }(record.childElementId);
+	size_t h2 = std::hash<std::string_view>{ }(record.event);
+	return h1 ^ (h2 << 1);
+}
+
+SimpleEventListenerManager::~SimpleEventListenerManager() {
+	for (auto &[regRec, listenerBox] : eventListeners_) {
+		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
+
+		if (!childElementPtr)
+			continue;
+		childElementPtr->RemoveEventListener(regRec.event, &*listenerBox);
+	}
+	eventListeners_.clear();
+}
+
 void SimpleEventListenerManager::on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback) {
+	BindingRecord regRec {
+		std::string{ childElementId },
+		std::string{ event }
+	};
+	
+	// 检查针对特定元素、特定事件的回调绑定是否已经存在
+	auto callbackResistered = eventListeners_.find(regRec) != eventListeners_.end();
+
+	if (callbackResistered)
+		return;
+
     auto &childElement = EXCEPT(findChildOrSelfById(element_, childElementId), std::format("找不到子元素 '{}'", childElementId));
-	eventListeners_.emplace_back(newBox(SimpleEventListener{ callback }));
-    childElement.AddEventListener(std::string{ event }, &*eventListeners_.back());
+
+	auto it = eventListeners_.emplace(regRec, newBox(SimpleEventListener{ callback }));
+
+    childElement.AddEventListener(std::string{ event }, &*it.first->second);
+}
+
+
+TestListener::TestListener(Rml::Element *element)
+	: element{ element } { }
+
+void TestListener::ProcessEvent(Rml::Event &event) {
+	if (event.GetId() == Rml::EventId::Mousedown) {
+		std::cout << "TestListener. element clicked. addr = " << element << std::endl;
+	}
 }

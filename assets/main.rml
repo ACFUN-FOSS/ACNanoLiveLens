@@ -4,9 +4,9 @@
     <link type="text/rcss" href="main.rcss"/>
 </head>
 <body>
-    <winframe>
-		<div class="content">
-			<p>This is the primary window.</p>
+    <winframe id="winframe">
+		<div class="content" id="content">
+			<p>This is the primary wdasdfindow.</p>
 			<br></br>
 			<p>This is the primary window.</p>
 			<br></br>

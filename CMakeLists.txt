@@ -9,14 +9,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati/CorrectedCmakeTargetForThirdpartyLibs/)
 include(MiniaudioCorrectedTarget)
-
-add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
-add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+include(FetchContent)
 
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     # Require a unified runtime output directory.
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 endif()
+
+# == Compiler settings ================
+add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:anglebrackets>")
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:W0>")
+
 
 # == Dependencies ==========================
 find_package(Boost REQUIRED COMPONENTS dll stacktrace_from_exception)
@@ -26,17 +31,26 @@ find_package(RmlUi CONFIG REQUIRED)
 find_package(portaudio CONFIG REQUIRED)
 add_subdirectory(vendor/RmlUiBackend)
 
+# Import EatiEssentials via FetchContent in order to allow other dependencies
+# require EatiEssentials with `find_package(EatiEssentials)` (if there are)
+# e.g.:
+#
+# find_package(EatiEssentials CONFIG REQUIRED COMPONENT CodeCvt)
+# EatiEssentials_EnsureReallyHasComponents(CodeCvt)
 set(EESS_ENABLE_CODECVT ON)
-set(EESS_ENABLE_MEMSAFETY ON)
-add_subdirectory(vendor/Eati/Essentials)
+FetchContent_Declare(
+    EatiEssentials
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/Eati/Essentials
+    OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(EatiEssentials)
 
 Dep_AddBoostStacktraceImplLib()
 find_package(boost_stacktrace_from_exception CONFIG REQUIRED)
 
 AddMiniaudioTarget()
 set(SOLOUD_DEP_MINIAUDIO_TARGET corrected_targets::Miniaudio)
-add_subdirectory(vendor/Hs/soloud/contrib/simple_with_miniaudio)
-
+add_subdirectory(vendor/Hs/soloud/contrib/simple_with_miniaudio SYSTEM)
 add_subdirectory(vendor/Hs/Soloudpp)
 
 # == Subprojects ============================
@@ -89,10 +103,15 @@ target_link_libraries(nanolivelens
     Boost::stacktrace_from_exception
     Boost::dll
     EatiEssentials
-    EatiEssentials::MemSafety
     corrected_targets::Miniaudio
     Hs::Soloudpp
 	nanolivelens::emergui_api
+)
+
+set_target_properties(nanolivelens PROPERTIES
+	VS_GLOBAL_EnableCppCoreCheck true
+	VS_GLOBAL_CodeAnalysisRuleSet CppCoreCheckRules.ruleset
+	VS_GLOBAL_RunCodeAnalysis true
 )
 
 if(NLLENS_ASSETS_DIR_OVERRIDE)

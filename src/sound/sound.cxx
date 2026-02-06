@@ -3,7 +3,7 @@
 #include <gsl/gsl>
 #include <span>
 #include <Soloudpp/Soloud.hxx>
-#include <EatiEssentials/container_and_view.hxx>
+#include <../../vendor/Eati/Essentials/public/EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx>
 
 using namespace Holoop;
 using namespace Essentials::ContainerAndView;

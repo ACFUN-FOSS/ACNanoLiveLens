@@ -1,14 +1,11 @@
-<rml>
+<div class="winframe-internal-content" id="winframe-internal-content">
+	<div class="title-bar" id="title-bar">
+		<span class="title-text">Winddow</span>
 
-<div class="winframe-content" id="winframe-content">
-    <div class="title-bar" id="title-bar" data-model="winframe-model">
-        <span class="title-text">Window</span>
-        
-        <div class="title-bar-btns">
-            <button id="close-btn" class="title-bar-btn close-btn" onclick="onButtonClick">
-                <svg src="close-circle-svgrepo-com.svg"></svg>
-            </button>
-        </div>
-    </div>
+		<div class="title-bar-btns">
+			<div id="close-btn" class="title-bar-btn close-btn">
+				<svg src="close-circle-svgrepo-com.svg"></svg>
+			</div>
+		</div>
+	</div>
 </div>
-</rml>

@@ -1,13 +1,25 @@
 #ifndef NANOLIVELENS_RMLUIPP_HXX
 #define NANOLIVELENS_RMLUIPP_HXX
 #include <RmlUi/Core/EventListener.h>
+
 #include <concepts>
 #include <string_view>
+#include <stdexcept>
+#include <tuple>
+#include <utility>
+#include <functional>
+#include <vector>
+#include <unordered_map>
+
 #include <EatiEssentials/memsafety.hxx>
 #include <EatiEssentials/memory.hxx>
 #include <RmlUi/Core/Element.h>
 #include <RmlUi_Platform_GLFW.h>
 #include <gsl/gsl>
+#include <RmlUi/Core/Event.h>
+
+
+
 
 
 class ElementNotFoundErr : public std::runtime_error
@@ -39,6 +51,8 @@ public:
 
 	void ProcessEvent(Rml::Event &event) override;
 
+	std::function<void(Rml::Event &)> &getCallback();
+
 private:
     std::function<void(Rml::Event &)> callback_;
 };
@@ -47,12 +61,42 @@ private:
 class SimpleEventListenerManager
 {
 public:
+
+	struct BindingRecord
+	{
+		std::string childElementId;
+		std::string event;
+
+		bool operator==(const BindingRecord &other) const;
+
+		struct Hasher
+		{
+			size_t operator()(const BindingRecord &record) const;
+		};
+	};
+
     SimpleEventListenerManager(Rml::Element &element LIFETIMEBOUND);
+	~SimpleEventListenerManager();
 
     void on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback);
+
+
 private:
     gsl::not_null<Rml::Element *> element_;
-    std::vector<ESSM::Box<SimpleEventListener>> eventListeners_;
+
+	std::unordered_map<BindingRecord, ESSM::Box<SimpleEventListener>, BindingRecord::Hasher> eventListeners_;
+
+};
+
+
+class TestListener : public Rml::EventListener
+{
+	Rml::Element *element = nullptr;
+
+public:
+	void ProcessEvent(Rml::Event &event) override;
+
+	TestListener(Rml::Element *element);
 };
 
 

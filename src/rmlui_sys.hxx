@@ -1,8 +1,11 @@
 #ifndef NANOLIVELENS_RMLUISYSTEM_HXX
 #define NANOLIVELENS_RMLUISYSTEM_HXX
+#include <string_view>
+
 #include <RmlUi/Core/RenderInterface.h>
 #include <RmlUi/Core/SystemInterface.h>
 #include <RmlUi/Core/ElementInstancer.h>
+
 #include <EatiEssentials/memory.hxx>
 
 class RmlUISystem

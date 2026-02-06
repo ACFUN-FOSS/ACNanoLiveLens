@@ -1,11 +1,17 @@
 #include "EmergUI/crash_dlg.hxx"
-#include "sound.hxx"
+
 #include <cassert>
+#include <string_view>
+#include <tuple>
+#include <string>
+
 #include <glfw/glfw3.h>
 #include <ui.h>
 
+#include "sound.hxx"
 
-std::string_view crashReason2Str(const CrashReason reason) {
+
+static std::string_view crashReason2Str(const CrashReason reason) {
 	switch (reason) {
 		case CrashReason::UNHANDLED_EXCP:
 		return "应用程序#遇到#错误，#不能#继续#运行。";
@@ -18,10 +24,11 @@ std::string_view crashReason2Str(const CrashReason reason) {
 			"应用程序#陷入#意外状态，#继续#执行#将#导致#不可控#的#行为#——#已#自我#了结。";
 		default:
 		assert(false && "???");
+		return "";
 	}
 }
 
-std::tuple<float, float> calcCrashDlgSize() {
+static std::tuple<float, float> calcCrashDlgSize() {
 	float xScale = 1, yScale = 1;
 	if (auto primaryMonitor = glfwGetPrimaryMonitor()) {
 		glfwGetMonitorContentScale(primaryMonitor, &xScale, &yScale);
@@ -30,7 +37,7 @@ std::tuple<float, float> calcCrashDlgSize() {
 	return { xScale * 500, yScale * 700 };
 }
 
-void wrapTextToLinesAndAddToVbox(uiBox &uiBox, std::string_view text) {
+static void wrapTextToLinesAndAddToVbox(uiBox &uiBox, std::string_view text) {
 	// 斷行。#是唯一的斷行點。
 	constexpr size_t maxLineBytes = 110;
 	constexpr char breakableChar = '#';

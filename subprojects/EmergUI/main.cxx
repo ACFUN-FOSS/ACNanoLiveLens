@@ -13,6 +13,7 @@ void crashDlg(const CrashDlgData data);
 int main(int argc, char *argv[]) {
 #ifdef WIN32
 	SetProcessDPIAware();
+	system("chcp 65001");
 #endif
 
 	try {
@@ -44,6 +45,7 @@ int main(int argc, char *argv[]) {
 			//uiMsgBoxError(win, "建议远离当前设备。", "");
 			auto text = 
 				#include "quran.inc"
+			std::cerr << text << std::endl;
 			uiMsgBoxError(win, "", text);
 		}
 	} catch (const std::exception &ex) {

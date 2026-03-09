@@ -70,7 +70,7 @@ add_executable(nanolivelens
     src/assets.cxx
 	src/utils.cxx
     src/appstate.cxx
-)
+ "src/safe_element_instancer.cxx")
 target_include_directories(nanolivelens PRIVATE src)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND MSVC)

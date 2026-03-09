@@ -3,11 +3,12 @@
 //
 
 #include "winframe.hxx"
+#include "safe_element_instancer.hxx"
 
 #include <print>
 #include <RmlUi/Core/Factory.h>
 #include <RmlUi/Core/Event.h>
-#include <RmlUi\Core\ElementInstancer.h>
+#include <RmlUi/Core\ElementInstancer.h>
 #include <EatiEssentials/memory.hxx>
 #include <EatiEssentials/memsafety.hxx>
 #include <EatiEssentials/misc.hxx>
@@ -41,6 +42,8 @@ WinFrame::WinFrame(const std::string_view tag)
 	//myelePtr->AddEventListener(Rml::EventId::Mousedown, &testListener);
 
 	bindEventHandlers();
+
+	//throw std::runtime_error{ "Test excption" };
 }
 
 WinFrame::~WinFrame() {
@@ -48,49 +51,65 @@ WinFrame::~WinFrame() {
 }
 
 void WinFrame::reg(RmlUISystem &rmlui) {
-    rmlui.regElement("winframe", newBox(Rml::ElementInstancerGeneric<WinFrame>{}));
+    rmlui.regElement("winframe", newBox(SafeElementInstancer<WinFrame>{}));
 }
 
 
 void WinFrame::OnUpdate() {
 	//printElementTree(*this);
 	//triggerDebugger();
-	if (!firstInited) {
-		initAfterConstruct();
-		firstInited = true;
-	}
+	try {
+		if (!firstInited) {
+			initAfterConstruct();
+			firstInited = true;
+		}
 
-	// drag
-	if (isDragging_) {
-		std::println("DRAG: {}", ptrToHex(this));
-		auto &win = UNWRAP(getAppState().winManager.getWinOfElement(*this));
-		
-		auto deltaMousePos = win.getMousePos() - mousePosWhenBeginDrag_;
-		win.setWinPos(win.getWinPos() + deltaMousePos);
+		// drag
+		if (isDragging_) {
+			std::println("DRAG: {}", ptrToHex(this));
+			auto &win = UNWRAP(getAppState().winManager.getWinOfElement(*this));
+			
+			auto deltaMousePos = win.getMousePos() - mousePosWhenBeginDrag_;
+			win.setWinPos(win.getWinPos() + deltaMousePos);
+		}
+
+		// TODO: Call child class OnUpdate here
+	}
+	catch (...) {
+		// Failure in update should not propagate into Rml.
+		std::println("WinFrame::OnUpdate caught exception");
+		// disable further processing
+		isDragging_ = false;
 	}
 }
 
 
 void WinFrame::ProcessDefaultAction(Rml::Event &event) {
 	//dbgLog(event);
+	try {
+		// 为啥检测个按键要这么复杂？？！
+		if (event.GetId() == EventId::Keydown &&
+			event.GetParameter<Rml::Input::KeyIdentifier>("key_identifier", Rml::Input::KeyIdentifier::KI_FINAL)
+			== Rml::Input::KeyIdentifier::KI_F6) {
+			reload();
 
-	// 为啥检测个按键要这么复杂？？！
-	if (event.GetId() == EventId::Keydown &&
-		event.GetParameter<Rml::Input::KeyIdentifier>("key_identifier", Rml::Input::KeyIdentifier::KI_FINAL)
-		== Rml::Input::KeyIdentifier::KI_F6) {
-		reload();
+			// 重新加载样式表时，RmlUI 会创建一个临时的本类对象，然后丢弃不用，有点迷。
+			GetOwnerDocument()->ReloadStyleSheet();
+		}
 
-		// 重新加载样式表时，RmlUI 会创建一个临时的本类对象，然后丢弃不用，有点迷。
-		GetOwnerDocument()->ReloadStyleSheet();
+		if (event.GetId() == EventId::Keydown &&
+			event.GetParameter<Rml::Input::KeyIdentifier>("key_identifier", Rml::Input::KeyIdentifier::KI_FINAL)
+			== Rml::Input::KeyIdentifier::KI_F7) {
+			std::println("self: {}", ptrToHex(this));
+		}
+
+		// TODO: Call child class ProcessDefaultAction here
+
+		Element::ProcessDefaultAction(event);
 	}
-
-	if (event.GetId() == EventId::Keydown &&
-		event.GetParameter<Rml::Input::KeyIdentifier>("key_identifier", Rml::Input::KeyIdentifier::KI_FINAL)
-		== Rml::Input::KeyIdentifier::KI_F7) {
-		std::println("self: {}", ptrToHex(this));
+	catch (...) {
+		std::println("WinFrame::ProcessDefaultAction caught exception");
 	}
-
-	Element::ProcessDefaultAction(event);
 }
 
 
@@ -134,4 +153,6 @@ void WinFrame::bindEventHandlers() {
 		dbgLog("Drag end");
 		isDragging_ = false;
 	});
+
+	// TODO: bind child class event handlers here
 }

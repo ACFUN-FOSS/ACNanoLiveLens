@@ -1,25 +1,12 @@
-#include <RmlUIWin/window_manager.hxx>
-#include <RmlUi_Backend.h>
-#include <RmlUi/Debugger.h>
-#include <EatiEssentials/memory.hxx>
-#include <EatiEssentials/memsafety.hxx>
-#include <EatiEssentials/special.hxx>
-
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
-
-#include "appstate.hxx"
-#include "sound/sound.hxx"
 #include "assets.hxx"
-#include "rmluipp.hxx"
-#include "rmlui_sys.hxx"
-#include "custom_elements.hxx"
+#include "appstate.hxx"
 #include "platform/crash_handler.hxx"
-
-#include <EatiEssentials/io.hxx>
-
+#include "sound/sound.hxx"
+#include "rmlui_sys.hxx"
+#include "rmluipp.hxx"
+#include "RmlUIWin/window_manager.hxx"
+#include "custom_elements.hxx"
+#include "rmlui_element.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -38,6 +25,29 @@ static void rmluiMain() {
     {
         // 使用窗口管理器管理所有窗口
         auto &winMan = getAppState().winManager;
+
+        RmlUIWin::onReloadTriggered = [](Rml::Context &context) {
+            playSound(Sound::RELOAD);
+            auto children = getAllChildrenRecursively(UNWRAP(context.GetRootElement()));
+
+
+            auto windowEles = [&]() {
+                std::vector<Refw<RmlUIElement>> windowEles;
+                for (auto &child : children) {
+                    if (auto ele = dynamic_cast<RmlUIElement *>(&child.get())) {
+                        if (ele->getIsWindowElement())
+                            windowEles.emplace_back(UNWRAP(ele));
+                    }
+                }
+                return windowEles;
+            }();
+
+            for (auto &child : windowEles) {
+				child.get().reload();
+            }
+        };
+
+
 
         // 第一個窗口使用主窗口（在 Backend::Initialize 時已創建）
         // 主窗口創建時大小忽略傳入的大小

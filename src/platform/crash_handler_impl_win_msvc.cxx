@@ -1,11 +1,4 @@
 #include "crash_handler.hxx"
-#include <iostream>
-#include <print>
-#include <string>
-#include <algorithm>
-#include <iterator>
-#include <vector>
-#include <print>
 #include <boost/stacktrace.hpp>
 #include "EmergUI/emerg_ui.hxx"
 #include "EmergUI/crash_dlg.hxx"

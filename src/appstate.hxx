@@ -1,6 +1,6 @@
 #ifndef NANOLIVELENS_APPSTATE_HXX
 #define NANOLIVELENS_APPSTATE_HXX
-#include <RmlUIWin/window_manager.hxx>
+#include "RmlUIWin/window_manager.hxx"
 
 struct AppState
 {

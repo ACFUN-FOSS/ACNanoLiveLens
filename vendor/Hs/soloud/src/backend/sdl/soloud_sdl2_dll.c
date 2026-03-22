@@ -25,7 +25,7 @@ freely, subject to the following restrictions:
 
 #include <stdlib.h>
 #if defined(_MSC_VER)
-#define WINDOWS_VERSION
+#define SOLOUD_WINDOWS_VERSION
 #endif
 #include "SDL.h"
 #include <math.h>
@@ -48,7 +48,7 @@ static SDL2_OpenAudioDevice_t SDL2_OpenAudioDevice = NULL;
 static SDL2_CloseAudioDevice_t SDL2_CloseAudioDevice = NULL;
 static SDL2_PauseAudioDevice_t SDL2_PauseAudioDevice = NULL;
 
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 #include <windows.h>
 
 static HMODULE sdl2_openDll()
@@ -83,7 +83,7 @@ static void* sdl2_getDllProc(void * aLibrary, const char *aProcName)
 
 static int sdl2_load_dll()
 {
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 	HMODULE dll = NULL;
 #else
 	void * dll = NULL;

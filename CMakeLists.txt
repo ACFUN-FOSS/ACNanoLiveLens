@@ -59,6 +59,7 @@ add_subdirectory(subprojects/EmergUI)
 
 # == Targets ================================
 add_executable(nanolivelens
+    src/stdafx.cpp
     src/main.cpp
     src/winframe.cxx
     src/custom_elements.cxx
@@ -70,8 +71,13 @@ add_executable(nanolivelens
     src/assets.cxx
 	src/utils.cxx
     src/appstate.cxx
- "src/safe_element_instancer.cxx")
+    src/safe_element_instancer.cxx
+    src/rmlui_element.cxx
+ )
 target_include_directories(nanolivelens PRIVATE src)
+
+# 配置预编译头文件
+target_precompile_headers(nanolivelens PRIVATE src/stdafx.h)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND MSVC)
     target_sources(nanolivelens PRIVATE

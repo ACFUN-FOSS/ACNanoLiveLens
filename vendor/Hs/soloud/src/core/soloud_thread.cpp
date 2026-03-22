@@ -38,7 +38,7 @@ namespace SoLoud
 {
 	namespace Thread
 	{
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
         struct ThreadHandleData
         {
             HANDLE thread;

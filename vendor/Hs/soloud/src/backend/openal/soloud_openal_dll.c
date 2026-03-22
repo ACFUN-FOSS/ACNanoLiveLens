@@ -36,7 +36,7 @@ freely, subject to the following restrictions:
 #endif
 
 #if defined(_MSC_VER)
-#define WINDOWS_VERSION
+#define SOLOUD_WINDOWS_VERSION
 #endif
 
 #ifdef SOLOUD_STATIC_OPENAL
@@ -98,7 +98,7 @@ static al_DeleteBuffers dAlDeleteBuffers;
 static al_GenSources dAlGenSources;
 static al_DeleteSources dAlDeleteSources;
 
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 #include <windows.h>
 
 static HMODULE oal_openDll()
@@ -132,7 +132,7 @@ static void* oal_getDllProc(HMODULE aLibrary, const char *aProcName)
 
 static int oal_load_dll()
 {
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 	HMODULE dll = NULL;
 #else
 	void * dll = NULL;

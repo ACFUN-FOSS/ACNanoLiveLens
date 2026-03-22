@@ -1,26 +1,6 @@
 #ifndef NANOLIVELENS_RMLUIPP_HXX
 #define NANOLIVELENS_RMLUIPP_HXX
-#include <RmlUi/Core/EventListener.h>
-
-#include <concepts>
-#include <string_view>
-#include <stdexcept>
-#include <tuple>
-#include <utility>
-#include <functional>
-#include <vector>
-#include <unordered_map>
-
-#include <EatiEssentials/memsafety.hxx>
-#include <EatiEssentials/memory.hxx>
-#include <RmlUi/Core/Element.h>
-#include <RmlUi_Platform_GLFW.h>
-#include <gsl/gsl>
-#include <RmlUi/Core/Event.h>
-
-
-
-
+#include "RmlUi_Platform_GLFW.h"
 
 class ElementNotFoundErr : public std::runtime_error
 {
@@ -40,6 +20,7 @@ void printElementTree(const Rml::Element &parent);
 
 Rml::Element *findParentOrSelfById(Rml::Element *child, const std::string_view id);
 Rml::Element *findChildOrSelfById(Rml::Element *parent, const std::string_view id);
+std::vector<ESSM::Refw<Rml::Element>> getAllChildrenRecursively(Rml::Element &parent);
 
 SystemInterface_GLFW &getSysItfc();
 
@@ -79,7 +60,7 @@ public:
 	~SimpleEventListenerManager();
 
     void on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback);
-
+	void clear();
 
 private:
     gsl::not_null<Rml::Element *> element_;

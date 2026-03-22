@@ -15,7 +15,9 @@ using namespace Essentials::Misc;
 namespace RmlUIWin
 {
 
-static bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) {
+std::function<void(Rml::Context &)> onReloadTriggered;
+
+bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) {
     if (!context)
         return true;
 
@@ -86,6 +88,8 @@ static bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdenti
                     document->ReloadStyleSheet();
                 }
             }
+            if (onReloadTriggered)
+                onReloadTriggered(*context);
         }
         else
         {
@@ -243,6 +247,14 @@ void UiWin::render() const {
     auto it = std::ranges::find_if(
         wins_,
         [&](const auto& win) { return &win->getContext() == element.GetContext(); }
+    );
+    return it != wins_.end() ? it->get() : nullptr;
+}
+
+[[nodiscard]] UiWin *WinManager::getWinOfContext(const Rml::Context& context) const {
+    auto it = std::ranges::find_if(
+        wins_,
+        [&](const auto& win) { return &win->getContext() == &context; }
     );
     return it != wins_.end() ? it->get() : nullptr;
 }

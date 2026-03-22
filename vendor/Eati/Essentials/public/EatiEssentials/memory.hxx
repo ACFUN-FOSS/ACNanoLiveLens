@@ -10,15 +10,15 @@
 namespace Essentials::Memory
 {
 
-template<class T, class D = std::default_delete<T>>
+template <class T, class D = std::default_delete<T>>
 using Box = std::unique_ptr<T, D>;
 
-template<class T>
+template <class T>
 using Weak = std::weak_ptr<T>;
 
 #define makeBox std::make_unique
 
-template<class T>
+template <class T>
 Box<T> makeBoxA(gsl::owner<T *> ptr) {
 	return Box<T>(ptr);
 }
@@ -26,8 +26,11 @@ Box<T> makeBoxA(gsl::owner<T *> ptr) {
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define newBox(...) Essentials::Memory::makeBoxA(new __VA_ARGS__)
 
-template<class T>
+template <class T>
 using Rc = std::shared_ptr<T>;
+
+template <class T>
+using Refw = std::reference_wrapper<T>;
 
 template<class T>
 Rc<T> makeRcA(T *ptr) {

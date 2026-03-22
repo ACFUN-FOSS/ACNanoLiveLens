@@ -1,12 +1,6 @@
 #ifndef NANOLIVELENS_SAFE_ELEMENT_INSTANCER_HXX
 #define NANOLIVELENS_SAFE_ELEMENT_INSTANCER_HXX
 
-#include <RmlUi/Core/ElementInstancer.h>
-#include <RmlUi/Core/Element.h>
-
-#include <print>
-#include <exception>
-
 // A thin wrapper around Rml::ElementInstancerGeneric that catches exceptions thrown
 // by element constructors and returns a safe placeholder element instead. This
 // prevents exceptions from propagating through RmlUI internals.

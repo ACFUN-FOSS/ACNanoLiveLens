@@ -2,17 +2,18 @@
 #define NANOLIVELENS_PCH_H
 
 // 标准库头文件
-#include <string>
-#include <string_view>
+#include <chrono>
+#include <cstdint>
 #include <functional>
-#include <iostream>
-#include <ranges>
-#include <filesystem>
+#include <mutex>
+#include <optional>
 #include <print>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <variant>
 
-namespace stdf = std::filesystem;
-namespace stdr = std::ranges;
-namespace stdv = std::views;
+
 
 // EATI Essentials 头文件（EATI C++ 支持）
 #include <EatiEssentials/memory.hxx>
@@ -23,10 +24,12 @@ namespace stdv = std::views;
 
 // 第三方库头文件
 //#include <glad/glad.h>
-//#include <glfw/glfw3.h>
+//#include <glfw/glfw3.h>// 第三方库头文件
 #include <RmlUI/Core.h>
 #include <RmlUi_Backend.h>
-
 #include <Soloudpp/Soloud.hxx>
+#include <concurrencpp/concurrencpp.h>
+#include <httplib.h>
+#include <nlohmann/json.hpp>
 
 #endif

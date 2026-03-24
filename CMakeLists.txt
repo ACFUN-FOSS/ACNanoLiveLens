@@ -7,8 +7,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati/CorrectedCmakeTargetForThirdpartyLibs/)
+list(APPEND CMAKE_MODULE_PATH
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati/CorrectedCmakeTargetForThirdpartyLibs/
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati/Essentials/cmake/modules/eati_cmake_tools
+)
 include(MiniaudioCorrectedTarget)
+include(Dependencies)
 include(FetchContent)
 
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
@@ -29,6 +33,9 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(Microsoft.GSL CONFIG REQUIRED)
 find_package(RmlUi CONFIG REQUIRED)
 find_package(portaudio CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(concurrencpp CONFIG REQUIRED)
+fetch_header_only_library(https://raw.githubusercontent.com/yhirose/cpp-httplib/refs/heads/master/httplib.h httplib)
 add_subdirectory(vendor/RmlUiBackend)
 
 # Import EatiEssentials via FetchContent in order to allow other dependencies
@@ -73,6 +80,7 @@ add_executable(nanolivelens
     src/appstate.cxx
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
+    src/aclive_client.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
 
@@ -112,6 +120,9 @@ target_link_libraries(nanolivelens
     corrected_targets::Miniaudio
     Hs::Soloudpp
 	nanolivelens::emergui_api
+    nlohmann_json::nlohmann_json
+    concurrencpp::concurrencpp
+    httplib
 )
 
 set_target_properties(nanolivelens PROPERTIES

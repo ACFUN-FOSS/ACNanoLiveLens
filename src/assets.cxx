@@ -1,3 +1,5 @@
+#include "assets.hxx"
+
 stdf::path getAssetsDir() {
 #ifdef NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH
 	// 使用编译时定义的路径作为 assets 文件夹

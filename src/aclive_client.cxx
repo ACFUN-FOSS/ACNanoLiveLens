@@ -77,29 +77,29 @@ concurrencpp::result<void> AcliveClient::disconnectAsync()
 	co_await concurrencpp::resume_on(m_mainExecutor);
 }
 
-concurrencpp::result<LoginResp> AcliveClient::loginAsync(LoginReq req)
+concurrencpp::result<LoginResp> AcliveClient::loginAsync(const LoginReq& req)
 {
-	co_return co_await sendRequestAsync<LoginResp>(serializeToJson(req));
+	co_return co_await sendRequestAsync<LoginReq, LoginResp>(req);
 }
 
-concurrencpp::result<QrCodeLoginResp> AcliveClient::qrCodeLoginAsync(QrCodeLoginReq req)
+concurrencpp::result<QrCodeLoginResp> AcliveClient::qrCodeLoginAsync(const QrCodeLoginReq& req)
 {
-	co_return co_await sendRequestAsync<QrCodeLoginResp>(serializeToJson(req));
+	co_return co_await sendRequestAsync<QrCodeLoginReq, QrCodeLoginResp>(req);
 }
 
-concurrencpp::result<SetTokenResp> AcliveClient::setTokenAsync(SetTokenReq req)
+concurrencpp::result<SetTokenResp> AcliveClient::setTokenAsync(const SetTokenReq& req)
 {
-	co_return co_await sendRequestAsync<SetTokenResp>(serializeToJson(req));
+	co_return co_await sendRequestAsync<SetTokenReq, SetTokenResp>(req);
 }
 
-concurrencpp::result<GetDanmakuResp> AcliveClient::getDanmakuAsync(GetDanmakuReq req)
+concurrencpp::result<GetDanmakuResp> AcliveClient::getDanmakuAsync(const GetDanmakuReq& req)
 {
-	co_return co_await sendRequestAsync<GetDanmakuResp>(serializeToJson(req));
+	co_return co_await sendRequestAsync<GetDanmakuReq, GetDanmakuResp>(req);
 }
 
-concurrencpp::result<StopGetDanmakuResp> AcliveClient::stopGetDanmakuAsync(StopGetDanmakuReq req)
+concurrencpp::result<StopGetDanmakuResp> AcliveClient::stopGetDanmakuAsync(const StopGetDanmakuReq& req)
 {
-	co_return co_await sendRequestAsync<StopGetDanmakuResp>(serializeToJson(req));
+	co_return co_await sendRequestAsync<StopGetDanmakuReq, StopGetDanmakuResp>(req);
 }
 
 void AcliveClient::setDanmakuCallback(std::function<void(const DanmakuData&)> callback)
@@ -118,12 +118,16 @@ void AcliveClient::startHeartbeat()
 	m_heartbeatThread = std::jthread([this](std::stop_token stopToken) {
 		while (!stopToken.stop_requested() && m_isConnected)
 		{
-			nlohmann::json heartbeat;
-			heartbeat["type"] = 1;
+			struct HeartbeatMsg
+			{
+				int type = 1;
+			};
+
+			HeartbeatMsg heartbeat;
 
 			if (m_websocket && m_websocket->is_open())
 			{
-				m_websocket->send(heartbeat.dump());
+				m_websocket->send(rfl::json::write(heartbeat));
 			}
 
 			std::this_thread::sleep_for(m_config.heartbeatInterval);
@@ -163,7 +167,7 @@ void AcliveClient::onMessageReceived(const std::string& message)
 	try
 	{
 		auto json = nlohmann::json::parse(message);
-
+		// TODO: 根据 type 判断消息种类
 		if (json.contains("liverUID"))
 		{
 			handleDanmakuOrSignal(message);
@@ -183,8 +187,19 @@ void AcliveClient::handleResponse(const std::string& message)
 {
 	try
 	{
-		auto json = nlohmann::json::parse(message);
-		std::string requestID = json["requestID"];
+		struct PartialResponse
+		{
+			std::string requestID;
+		};
+
+		auto result = rfl::json::read<PartialResponse>(message);
+		if (!result)
+		{
+			std::println("Error parsing response: {}", result.error().what());
+			return;
+		}
+
+		std::string requestID = result.value().requestID;
 
 		std::lock_guard<std::mutex> lock(m_pendingRequestsMutex);
 		auto it = m_pendingRequests.find(requestID);
@@ -204,29 +219,36 @@ void AcliveClient::handleDanmakuOrSignal(const std::string& message)
 {
 	try
 	{
-		auto json = nlohmann::json::parse(message);
-
-		if (json.contains("liverUID") && json.contains("type"))
+		struct DanmakuOrSignalHeader
 		{
-			int64_t liverUID = json["liverUID"];
-			int type = json["type"];
+			int64_t liverUID;
+			int type;
+		};
 
-			if (type >= 1000 && type < 2000 && m_danmakuCallback)
-			{
-				DanmakuData danmaku;
-				danmaku.liverUID = liverUID;
-				danmaku.type = type;
-				danmaku.jsonData = message;
-				m_danmakuCallback(danmaku);
-			}
-			else if (type >= 2000 && m_signalCallback)
-			{
-				SignalData signal;
-				signal.liverUID = liverUID;
-				signal.type = type;
-				signal.jsonData = message;
-				m_signalCallback(signal);
-			}
+		auto result = rfl::json::read<DanmakuOrSignalHeader>(message);
+		if (!result)
+		{
+			std::println("Error parsing danmaku/signal: {}", result.error().what());
+			return;
+		}
+
+		auto& header = result.value();
+
+		if (header.type >= 1000 && header.type < 2000 && m_danmakuCallback)
+		{
+			DanmakuData danmaku;
+			danmaku.liverUID = header.liverUID;
+			danmaku.type = header.type;
+			danmaku.jsonData = message;
+			m_danmakuCallback(danmaku);
+		}
+		else if (header.type >= 2000 && m_signalCallback)
+		{
+			SignalData signal;
+			signal.liverUID = header.liverUID;
+			signal.type = header.type;
+			signal.jsonData = message;
+			m_signalCallback(signal);
 		}
 	}
 	catch (const std::exception& e)
@@ -235,4 +257,4 @@ void AcliveClient::handleDanmakuOrSignal(const std::string& message)
 	}
 }
 
-} 
+}

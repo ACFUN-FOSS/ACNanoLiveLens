@@ -31,5 +31,9 @@
 #include <concurrencpp/concurrencpp.h>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
+#include <rfl.hpp>
+#include <rfl/json.hpp>
+
+namespace stdf = std::filesystem;
 
 #endif

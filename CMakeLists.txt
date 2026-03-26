@@ -35,6 +35,7 @@ find_package(RmlUi CONFIG REQUIRED)
 find_package(portaudio CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(concurrencpp CONFIG REQUIRED)
+find_package(reflectcpp CONFIG REQUIRED)
 fetch_header_only_library(https://raw.githubusercontent.com/yhirose/cpp-httplib/refs/heads/master/httplib.h httplib)
 add_subdirectory(vendor/RmlUiBackend)
 
@@ -65,6 +66,7 @@ add_subdirectory(subprojects/RmlUIWin)
 add_subdirectory(subprojects/EmergUI)
 
 # == Targets ================================
+
 add_executable(nanolivelens
     src/stdafx.cpp
     src/main.cpp
@@ -123,6 +125,7 @@ target_link_libraries(nanolivelens
     nlohmann_json::nlohmann_json
     concurrencpp::concurrencpp
     httplib
+    reflectcpp::reflectcpp
 )
 
 set_target_properties(nanolivelens PROPERTIES

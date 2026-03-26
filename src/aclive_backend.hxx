@@ -15,21 +15,21 @@ struct AcliveBackendRespMeta
 template <int TYPE, typename T>
 struct AcliveBackendResp
 {
+	using data_type = T;
 	AcliveBackendRespMeta meta;
 	T data;
 
-	static int type;
+	static constexpr int type = TYPE;
 };
-
-template <int TYPE, typename T>
-int AcliveBackendResp<TYPE, T>::type = TYPE;
 
 struct HeartbeatReq
 {
+	static constexpr int type = 1;
 };
 
 struct LoginReq
 {
+	static constexpr int type = 2;
 	std::string account;
 	std::string password;
 };
@@ -43,6 +43,7 @@ using LoginResp = AcliveBackendResp<2, LoginRespBody>;
 
 struct SetClientIdReq
 {
+	static constexpr int type = 4;
 	std::string clientId;
 };
 
@@ -54,6 +55,7 @@ using SetClientIdResp = AcliveBackendResp<4, EmptyData>;
 
 struct SetTokenReq
 {
+	static constexpr int type = 5;
 	std::string token;
 };
 
@@ -65,12 +67,13 @@ using SetTokenResp = AcliveBackendResp<5, EmptyData>;
 
 struct QrCodeLoginReq
 {
+	static constexpr int type = 7;
 };
 
 struct QrCodeLoginRespBody
 {
 	std::string imageData;
-	std::chrono::steady_clock::time_point expireTime;
+	int64_t expireTime;
 };
 
 using QrCodeLoginResp = AcliveBackendResp<7, QrCodeLoginRespBody>;
@@ -89,6 +92,7 @@ using QrCodeLoginTerminatedResp = AcliveBackendResp<9, EmptyData>;
 
 struct GetDanmakuReq
 {
+	static constexpr int type = 100;
 	int64_t liveId;
 };
 
@@ -100,6 +104,7 @@ using GetDanmakuResp = AcliveBackendResp<100, EmptyData>;
 
 struct StopGetDanmakuReq
 {
+	static constexpr int type = 101;
 	int64_t liveId;
 };
 
@@ -111,6 +116,7 @@ using StopGetDanmakuResp = AcliveBackendResp<101, EmptyData>;
 
 struct LiveRoomAudienceListReq
 {
+	static constexpr int type = 102;
 	int64_t liveId;
 };
 
@@ -123,6 +129,7 @@ using LiveRoomAudienceListResp = AcliveBackendResp<102, LiveRoomAudienceListResp
 
 struct GiftContributionRankReq
 {
+	static constexpr int type = 103;
 	int64_t liveId;
 };
 
@@ -141,6 +148,7 @@ using GiftContributionRankResp = AcliveBackendResp<103, GiftContributionRankResp
 
 struct LiveSummaryReq
 {
+	static constexpr int type = 104;
 	int64_t liveId;
 };
 
@@ -155,6 +163,7 @@ using LiveSummaryResp = AcliveBackendResp<104, LiveSummaryRespBody>;
 
 struct GrabRedPacketResultReq
 {
+	static constexpr int type = 105;
 	int64_t liveId;
 	int64_t packetId;
 };
@@ -169,6 +178,7 @@ using GrabRedPacketResultResp = AcliveBackendResp<105, GrabRedPacketResultRespBo
 
 struct LiveReplayReq
 {
+	static constexpr int type = 106;
 	int64_t liveId;
 };
 
@@ -181,6 +191,7 @@ using LiveReplayResp = AcliveBackendResp<106, LiveReplayRespBody>;
 
 struct AllGiftListReq
 {
+	static constexpr int type = 107;
 };
 
 struct AllGiftListRespBody
@@ -199,6 +210,7 @@ using AllGiftListResp = AcliveBackendResp<107, AllGiftListRespBody>;
 
 struct AccountWalletReq
 {
+	static constexpr int type = 108;
 };
 
 struct AccountWalletRespBody
@@ -211,6 +223,7 @@ using AccountWalletResp = AcliveBackendResp<108, AccountWalletRespBody>;
 
 struct UserLiveInfoReq
 {
+	static constexpr int type = 109;
 	int64_t uid;
 };
 
@@ -226,6 +239,7 @@ using UserLiveInfoResp = AcliveBackendResp<109, UserLiveInfoRespBody>;
 
 struct LiveRoomListReq
 {
+	static constexpr int type = 110;
 };
 
 struct LiveRoomListRespBody
@@ -245,6 +259,7 @@ using LiveRoomListResp = AcliveBackendResp<110, LiveRoomListRespBody>;
 
 struct UploadImageReq
 {
+	static constexpr int type = 111;
 	std::string imageData;
 };
 
@@ -257,6 +272,7 @@ using UploadImageResp = AcliveBackendResp<111, UploadImageRespBody>;
 
 struct LiveStatisticsReq
 {
+	static constexpr int type = 112;
 	int64_t liveId;
 };
 
@@ -271,6 +287,7 @@ using LiveStatisticsResp = AcliveBackendResp<112, LiveStatisticsRespBody>;
 
 struct LiveScheduleListReq
 {
+	static constexpr int type = 113;
 };
 
 struct LiveScheduleListRespBody
@@ -279,7 +296,7 @@ struct LiveScheduleListRespBody
 	{
 		int64_t scheduleId;
 		std::string title;
-		std::chrono::system_clock::time_point startTime;
+		int64_t startTime;
 	};
 	std::vector<ScheduleInfo> schedules;
 };
@@ -288,6 +305,7 @@ using LiveScheduleListResp = AcliveBackendResp<113, LiveScheduleListRespBody>;
 
 struct LiveRoomGiftListReq
 {
+	static constexpr int type = 114;
 	int64_t liveId;
 };
 
@@ -308,6 +326,7 @@ using LiveRoomGiftListResp = AcliveBackendResp<114, LiveRoomGiftListRespBody>;
 
 struct UserInfoReq
 {
+	static constexpr int type = 115;
 	int64_t uid;
 };
 
@@ -323,6 +342,7 @@ using UserInfoResp = AcliveBackendResp<115, UserInfoRespBody>;
 
 struct LiveClipInfoReq
 {
+	static constexpr int type = 116;
 	int64_t liveId;
 };
 
@@ -335,6 +355,7 @@ using LiveClipInfoResp = AcliveBackendResp<116, LiveClipInfoRespBody>;
 
 struct ModeratorListReq
 {
+	static constexpr int type = 117;
 };
 
 struct ModeratorListRespBody
@@ -346,6 +367,7 @@ using ModeratorListResp = AcliveBackendResp<117, ModeratorListRespBody>;
 
 struct AddModeratorReq
 {
+	static constexpr int type = 118;
 	int64_t uid;
 };
 
@@ -357,6 +379,7 @@ using AddModeratorResp = AcliveBackendResp<118, EmptyData>;
 
 struct RemoveModeratorReq
 {
+	static constexpr int type = 119;
 	int64_t uid;
 };
 
@@ -368,6 +391,7 @@ using RemoveModeratorResp = AcliveBackendResp<119, EmptyData>;
 
 struct AnchorKickRecordReq
 {
+	static constexpr int type = 120;
 	int64_t liveId;
 };
 
@@ -378,7 +402,7 @@ struct AnchorKickRecordRespBody
 		int64_t uid;
 		std::string nickname;
 		std::string reason;
-		std::chrono::system_clock::time_point time;
+		int64_t time;
 	};
 	std::vector<KickRecord> records;
 };
@@ -387,6 +411,7 @@ using AnchorKickRecordResp = AcliveBackendResp<120, AnchorKickRecordRespBody>;
 
 struct ModeratorKickReq
 {
+	static constexpr int type = 121;
 	int64_t liveId;
 	int64_t uid;
 	std::string reason;
@@ -400,6 +425,7 @@ using ModeratorKickResp = AcliveBackendResp<121, EmptyData>;
 
 struct AnchorKickReq
 {
+	static constexpr int type = 122;
 	int64_t liveId;
 	int64_t uid;
 	std::string reason;
@@ -413,6 +439,7 @@ using AnchorKickResp = AcliveBackendResp<122, EmptyData>;
 
 struct UserGuardBadgeReq
 {
+	static constexpr int type = 123;
 	int64_t uid;
 };
 
@@ -432,6 +459,7 @@ using UserGuardBadgeResp = AcliveBackendResp<123, UserGuardBadgeRespBody>;
 
 struct UserGuardBadgeListReq
 {
+	static constexpr int type = 124;
 };
 
 struct UserGuardBadgeListRespBody
@@ -450,6 +478,7 @@ using UserGuardBadgeListResp = AcliveBackendResp<124, UserGuardBadgeListRespBody
 
 struct AnchorGuardRankReq
 {
+	static constexpr int type = 125;
 	int64_t liveId;
 };
 
@@ -468,6 +497,7 @@ using AnchorGuardRankResp = AcliveBackendResp<125, AnchorGuardRankRespBody>;
 
 struct UserWearingGuardBadgeReq
 {
+	static constexpr int type = 126;
 	int64_t uid;
 };
 
@@ -480,6 +510,7 @@ using UserWearingGuardBadgeResp = AcliveBackendResp<126, UserWearingGuardBadgeRe
 
 struct WearGuardBadgeReq
 {
+	static constexpr int type = 127;
 	int64_t badgeId;
 };
 
@@ -491,6 +522,7 @@ using WearGuardBadgeResp = AcliveBackendResp<127, EmptyData>;
 
 struct UnwearGuardBadgeReq
 {
+	static constexpr int type = 128;
 };
 
 struct UnwearGuardBadgeRespBody
@@ -501,6 +533,7 @@ using UnwearGuardBadgeResp = AcliveBackendResp<128, EmptyData>;
 
 struct CheckLivePermissionReq
 {
+	static constexpr int type = 129;
 };
 
 struct CheckLivePermissionRespBody
@@ -512,6 +545,7 @@ using CheckLivePermissionResp = AcliveBackendResp<129, CheckLivePermissionRespBo
 
 struct LiveCategoryListReq
 {
+	static constexpr int type = 130;
 };
 
 struct LiveCategoryListRespBody
@@ -528,6 +562,7 @@ using LiveCategoryListResp = AcliveBackendResp<130, LiveCategoryListRespBody>;
 
 struct StreamSettingsReq
 {
+	static constexpr int type = 131;
 };
 
 struct StreamSettingsRespBody
@@ -540,6 +575,7 @@ using StreamSettingsResp = AcliveBackendResp<131, StreamSettingsRespBody>;
 
 struct LiveStatusReq
 {
+	static constexpr int type = 132;
 	int64_t liveId;
 };
 
@@ -554,6 +590,7 @@ using LiveStatusResp = AcliveBackendResp<132, LiveStatusRespBody>;
 
 struct TranscodingInfoReq
 {
+	static constexpr int type = 133;
 };
 
 struct TranscodingInfoRespBody
@@ -565,6 +602,7 @@ using TranscodingInfoResp = AcliveBackendResp<133, TranscodingInfoRespBody>;
 
 struct StartLiveReq
 {
+	static constexpr int type = 134;
 	int64_t categoryId;
 	std::string title;
 	std::string coverUrl;
@@ -579,6 +617,7 @@ using StartLiveResp = AcliveBackendResp<134, StartLiveRespBody>;
 
 struct StopLiveReq
 {
+	static constexpr int type = 135;
 };
 
 struct StopLiveRespBody
@@ -589,6 +628,7 @@ using StopLiveResp = AcliveBackendResp<135, EmptyData>;
 
 struct UpdateLiveInfoReq
 {
+	static constexpr int type = 136;
 	std::string title;
 	std::string coverUrl;
 };
@@ -601,6 +641,7 @@ using UpdateLiveInfoResp = AcliveBackendResp<136, EmptyData>;
 
 struct QueryAllowClipReq
 {
+	static constexpr int type = 137;
 };
 
 struct QueryAllowClipRespBody
@@ -612,6 +653,7 @@ using QueryAllowClipResp = AcliveBackendResp<137, QueryAllowClipRespBody>;
 
 struct SetAllowClipReq
 {
+	static constexpr int type = 138;
 	bool allowClip;
 };
 
@@ -635,6 +677,23 @@ struct SignalData
 	std::string jsonData;
 };
 
-} 
+template <typename Req>
+struct RequestWrapper
+{
+	int type;
+	std::string requestID;
+	Req data;
+};
+
+template <typename RespData>
+struct ResponseWrapper
+{
+	std::string requestID;
+	int result;
+	std::optional<std::string> error;
+	RespData data;
+};
+
+}
 
 #endif

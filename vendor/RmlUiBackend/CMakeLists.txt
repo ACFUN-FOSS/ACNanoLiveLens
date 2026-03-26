@@ -155,16 +155,19 @@ target_sources(rmlui_backend_GLFW_GL2 INTERFACE
 )
 target_link_libraries(rmlui_backend_GLFW_GL2 INTERFACE rmlui_backend_common_headers OpenGL::GL glfw)
 
-add_library(rmlui_backend_GLFW_GL3 INTERFACE)
-target_sources(rmlui_backend_GLFW_GL3 INTERFACE
+# MODIFIED
+add_library(rmlui_backend_GLFW_GL3)
+target_sources(rmlui_backend_GLFW_GL3
+	PRIVATE
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Platform_GLFW.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Renderer_GL3.cpp"
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Backend_GLFW_GL3.cpp"
+	PUBLIC
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Platform_GLFW.h"
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Renderer_GL3.h"
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Include_GL3.h"
 )
-target_link_libraries(rmlui_backend_GLFW_GL3 INTERFACE rmlui_backend_common_headers glfw)
+target_link_libraries(rmlui_backend_GLFW_GL3 PUBLIC rmlui_backend_common_headers glfw)
 if(UNIX)
 	# The OpenGL 3 renderer implementation uses dlopen/dlclose
 	# This is required in some UNIX and UNIX-like operating systems to load shared object files at runtime

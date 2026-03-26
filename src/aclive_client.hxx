@@ -26,17 +26,11 @@ public:
 	concurrencpp::result<void> connectAsync();
 	concurrencpp::result<void> disconnectAsync();
 
-	template <typename Req>
-	concurrencpp::result<std::string> sendRequestAsync(Req req, int type);
-
-	template <typename Resp>
-	concurrencpp::result<Resp> sendRequestAsync(std::string jsonData);
-
-	concurrencpp::result<LoginResp> loginAsync(LoginReq req);
-	concurrencpp::result<QrCodeLoginResp> qrCodeLoginAsync(QrCodeLoginReq req);
-	concurrencpp::result<SetTokenResp> setTokenAsync(SetTokenReq req);
-	concurrencpp::result<GetDanmakuResp> getDanmakuAsync(GetDanmakuReq req);
-	concurrencpp::result<StopGetDanmakuResp> stopGetDanmakuAsync(StopGetDanmakuReq req);
+	concurrencpp::result<LoginResp> loginAsync(const LoginReq& req);
+	concurrencpp::result<QrCodeLoginResp> qrCodeLoginAsync(const QrCodeLoginReq& req);
+	concurrencpp::result<SetTokenResp> setTokenAsync(const SetTokenReq& req);
+	concurrencpp::result<GetDanmakuResp> getDanmakuAsync(const GetDanmakuReq& req);
+	concurrencpp::result<StopGetDanmakuResp> stopGetDanmakuAsync(const StopGetDanmakuReq& req);
 
 	void setDanmakuCallback(std::function<void(const DanmakuData&)> callback);
 	void setSignalCallback(std::function<void(const SignalData&)> callback);
@@ -49,11 +43,8 @@ private:
 	void handleDanmakuOrSignal(const std::string& message);
 	void receiveLoop();
 
-	template <typename T>
-	std::string serializeToJson(const T& obj);
-
-	template <typename T>
-	T deserializeFromJson(const std::string& json);
+	template <typename Req, typename Resp>
+	concurrencpp::result<Resp> sendRequestAsync(const Req& req);
 
 	concurrencpp::runtime& m_runtime;
 	std::shared_ptr<concurrencpp::thread_pool_executor> m_workerExecutor;
@@ -80,20 +71,20 @@ public:
 	AcliveClient& operator=(AcliveClient&&) = delete;
 };
 
-template <typename Req>
-concurrencpp::result<std::string> AcliveClient::sendRequestAsync(Req req, int type)
+template <typename Req, typename Resp>
+concurrencpp::result<Resp> AcliveClient::sendRequestAsync(const Req& req)
 {
 	co_await concurrencpp::resume_on(m_workerExecutor);
 
 	std::string requestID = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
-	std::string jsonData = serializeToJson(req);
 
-	nlohmann::json requestJson;
-	requestJson["type"] = type;
-	requestJson["requestID"] = requestID;
-	requestJson["data"] = nlohmann::json::parse(jsonData);
+	RequestWrapper<Req> wrapper{
+		.type = Req::type,
+		.requestID = requestID,
+		.data = req
+	};
 
-	std::string requestStr = requestJson.dump();
+	std::string requestStr = rfl::json::write(wrapper);
 
 	{
 		std::lock_guard<std::mutex> lock(m_pendingRequestsMutex);
@@ -110,49 +101,25 @@ concurrencpp::result<std::string> AcliveClient::sendRequestAsync(Req req, int ty
 	}
 
 	auto& promise = m_pendingRequests[requestID];
-	std::string response = co_await promise.get_result();
+	std::string responseStr = co_await promise.get_result();
+
+	auto result = rfl::json::read<ResponseWrapper<typename Resp::data_type>>(responseStr);
+	if (!result)
+	{
+		throw std::runtime_error("Failed to parse response: " + result.error().what());
+	}
+
+	auto& respWrapper = result.value();
+	Resp resp;
+	resp.meta.requestID = respWrapper.requestID;
+	resp.meta.result = respWrapper.result;
+	resp.meta.error = respWrapper.error;
+	resp.data = respWrapper.data;
 
 	co_await concurrencpp::resume_on(m_mainExecutor);
-	co_return response;
-}
-
-template <typename Resp>
-concurrencpp::result<Resp> AcliveClient::sendRequestAsync(std::string jsonData)
-{
-	auto responseStr = co_await sendRequestAsync(jsonData, Resp::type);
-
-	auto responseJson = nlohmann::json::parse(responseStr);
-
-	Resp resp;
-	resp.meta.requestID = responseJson["requestID"];
-	resp.meta.result = responseJson["result"];
-	if (responseJson.contains("error") && !responseJson["error"].is_null())
-	{
-		resp.meta.error = responseJson["error"];
-	}
-
-	if (responseJson.contains("data") && !responseJson["data"].is_null())
-	{
-		resp.data = responseJson["data"].template get<decltype(resp.data)>();
-	}
-
 	co_return resp;
 }
 
-template <typename T>
-std::string AcliveClient::serializeToJson(const T& obj)
-{
-	nlohmann::json j = obj;
-	return j.dump();
 }
-
-template <typename T>
-T AcliveClient::deserializeFromJson(const std::string& json)
-{
-	nlohmann::json j = nlohmann::json::parse(json);
-	return j.get<T>();
-}
-
-} 
 
 #endif

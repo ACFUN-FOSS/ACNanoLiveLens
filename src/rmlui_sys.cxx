@@ -1,7 +1,4 @@
-#include "rmlui_sys.hxx"
-#include <RmlUi/Core/Core.h>
-#include <RmlUi/Core/Factory.h>
-#include <RmlUi_Backend.h>
+#include <rmlui_sys.hxx> 
 
 struct RmlUISystem::RmlUILifetimeThings
 {

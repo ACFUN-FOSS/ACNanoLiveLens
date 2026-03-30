@@ -10,10 +10,9 @@
 #include <EatiEssentials/memory.hxx>
 #include <RmlUi_Platform_GLFW.h>
 
-// 前向声明
-bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority);
-
 namespace RmlUIWin {
+
+extern std::function<void(Rml::Context &)> onReloadTriggered;
 
 class UiWin
 {
@@ -58,6 +57,9 @@ private:
 	};
 	
 	std::optional<Data> _data;
+
+    class WinManager;
+    WinManager *_winManager;
 	
 };
 
@@ -94,7 +96,10 @@ public:
 
     [[nodiscard]] UiWin *getWinOfElement(const Rml::Element &element) const;
 
-	std::vector<std::function<void()>> reloadCbs;
+    [[nodiscard]] UiWin *getWinOfContext(const Rml::Context& context) const;
+
+	//std::vector<std::function<void()>> reloadCbs;
+    //std::function<void(UiWin &)> onUIWinReload;
 
 
 private:

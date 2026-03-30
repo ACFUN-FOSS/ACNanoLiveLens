@@ -26,6 +26,10 @@ public:
 class Wav
 {
 public:
+    Wav() = default;
+    Wav(const Wav &wav);
+    Wav(Wav &&wav) noexcept;
+    ~Wav() = default;
     void copyFromMem(const std::span<std::byte> audioFile);
     void loadFromMem(std::span<const std::byte> audioFile);
     void moveFromMem(std::vector<std::byte> &&audioFile);

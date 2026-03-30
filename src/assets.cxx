@@ -1,6 +1,4 @@
 #include "assets.hxx"
-#include <print>
-#include <cassert>
 
 stdf::path getAssetsDir() {
 #ifdef NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH

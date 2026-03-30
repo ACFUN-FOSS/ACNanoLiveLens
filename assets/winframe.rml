@@ -1,6 +1,6 @@
 <div class="winframe-internal-content" id="winframe-internal-content">
 	<div class="title-bar" id="title-bar">
-		<span class="title-text">Winddow</span>
+		<span class="title-text">Window</span>
 
 		<div class="title-bar-btns">
 			<div id="close-btn" class="title-bar-btn close-btn">

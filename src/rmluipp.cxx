@@ -1,11 +1,6 @@
 #include "rmluipp.hxx"
 
-#include <print>
-#include <iostream>
-#include <algorithm>
-#include <RmlUI/Core/Geometry.h>
-
-#include "defs.h"
+using namespace Essentials::Memory;
 
 ElementNotFoundErr::ElementNotFoundErr(std::string_view elementId)
     : std::runtime_error{
@@ -74,6 +69,20 @@ Rml::Element *findChildOrSelfById(Rml::Element *parent, const std::string_view i
 	return nullptr;
 }
 
+std::vector<Refw<Rml::Element>> getAllChildrenRecursively(Rml::Element &parent) {
+	std::vector<Refw<Rml::Element>> children;
+	
+	auto collectChildren = [&](this const auto &self, Rml::Element &elem) -> void {
+		for (int i = 0; i < elem.GetNumChildren(); i++) {
+			auto *child = elem.GetChild(i);
+			children.emplace_back(*child);
+			self(*child);
+		}
+	};
+	
+	collectChildren(parent);
+	return children;
+}
 
 SystemInterface_GLFW &getSysItfc() {
     return dynamic_cast<SystemInterface_GLFW &>(*Rml::GetSystemInterface());
@@ -107,14 +116,7 @@ size_t SimpleEventListenerManager::BindingRecord::Hasher::operator()(const Bindi
 }
 
 SimpleEventListenerManager::~SimpleEventListenerManager() {
-	for (auto &[regRec, listenerBox] : eventListeners_) {
-		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
-
-		if (!childElementPtr)
-			continue;
-		childElementPtr->RemoveEventListener(regRec.event, &*listenerBox);
-	}
-	eventListeners_.clear();
+	clear();
 }
 
 void SimpleEventListenerManager::on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback) {
@@ -134,6 +136,17 @@ void SimpleEventListenerManager::on(const std::string_view childElementId, const
 	auto it = eventListeners_.emplace(regRec, newBox(SimpleEventListener{ callback }));
 
     childElement.AddEventListener(std::string{ event }, &*it.first->second);
+}
+
+void SimpleEventListenerManager::clear() {
+	for (auto &[regRec, listenerBox] : eventListeners_) {
+		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
+
+		if (!childElementPtr)
+			continue;
+		childElementPtr->RemoveEventListener(regRec.event, &*listenerBox);
+	}
+	eventListeners_.clear();
 }
 
 

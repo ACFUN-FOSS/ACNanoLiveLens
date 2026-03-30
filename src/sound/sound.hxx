@@ -8,7 +8,8 @@ enum class Sound
     LOGOUT,
     WARNN,
     ERRR,
-    FATAL
+    FATAL,
+    RELOAD
 };
 
 //void playSound(const stdf::path oggPath);

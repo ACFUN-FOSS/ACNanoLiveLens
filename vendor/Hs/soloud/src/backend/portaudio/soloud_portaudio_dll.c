@@ -27,7 +27,7 @@ freely, subject to the following restrictions:
 #include <math.h>
 
 #if defined(_MSC_VER)
-#define WINDOWS_VERSION
+#define SOLOUD_WINDOWS_VERSION
 #endif
 
 #include "portaudio.h"
@@ -53,7 +53,7 @@ static Pa_OpenDefaultStreamProc dPa_OpenDefaultStream = NULL;
 
 
 
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 #include <windows.h>
 
 static HMODULE pta_openDll()
@@ -92,7 +92,7 @@ static void *pta_getdllproc(void* dllhandle, const char *procname)
 
 static int pta_load_dll()
 {
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 	HMODULE dll = NULL;
 #else
 	void * dll = NULL;

@@ -1,5 +1,6 @@
 #include "Soloudpp/Soloud.hxx"
 
+#include <cstring>
 
 using namespace std::string_literals;
 
@@ -21,6 +22,16 @@ static std::string_view result2String(const SoLoud::result result) {
 static void ensureLoadSucc(const SoLoud::result result) {
     if (result != 0)
         throw LoadAudioDataErr{ result2String(result) };
+}
+
+Wav::Wav(const Wav &wav) {
+    memcpy(this->wav_.mData, wav.wav_.mData, wav.wav_.mSampleCount);
+    this->wav_.mSampleCount = wav.wav_.mSampleCount;
+}
+Wav::Wav(Wav &&wav) noexcept
+    : wav_{ std::move(wav.wav_) } {
+    wav.wav_.mData = nullptr;
+    wav.wav_.mSampleCount = 0;
 }
 
 void Wav::copyFromMem(const std::span<std::byte> audioFile) {

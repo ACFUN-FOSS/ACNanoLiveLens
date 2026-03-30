@@ -1,26 +1,8 @@
-#include "sound.hxx"
-#include <cstddef>
-#include <gsl/gsl>
-#include <span>
-#include <Soloudpp/Soloud.hxx>
-#include <../../vendor/Eati/Essentials/public/EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx>
 
 using namespace Holoop;
-using namespace Essentials::ContainerAndView;
-
-
-static void deInit() {
-
-}
-
-static Soloudpp::Wav &fatalWave() {
-    static bool loaded = false;
-
-    static Soloudpp::Wav wav;
-    //if (!loaded)
-    //    wav.loadFromMem(std::span{ getFatalOggData() });
-    return wav;
-}
+using namespace Essentials::IO;
+#include "sound.hxx"
+#include "assets.hxx"
 
 static Soloudpp::Soloud &soloud() {
     static Soloudpp::Soloud soloud;
@@ -29,17 +11,36 @@ static Soloudpp::Soloud &soloud() {
 
 void initSound() {
     soloud();
-    fatalWave();
 }
 
-void playOgg(std::span<const std::byte> oggData) {
-    soloud().play(fatalWave());
+static void playOgg(std::string_view oggName) {
+    static std::unordered_map<std::string, Soloudpp::Wav> oggNameToWav;
+
+    std::string oggNameStr{ oggName };
+    if (!oggNameToWav.contains(oggNameStr)) {
+        auto oggPath = getAssetsDir() / oggName;
+        auto oggData = Essentials::IO::readFileRaw(oggPath);
+        auto &wav = oggNameToWav[oggNameStr];
+        wav.loadFromMem(oggData);
+    }
+
+    auto &wav = oggNameToWav[oggNameStr];
+    soloud().play(wav);
 }
 
-void playTestSound() {
-    //playOgg(getFatalOggData());
+void playSound(const Sound sound) {
+    switch (sound) {
+        case Sound::FATAL:
+            playOgg("fatal.ogg");
+            break;
+        case Sound::RELOAD:
+            playOgg("hot_reload.ogg");
+            break;
+        default:
+            break;
+    }
 }
 
 void deInitSound() {
-    deInit();
+    
 }

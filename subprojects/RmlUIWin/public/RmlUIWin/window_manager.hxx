@@ -75,7 +75,7 @@ public:
     WinManager& operator=(WinManager&&) = default;
 
     // 添加窗口
-    void transferWin(std::unique_ptr<UiWin>&& window);
+    UiWin &transferWin(std::unique_ptr<UiWin>&& window);
     
     // 更新所有窗口
     void updateAll();

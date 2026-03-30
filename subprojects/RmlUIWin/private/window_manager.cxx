@@ -251,6 +251,10 @@ void UiWin::setWinPos(const Rml::Vector2i pos) {
     Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
 }
 
+void UiWin::showModal() {
+	// TODO
+}
+
 
 // Ensure subclasses of UiWin are default-moveable
 class Test1 : public UiWin
@@ -264,8 +268,9 @@ public:
 
 // WinManager 实现
 
-void WinManager::transferWin(std::unique_ptr<UiWin>&& window) {
+UiWin &WinManager::transferWin(std::unique_ptr<UiWin>&& window) {
     wins_.push_back(std::move(window));
+	return *wins_.back();
 }
 
 void WinManager::updateAll() {

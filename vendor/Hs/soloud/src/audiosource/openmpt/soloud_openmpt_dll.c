@@ -23,7 +23,7 @@ freely, subject to the following restrictions:
 */
 #include <stdlib.h>
 #if defined(_WIN32)||defined(_WIN64)
-#define WINDOWS_VERSION
+#define SOLOUD_WINDOWS_VERSION
 #endif // __WINDOWS__
 #include <math.h>
 
@@ -37,7 +37,7 @@ static dll_openmpt_module_destroy d_openmpt_module_destroy = NULL;
 static dll_openmpt_module_read_float_stereo d_openmpt_module_read_float_stereo = NULL;
 static dll_openmpt_module_set_repeat_count d_openmpt_module_set_repeat_count = NULL;
 
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 #include <windows.h>
 
 static HMODULE openDll()
@@ -82,7 +82,7 @@ static void* getDllProc(void * aLibrary, const char *aProcName)
 
 static int load_dll()
 {
-#ifdef WINDOWS_VERSION
+#ifdef SOLOUD_WINDOWS_VERSION
 	HMODULE dll = NULL;
 #else
 	void * dll = NULL;

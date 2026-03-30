@@ -1,6 +1,7 @@
 BUILD
 .vs
 .idea
+.cache
 
 # Prerequisites
 *.d

@@ -1,4 +1,5 @@
 #include "rmlui_element.hxx"
+#include "winframe.hxx"
 
 using namespace Essentials::Misc;
 
@@ -52,4 +53,8 @@ void RmlUIElement::reload() {
 
 bool RmlUIElement::getIsWindowElement() const {
     return isWindowElement;
+}
+
+void registerCustomElements(RmlUISystem &rmlui) {
+    WinFrame::reg(rmlui);
 }

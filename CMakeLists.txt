@@ -71,7 +71,6 @@ add_executable(nanolivelens
     src/stdafx.cpp
     src/main.cpp
     src/winframe.cxx
-    src/custom_elements.cxx
     src/rmlui_sys.cxx
     src/rmluipp.cxx
     src/platform/crash_handler.cxx
@@ -83,6 +82,7 @@ add_executable(nanolivelens
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
     src/aclive_client.cxx
+	src/test_win.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
 

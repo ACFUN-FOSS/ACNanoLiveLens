@@ -263,9 +263,9 @@ void UiWin::setWinPos(const Rml::Vector2i pos) {
     Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
 }
 
-void UiWin::showModal() {
-	// TODO
-}
+// void UiWin::showModal() {
+// 	// TODO
+// }
 
 
 // Ensure subclasses of UiWin are default-moveable

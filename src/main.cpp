@@ -5,8 +5,8 @@
 #include "rmlui_sys.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
-#include "custom_elements.hxx"
 #include "rmlui_element.hxx"
+#include "test_win.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -49,31 +49,7 @@ static void rmluiMain() {
 
 
 
-        // 第一個窗口使用主窗口（在 Backend::Initialize 時已創建）
-        // 主窗口創建時大小忽略傳入的大小
-        auto mainWin = newBox(UiWin{ "main", {}, getAssetsDir() / "main.rml", true });
-        // 後續窗口自動創建新窗口，加載不同的 RML 文件
-        //auto secondaryWin = newBox(UiWin{ "RmlUi App - Secondary", {800, 600}, "assets/secondary.rml", false });
-        //auto thirdWin = newBox(UiWin{ "RmlUi App - Third", {800, 600}, "assets/third.rml", false });
-
-
-		auto &mainWinRootEle = UNWRAP(mainWin->getContext().GetRootElement());
-		SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
-		mainWinRootEleEventMan.on("test-btn-1", "click", [&](auto &&_) {
-			//assert(false);
-			UNWRAP(findChildOrSelfById(&mainWinRootEle, "winframe"))
-				.SetInnerRML(readFile(getAssetsDir() / "winframe.rml"));
-		});
-		mainWinRootEleEventMan.on("test-btn-2", "click", [](auto &&_) {
-			Essentials::Special::callNullptr();
-		});
-
-		//auto d = reinterpret_cast<char *>(3);	// test core guidelines chcker
-
-        // 使用std::move將窗口所有權轉移給管理器
-        winMan.transferWin(std::move(mainWin));
-        //windowManager.transferWin(std::move(secondaryWin));
-        //windowManager.transferWin(std::move(thirdWin));
+        TestWin testWin;
 
         bool running = true;
         while (running && winMan.hasOpenWins()) {

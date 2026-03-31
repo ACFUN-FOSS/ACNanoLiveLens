@@ -1,6 +1,8 @@
 #ifndef NANOLIVELENS_RMLUI_ELEMENT_HXX
 #define NANOLIVELENS_RMLUI_ELEMENT_HXX
 
+#include "rmlui_sys.hxx"
+
 class RmlUIElement : public Rml::Element
 {
 public:
@@ -24,5 +26,7 @@ protected:
 
 	bool isWindowElement = false;
 };
+
+void registerCustomElements(RmlUISystem &rmlui);
 
 #endif //NANOLIVELENS_RMLUI_ELEMENT_HXX

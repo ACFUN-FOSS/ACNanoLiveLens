@@ -6,13 +6,18 @@
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "rmlui_element.hxx"
+
+#include "danmaku_monitor_win.hxx"
 #include "test_win.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
 using namespace Essentials::IO;
 
+static bool ctrlCPressed = false;
+
 static void rmluiMain() {
+
     RmlUISystem rmlui{ *Backend::GetSystemInterface(), *Backend::GetRenderInterface() };
 
     // 載入字體
@@ -47,14 +52,17 @@ static void rmluiMain() {
             }
         };
 
+        //TestWin testWin;
+		DanmakuMonitorWin danmakuMonitorWin;
+		bool shouldExit = false;
+        while (!shouldExit && winMan.hasOpenWins()) {
 
+			if (ctrlCPressed) {
+				return;
+			}
 
-        TestWin testWin;
-
-        bool running = true;
-        while (running && winMan.hasOpenWins()) {
             // 处理输入和窗口事件
-            running = Backend::ProcessEvents(false);
+            ctrlCPressed = !Backend::ProcessEvents(false);
 
             // 更新所有窗口
             winMan.updateAll();
@@ -75,6 +83,13 @@ int crashHandlerProtectedMain() {
 #ifdef WIN32
     system("chcp 65001");
 #endif
+
+	CtrlCLibrary::SetCtrlCHandler([](enum CtrlCLibrary::CtrlSignal signal) {
+		if (signal == CtrlCLibrary::kCtrlCSignal)
+			ctrlCPressed = true;
+		return true;
+	});
+
     initSound();
 
     // 初始化后端
@@ -85,6 +100,8 @@ int crashHandlerProtectedMain() {
 
     // 关闭后端
     Backend::Shutdown();
+
+	
     return 0;
 }
 

@@ -3,8 +3,8 @@
 #include "assets.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
-#include "utils.hxx"
-#include "sound/sound.hxx"
+// #include "utils.hxx"
+// #include "sound/sound.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -15,14 +15,21 @@ class TestWin::Impl
 public:
     Impl()
 		: uiState_{ [] -> UIState {
-			auto mainWin = newBox(UiWin{ "main", {}, getAssetsDir() / "main.rml", true });
+			auto mainWin = newBox(UiWin{ "main", {}, getAssetsDir() / "test_win.rml", true });
 			auto &mainWinRootEle = UNWRAP(mainWin->getContext().GetRootElement());
 			SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
 			auto &win = getAppState().winManager.transferWin(std::move(mainWin));
 			return { &win, std::move(mainWinRootEleEventMan) };
-		}() } {}
+		}() } {
+		
+		// uiState_.mainWinRootEleEventMan_.on("btn", "click", [this](Rml::Event &e) {
+		// 	std::print("btn click\n");
+		// });
+	
+	}
 
     ~Impl() = default;
+	Impl(Impl &&) = delete;
 	Impl(const Impl &) = delete;
 	Impl &operator=(const Impl &) = delete;
 	Impl &operator=(Impl &&) = delete;
@@ -36,7 +43,7 @@ private:
 };
 
 TestWin::TestWin()
-    : pImpl(std::make_unique<Impl>())
+    : pImpl{ stdx::pimpl::make_unique<Impl>() }
 {
 }
 

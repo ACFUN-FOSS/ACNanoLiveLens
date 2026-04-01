@@ -37,7 +37,10 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(concurrencpp CONFIG REQUIRED)
 find_package(reflectcpp CONFIG REQUIRED)
 fetch_header_only_library(https://raw.githubusercontent.com/yhirose/cpp-httplib/refs/heads/master/httplib.h httplib)
+fetch_header_only_library(https://raw.githubusercontent.com/mguludag/cpp-pimpl-helper/refs/heads/main/pimpl.hpp cpp_pimpl_helper)
 add_subdirectory(vendor/RmlUiBackend)
+
+include(thirdparty/ctrl-c-target.cmake)
 
 # Import EatiEssentials via FetchContent in order to allow other dependencies
 # require EatiEssentials with `find_package(EatiEssentials)` (if there are)
@@ -53,9 +56,11 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(EatiEssentials)
 
+# boost stacktrace
 Dep_AddBoostStacktraceImplLib()
 find_package(boost_stacktrace_from_exception CONFIG REQUIRED)
 
+# miniaudio and Hs::Soloudpp
 AddMiniaudioTarget()
 set(SOLOUD_DEP_MINIAUDIO_TARGET corrected_targets::Miniaudio)
 add_subdirectory(vendor/Hs/soloud/contrib/simple_with_miniaudio SYSTEM)
@@ -82,7 +87,10 @@ add_executable(nanolivelens
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
     src/aclive_client.cxx
+
+	# Windows
 	src/test_win.cxx
+	src/danmaku_monitor_win.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
 
@@ -125,7 +133,9 @@ target_link_libraries(nanolivelens
     nlohmann_json::nlohmann_json
     concurrencpp::concurrencpp
     httplib
+	cpp_pimpl_helper
     reflectcpp::reflectcpp
+    ctrl-c
 )
 
 set_target_properties(nanolivelens PROPERTIES

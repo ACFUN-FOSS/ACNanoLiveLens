@@ -8,6 +8,7 @@
 #include <vector>
 #include <filesystem>
 #include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memsafety.hxx>
 #include <RmlUi_Platform_GLFW.h>
 
 namespace RmlUIWin {
@@ -32,8 +33,9 @@ public:
     
     ~UiWin();
 
-    [[nodiscard]] gsl::not_null<GLFWwindow *> getNativeWin() const;
-    [[nodiscard]] Rml::Context &getContext() const;
+    [[nodiscard]] gsl::not_null<GLFWwindow *> getNativeWin() const LIFETIMEBOUND;
+    [[nodiscard]] Rml::Context &getContext() const LIFETIMEBOUND;
+	[[nodiscard]] Rml::ElementDocument &getDocument() const LIFETIMEBOUND;
     
     void update() const;
     void render() const;
@@ -43,6 +45,7 @@ public:
 	[[nodiscard]] Rml::Vector2i getMousePos() const;
 	[[nodiscard]] Rml::Vector2i getWinPos() const;
     void setWinPos(const Rml::Vector2i pos);
+	void setShouldClose();
 
 private:
     void destroy();
@@ -77,7 +80,7 @@ public:
     WinManager& operator=(WinManager&&) = default;
 
     // 添加窗口
-    UiWin &transferWin(std::unique_ptr<UiWin>&& window);
+    UiWin &transferWin(std::unique_ptr<UiWin>&& window) LIFETIMEBOUND;
     
     // 更新所有窗口
     void updateAll();

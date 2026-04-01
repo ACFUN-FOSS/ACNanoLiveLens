@@ -25,6 +25,7 @@
 // 第三方库头文件
 //#include <glad/glad.h>
 //#include <glfw/glfw3.h>// 第三方库头文件
+#include <pimpl.hpp>
 #include <RmlUI/Core.h>
 #include <RmlUi_Backend.h>
 #include <Soloudpp/Soloud.hxx>
@@ -33,6 +34,7 @@
 #include <nlohmann/json.hpp>
 #include <rfl.hpp>
 #include <rfl/json.hpp>
+#include <ctrl-c.h>
 
 namespace stdf = std::filesystem;
 

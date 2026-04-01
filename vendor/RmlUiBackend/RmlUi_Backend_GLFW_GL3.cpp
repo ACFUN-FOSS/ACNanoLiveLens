@@ -1,3 +1,4 @@
+#include "RmlUi_Backend.h"
 /*
  * This source file is part of RmlUi, the HTML/CSS Interface Middleware
  *
@@ -346,6 +347,17 @@ bool Backend::ShouldWindowClose(GLFWwindow* glfw_win)
 	);
 	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
 	return winIt->get()->shouldClose;
+}
+
+void Backend::SetShouldClose(GLFWwindow *glfw_win) {
+	RMLUI_ASSERT(data);
+	auto winIt = std::ranges::find_if(
+		data->windows,
+		[glfw_win](const std::unique_ptr<WindowData> &w) { return w->glfw_win == glfw_win; }
+	);
+	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
+
+	glfwSetWindowShouldClose(glfw_win, GLFW_TRUE);
 }
 
 void Backend::DestroyWindow(GLFWwindow* glfwWin)

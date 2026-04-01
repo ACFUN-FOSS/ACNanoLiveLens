@@ -17,4 +17,5 @@ void dbgLog(const T&... args) {
 	((std::cout << toDbgString(args)), ...);
 	std::cout << std::endl;
 }
+
 #endif

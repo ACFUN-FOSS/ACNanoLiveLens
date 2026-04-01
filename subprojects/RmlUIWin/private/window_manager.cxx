@@ -34,6 +34,9 @@ bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier ke
         // Toggle debugger and set dp-ratio using Ctrl +/-/0 keys.
         if (key == Rml::Input::KI_F8)
         {
+			//if (!Rml::Debugger::IsVisible())
+			std::cout << (Rml::Debugger::IsVisible() ? "Hiding debugger" : "Showing debugger")
+				<< std::endl;
             Rml::Debugger::SetVisible(!Rml::Debugger::IsVisible());
         }
         else if (key == Rml::Input::KI_0 && key_modifier & Rml::Input::KM_CTRL)
@@ -181,6 +184,7 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 	_data->_rmlCStyleData->_document->AddEventListener("click", &_data->_selfData->_eventListener);
 	_data->_rmlCStyleData->_document->Show();
 
+	Rml::Debugger::Initialise(_data->_rmlCStyleData->_context);
     std::println("Created window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
 }
 
@@ -209,12 +213,16 @@ void UiWin::destroy() {
     
 }
 
-[[nodiscard]] gsl::not_null<GLFWwindow*> UiWin::getNativeWin() const { 
+[[nodiscard]] gsl::not_null<GLFWwindow*> UiWin::getNativeWin() const LIFETIMEBOUND { 
     return _data->_rmlCStyleData->_win; 
 }
 
-[[nodiscard]] Rml::Context &UiWin::getContext() const { 
+[[nodiscard]] Rml::Context &UiWin::getContext() const LIFETIMEBOUND { 
     return *_data->_rmlCStyleData->_context;
+}
+
+[[nodiscard]] Rml::ElementDocument &UiWin::getDocument() const LIFETIMEBOUND { 
+    return *_data->_rmlCStyleData->_document;
 }
 
 void UiWin::update() const {
@@ -263,6 +271,10 @@ void UiWin::setWinPos(const Rml::Vector2i pos) {
     Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
 }
 
+void UiWin::setShouldClose() {
+	Backend::SetShouldClose(_data->_rmlCStyleData->_win);
+	
+}
 // void UiWin::showModal() {
 // 	// TODO
 // }
@@ -280,7 +292,7 @@ public:
 
 // WinManager 实现
 
-UiWin &WinManager::transferWin(std::unique_ptr<UiWin>&& window) {
+UiWin &WinManager::transferWin(std::unique_ptr<UiWin>&& window) LIFETIMEBOUND {
     wins_.push_back(std::move(window));
 	return *wins_.back();
 }

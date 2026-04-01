@@ -57,6 +57,10 @@ public:
 	};
 
     SimpleEventListenerManager(Rml::Element &element LIFETIMEBOUND);
+	SimpleEventListenerManager(const SimpleEventListenerManager &) = delete;
+	SimpleEventListenerManager(SimpleEventListenerManager &&)  noexcept = default;
+	SimpleEventListenerManager &operator=(const SimpleEventListenerManager &) = delete;
+	SimpleEventListenerManager &operator=(SimpleEventListenerManager &&) = delete;
 	~SimpleEventListenerManager();
 
     void on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback);

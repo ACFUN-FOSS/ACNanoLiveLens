@@ -57,6 +57,8 @@ void DestroyWindow(GLFWwindow* window);
 // Returns true if the window should close.
 bool ShouldWindowClose(GLFWwindow* window);
 
+void SetShouldClose(GLFWwindow *glfw_win);
+
 // Returns the primary window created during Initialize.
 GLFWwindow* GetMainWindow();
 // Associate a RmlUi context and key callback with a specific window.

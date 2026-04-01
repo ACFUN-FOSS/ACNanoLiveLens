@@ -1,0 +1,3 @@
+[submodule "thirdparty/ctrl-c"]
+	path = thirdparty/ctrl-c
+	url = https://github.com/evgenykislov/ctrl-c.git

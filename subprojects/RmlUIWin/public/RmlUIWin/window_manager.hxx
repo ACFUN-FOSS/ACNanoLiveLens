@@ -62,7 +62,7 @@ private:
 	std::optional<Data> _data;
 
     class WinManager;
-    WinManager *_winManager;
+    WinManager *_winManager = nullptr;
 	
 };
 

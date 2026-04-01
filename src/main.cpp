@@ -29,7 +29,7 @@ static void rmluiMain() {
 
     {
         // 使用窗口管理器管理所有窗口
-        auto &winMan = getAppState().winManager;
+		RmlUIWin::WinManager winMan;
 
         RmlUIWin::onReloadTriggered = [](Rml::Context &context) {
             playSound(Sound::RELOAD);
@@ -51,6 +51,8 @@ static void rmluiMain() {
 				child.get().reload();
             }
         };
+
+		initAppState({ &rmlui, &winMan });
 
         //TestWin testWin;
 		DanmakuMonitorWin danmakuMonitorWin;

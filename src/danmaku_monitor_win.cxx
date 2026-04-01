@@ -20,7 +20,7 @@ public:
             auto mainWin = newBox(UiWin{ "danmaku_monitor", {}, getAssetsDir() / "danmaku_monitor.rml", true });
             auto &mainWinRootEle = UNWRAP(mainWin->getContext().GetRootElement());
             SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
-            auto &win = getAppState().winManager.transferWin(std::move(mainWin));
+            auto &win = getAppState().winManager->transferWin(std::move(mainWin));
             return { &win, std::move(mainWinRootEleEventMan) };
         }() }
 		, danmakuList_{ 

@@ -1,6 +1,12 @@
 #include "appstate.hxx"
 
+std::optional<AppState> globalAppState;
+
+void initAppState(AppState &&appState){
+	globalAppState.emplace(std::move(appState));
+}
+
 AppState &getAppState() {
-    static AppState appState;
-    return appState;
+	assert(globalAppState.has_value() && "AppState is not initialized yet!");
+    return *globalAppState;
 }

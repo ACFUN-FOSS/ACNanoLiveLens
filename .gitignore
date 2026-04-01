@@ -2,6 +2,7 @@ BUILD
 .vs
 .idea
 .cache
+.workbuddy
 
 # Prerequisites
 *.d

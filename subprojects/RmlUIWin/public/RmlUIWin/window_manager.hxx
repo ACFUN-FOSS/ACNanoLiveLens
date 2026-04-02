@@ -39,7 +39,9 @@ public:
     
     void update() const;
     void render() const;
-    
+
+	void setUpdateCb(std::function<void()> cb);
+	
     [[nodiscard]] const std::string_view getName() const;
     [[nodiscard]] bool isMainWin() const;
 	[[nodiscard]] Rml::Vector2i getMousePos() const;
@@ -60,6 +62,7 @@ private:
 	};
 	
 	std::optional<Data> _data;
+	
 
     class WinManager;
     WinManager *_winManager = nullptr;

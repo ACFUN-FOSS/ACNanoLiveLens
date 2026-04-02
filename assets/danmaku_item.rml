@@ -1,0 +1,5 @@
+<div class="danmaku-item">
+    <div class="danmaku-sender"></div>
+    <div class="danmaku-content"></div>
+    <div class="danmaku-time"></div>
+</div>

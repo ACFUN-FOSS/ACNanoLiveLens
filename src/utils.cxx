@@ -15,3 +15,10 @@ std::string toDbgString(const Rml::Event &event) {
 	);
 }
 
+int randomInt(int min, int max) {
+	static std::random_device r;
+	static std::mt19937 mt{ r() };
+	std::uniform_int_distribution<int> gen{ min, max };
+	return gen(mt);
+}
+

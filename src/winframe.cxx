@@ -57,6 +57,8 @@ void WinFrame::initAfterConstruct() {
 }
 
 void WinFrame::reload() {
+	// DBG
+	return;
 	dbgLog("RELOAD: WinFrame");
 	auto &contentEle = UNWRAP(findChildOrSelfById(this, "content"));
 	auto childOwner = this->RemoveChild(&contentEle);

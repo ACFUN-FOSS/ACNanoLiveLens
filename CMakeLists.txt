@@ -75,7 +75,6 @@ add_subdirectory(subprojects/EmergUI)
 add_executable(nanolivelens
     src/stdafx.cpp
     src/main.cpp
-    src/winframe.cxx
     src/rmlui_sys.cxx
     src/rmluipp.cxx
     src/platform/crash_handler.cxx
@@ -87,6 +86,10 @@ add_executable(nanolivelens
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
     src/aclive_client.cxx
+
+	# Elements
+	src/winframe.cxx
+	src/danmaku_item.cxx
 
 	# Windows
 	src/test_win.cxx

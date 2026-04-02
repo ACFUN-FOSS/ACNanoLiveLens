@@ -1,10 +1,6 @@
 #ifndef NANOLIVELENS_DANMAKU_MONITOR_WIN_HXX
 #define NANOLIVELENS_DANMAKU_MONITOR_WIN_HXX
 
-#include <chrono>
-#include <string>
-#include <vector>
-
 class DanmakuMonitorWin
 {
 public:

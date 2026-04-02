@@ -1,5 +1,7 @@
 #include "rmlui_element.hxx"
+#include "utils.hxx"
 #include "winframe.hxx"
+#include "danmaku_item.hxx"
 
 using namespace Essentials::Misc;
 
@@ -36,6 +38,7 @@ void RmlUIElement::processDefaultAction(Rml::Event &event) {
         event.GetParameter<Rml::Input::KeyIdentifier>("key_identifier", Rml::Input::KeyIdentifier::KI_FINAL)
         == Rml::Input::KeyIdentifier::KI_F6) {
         reload();
+		dbgLog("Reloading style sheet");
         GetOwnerDocument()->ReloadStyleSheet();
     }
 
@@ -57,4 +60,5 @@ bool RmlUIElement::getIsWindowElement() const {
 
 void registerCustomElements(RmlUISystem &rmlui) {
     WinFrame::reg(rmlui);
+    DanmakuItem::reg(rmlui);
 }

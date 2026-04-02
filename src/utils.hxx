@@ -18,4 +18,6 @@ void dbgLog(const T&... args) {
 	std::cout << std::endl;
 }
 
+int randomInt(int min, int max);
+
 #endif

@@ -35,7 +35,6 @@ static void rmluiMain() {
             playSound(Sound::RELOAD);
             auto children = getAllChildrenRecursively(UNWRAP(context.GetRootElement()));
 
-
             auto windowEles = [&]() {
                 std::vector<Refw<RmlUIElement>> windowEles;
                 for (auto &child : children) {
@@ -57,14 +56,10 @@ static void rmluiMain() {
         //TestWin testWin;
 		DanmakuMonitorWin danmakuMonitorWin;
 		bool shouldExit = false;
-        while (!shouldExit && winMan.hasOpenWins()) {
 
-			if (ctrlCPressed) {
-				return;
-			}
-
+        while (!ctrlCPressed && !shouldExit && winMan.hasOpenWins()) {
             // 处理输入和窗口事件
-            ctrlCPressed = !Backend::ProcessEvents(false);
+            shouldExit = !Backend::ProcessEvents(false);
 
             // 更新所有窗口
             winMan.updateAll();

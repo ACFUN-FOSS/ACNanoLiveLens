@@ -122,6 +122,7 @@ struct UiWin::SelfData
 	std::filesystem::path _documentPath;
 	bool _isMainWin;
 	bool _isTransparent;
+	std::function<void()> _updateCb;
 };
 
 void UiWin::EventListener::ProcessEvent(Rml::Event& event) {
@@ -228,11 +229,17 @@ void UiWin::destroy() {
 void UiWin::update() const {
     if (_data->_rmlCStyleData->_context)
 		_data->_rmlCStyleData->_context->Update();
+	if (_data->_selfData->_updateCb)
+		_data->_selfData->_updateCb();
 }
 
 void UiWin::render() const {
     if (_data->_rmlCStyleData->_context)
 		_data->_rmlCStyleData->_context->Render();
+}
+
+void UiWin::setUpdateCb(std::function<void()> cb) {
+	_data->_selfData->_updateCb = cb;
 }
 
 [[nodiscard]] const std::string_view UiWin::getName() const { 

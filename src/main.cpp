@@ -9,6 +9,7 @@
 
 #include "danmaku_monitor_win.hxx"
 #include "test_win.hxx"
+#include "js_bindings.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -55,6 +56,9 @@ static void rmluiMain() {
 
         //TestWin testWin;
 		DanmakuMonitorWin danmakuMonitorWin;
+
+		JSBindings::init(rmlui, danmakuMonitorWin);
+
 		bool shouldExit = false;
 
         while (!ctrlCPressed && !shouldExit && winMan.hasOpenWins()) {
@@ -70,6 +74,8 @@ static void rmluiMain() {
             // 清理已關閉的窗口
             winMan.cleanupClosedWindows();
         }
+
+		JSBindings::shutdown();
     }
 }
 

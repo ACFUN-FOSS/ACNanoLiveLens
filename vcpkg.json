@@ -21,6 +21,7 @@
         "svg"
       ]
     },
-    "boost-process"
+    "boost-process",
+    "duktape"
   ]
 }

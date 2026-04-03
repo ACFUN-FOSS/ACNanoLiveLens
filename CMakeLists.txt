@@ -36,8 +36,10 @@ find_package(portaudio CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(concurrencpp CONFIG REQUIRED)
 find_package(reflectcpp CONFIG REQUIRED)
+find_package(duktape CONFIG REQUIRED)
 fetch_header_only_library(https://raw.githubusercontent.com/yhirose/cpp-httplib/refs/heads/master/httplib.h httplib)
 fetch_header_only_library(https://raw.githubusercontent.com/mguludag/cpp-pimpl-helper/refs/heads/main/pimpl.hpp cpp_pimpl_helper)
+
 add_subdirectory(vendor/RmlUiBackend)
 
 include(thirdparty/ctrl-c-target.cmake)
@@ -94,6 +96,9 @@ add_executable(nanolivelens
 	# Windows
 	src/test_win.cxx
 	src/danmaku_monitor_win.cxx
+
+	# JavaScript bindings
+	src/js_bindings.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
 
@@ -139,6 +144,7 @@ target_link_libraries(nanolivelens
 	cpp_pimpl_helper
     reflectcpp::reflectcpp
     ctrl-c
+    ${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
 )
 
 set_target_properties(nanolivelens PROPERTIES

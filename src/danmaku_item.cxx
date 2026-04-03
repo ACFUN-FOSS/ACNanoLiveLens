@@ -54,17 +54,17 @@ void DanmakuItem::reload() {
 void DanmakuItem::setDanmakuInfo(const DanmakuInfo &info) {
 	currentDanmakuInfo_ = info;
 
-	auto senderEle = GetFirstChild();
+	auto senderEle = findChildOrSelfById(this, "sender");
 	if (senderEle) {
 		senderEle->SetInnerRML(info.sender.c_str());
 	}
 
-	auto contentEle = senderEle ? senderEle->GetNextSibling() : nullptr;
+	auto contentEle = findChildOrSelfById(this, "content");
 	if (contentEle) {
 		contentEle->SetInnerRML(info.content.c_str());
 	}
 
-	auto timeEle = contentEle ? contentEle->GetNextSibling() : nullptr;
+	auto timeEle = findChildOrSelfById(this, "time");
 	if (timeEle) {
 		auto timeStr = std::format("{:%H:%M:%S}", info.timestamp);
 		timeEle->SetInnerRML(timeStr.c_str());

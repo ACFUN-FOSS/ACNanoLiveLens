@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.30)
 project(NanoLiveLens LANGUAGES CXX)
 option(NLLENS_ASSETS_DIR_OVERRIDE "资产目录重载。若设定，应用程序将强行在指定的目录中寻找资产。")
 option(NLLENS_ASSETS_DIR_OVERRIDE_IS_ABS_PATH "资产目录重载是否是绝对路径。" false)
+set(NLLENS_VENDOR_DIR ${CMAKE_CURRENT_LIST_DIR}/vendor)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -40,9 +41,25 @@ find_package(duktape CONFIG REQUIRED)
 fetch_header_only_library(https://raw.githubusercontent.com/yhirose/cpp-httplib/refs/heads/master/httplib.h httplib)
 fetch_header_only_library(https://raw.githubusercontent.com/mguludag/cpp-pimpl-helper/refs/heads/main/pimpl.hpp cpp_pimpl_helper)
 
+add_subdirectory(vendor/quickjs)
 add_subdirectory(vendor/RmlUiBackend)
 
 include(thirdparty/ctrl-c-target.cmake)
+
+# cppcodec
+find_path(CPPCODEC_INCLUDE_DIRS "cppcodec/base32_crockford.hpp" REQUIRED)
+add_library(cppcodec INTERFACE)
+target_include_directories(cppcodec INTERFACE ${CPPCODEC_INCLUDE_DIRS})
+
+# metapp
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+FetchContent_Declare(
+  metapp
+  GIT_REPOSITORY https://github.com/wqking/metapp.git
+  GIT_TAG        origin/master
+)
+FetchContent_MakeAvailable(metapp)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # Import EatiEssentials via FetchContent in order to allow other dependencies
 # require EatiEssentials with `find_package(EatiEssentials)` (if there are)
@@ -69,8 +86,10 @@ add_subdirectory(vendor/Hs/soloud/contrib/simple_with_miniaudio SYSTEM)
 add_subdirectory(vendor/Hs/Soloudpp)
 
 # == Subprojects ============================
+add_subdirectory(subprojects/Core)
 add_subdirectory(subprojects/RmlUIWin)
 add_subdirectory(subprojects/EmergUI)
+add_subdirectory(subprojects/ElementQuickJsBinding)
 
 # == Targets ================================
 
@@ -87,7 +106,7 @@ add_executable(nanolivelens
     src/appstate.cxx
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
-    src/aclive_client.cxx
+    # src/aclive_client.cxx
 
 	# Elements
 	src/winframe.cxx
@@ -98,7 +117,7 @@ add_executable(nanolivelens
 	src/danmaku_monitor_win.cxx
 
 	# JavaScript bindings
-	src/js_bindings.cxx
+	# src/js_bindings.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
 

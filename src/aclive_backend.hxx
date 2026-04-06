@@ -1,7 +1,8 @@
 #ifndef NANOLIVELENS_ACLIVE_BACKEND_HXX
 #define NANOLIVELENS_ACLIVE_BACKEND_HXX
 
-namespace ACLive {
+namespace ACLive
+{
 
 struct EmptyData { };
 

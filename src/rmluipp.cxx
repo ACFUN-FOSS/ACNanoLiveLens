@@ -119,7 +119,11 @@ SimpleEventListener::SimpleEventListener(std::function<void(Rml::Event &)> callb
 	: callback_{ std::move(callback) } { }
 
 void SimpleEventListener::ProcessEvent(Rml::Event &event) {
-	callback_(event);
+	try {
+		callback_(event);
+	} catch (const std::exception &e) {
+		std::println("Runtime error: {}", e.what());
+	}
 }
 
 std::function<void(Rml::Event &)> &SimpleEventListener::getCallback() {

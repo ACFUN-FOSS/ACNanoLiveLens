@@ -19,6 +19,7 @@
 #include <EatiEssentials/memory.hxx>
 
 // Core 头文件
+#include <Core/stdafx.h>
 #include <Core/ws.hxx>
 
 // 第三方库头文件

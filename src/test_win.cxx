@@ -13,10 +13,10 @@ using namespace Essentials::IO;
 class TestWin::Impl
 {
 public:
-    Impl()
+	Impl()
 		: uiState_{ [] -> UIState {
 			auto mainWin = newBox(UiWin{ "main", {}, getAssetsDir() / "test_win.rml", true });
-			auto &mainWinRootEle = UNWRAP(mainWin->getContext().GetRootElement());
+			auto &mainWinRootEle = mainWin->getRootElement();
 			SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
 			auto &win = getAppState().winManager->transferWin(std::move(mainWin));
 			return { &win, std::move(mainWinRootEleEventMan) };
@@ -25,6 +25,11 @@ public:
 		// uiState_.mainWinRootEleEventMan_.on("btn", "click", [this](Rml::Event &e) {
 		// 	std::print("btn click\n");
 		// });
+
+		uiState_.mainWin_->setReloadCb([this]{
+			auto &mainWinRootEle = uiState_.mainWin_->getRootElement();
+			uiState_.mainWinRootEleEventMan_.reBind(mainWinRootEle);
+		});
 	
 	}
 

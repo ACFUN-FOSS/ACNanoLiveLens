@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(nanolivelens_core
-    stdafx.cpp
+    private/stdafx.cpp
     private/ws.cxx
 )
 
@@ -18,7 +18,7 @@ target_include_directories(nanolivelens_core
     PRIVATE .
 )
 
-target_precompile_headers(nanolivelens_core PRIVATE stdafx.h)
+target_precompile_headers(nanolivelens_core PRIVATE public/Core/stdafx.h)
 
 target_link_libraries(nanolivelens_core
     PUBLIC

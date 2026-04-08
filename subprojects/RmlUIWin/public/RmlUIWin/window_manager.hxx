@@ -48,6 +48,7 @@ public:
     [[nodiscard]] bool isMainWin() const;
 	[[nodiscard]] Rml::Vector2i getMousePos() const;
 	[[nodiscard]] Rml::Vector2i getWinPos() const;
+	[[nodiscard]] Rml::Element &getRootElement() const;
     void setWinPos(const Rml::Vector2i pos);
 	void setShouldClose();
 
@@ -75,7 +76,7 @@ private:
 // 窗口管理器类
 class WinManager {
 public:
-    WinManager() = default;
+    WinManager();
     ~WinManager() = default;
 
     // 禁止拷贝，允许移动
@@ -113,5 +114,8 @@ public:
 private:
     std::vector<std::unique_ptr<UiWin>> wins_;
 };
+
+void setModalWin(UiWin *window);
+[[nodiscard]] UiWin *getModalWin();
 
 } // namespace rmlui_wrapper

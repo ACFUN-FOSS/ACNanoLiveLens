@@ -1,0 +1,54 @@
+.msg-box-content
+{
+    display: block;
+    height: 100%;
+}
+
+.msg-box
+{
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 8dp 6dp 10dp 6dp;
+}
+
+.msg-box-title
+{
+    margin: 0 0 10dp 0;
+    font-size: 22dp;
+    font-weight: bold;
+}
+
+.msg-box-text
+{
+    display: block;
+    width: 100%;
+    height: 100dp;
+    margin: 0 0 12dp 0;
+    line-height: 1.35;
+    white-space: pre-wrap;
+}
+
+.msg-box-ok-btn
+{
+    width: 72dp;
+    height: 24dp;
+    float: right;
+    background-color: rgb(76, 120, 210);
+    border-radius: 4dp;
+}
+
+.msg-box-error .msg-box-title
+{
+    color: rgb(255, 110, 110);
+}
+
+.msg-box-warning .msg-box-title
+{
+    color: rgb(255, 215, 110);
+}
+
+.msg-box-info .msg-box-title
+{
+    color: rgb(120, 200, 255);
+}

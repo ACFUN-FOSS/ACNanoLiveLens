@@ -1,72 +1,73 @@
 #danmaku-list-scroll-container
-		{
-			display: block;
-            width: 100%;
-			height: 100%;
-			overflow-y: scroll;
-		}
-		scrollbarvertical
-		{
-			width: 27px;
-		}
+	{
+		display: block;
+        width: 100%;
+		height: 90%;
+		overflow-y: scroll;
+	}
+	scrollbarvertical
+	{
+		width: 27px;
+	}
 
-        #danmaku-list
-        {
-            display: block;
-            width: 100%;
-            height: auto;
-        }
+       #danmaku-list
+       {
+           display: block;
+           width: 100%;
+           height: auto;
+       }
 
-		.danmaku-item-appear-anim-container
-		{
-			display: block;
-			height: 0px;
-			overflow-y: hidden;
-			transition: height 3s elastic-out;
-		}
+	.danmaku-item-appear-anim-container
+	{
+		display: block;
+		height: 0px;
+		overflow-y: hidden;
+		transition: height 3s elastic-out;
+	}
 
-		.danmaku-item-appear-anim-container.show
-		{
-			height: auto;
-		}
+	.danmaku-item-appear-anim-container.show
+	{
+		height: auto;
+	}
 
-		danmaku-item
-		{
-			display: block;
-			height: auto;
-		}
+	danmaku-item
+	{
+		display: block;
+		height: auto;
 
-        .danmaku-item
-        {
-            display: block;
-            padding: 4dp 8dp;
-            margin-bottom: 2dp;
-        }
+	}
+
+       .danmaku-item
+       {
+           display: block;
+           padding: 4dp 8dp;
+           margin-bottom: 2dp;
+       }
 
 
-        .danmaku-item:hover
-        {
-            background-color: rgb(52, 52, 52);
-        }
+       .danmaku-item:hover
+       {
+           background-color: rgb(52, 52, 52);
+       }
 
-        #sender
-        {
-            display: inline-block;
-            font-weight: bold;
-            color: rgb(150, 200, 255);
-            margin-right: 8dp;
-        }
+       #sender
+       {
+           display: inline-block;
+           font-weight: bold;
+           color: rgb(150, 200, 255);
+           margin-right: 8dp;
+       }
 
-        #content
-        {
-			display: inline;
-            color: rgb(220, 220, 220);
-        }
+       #content
+       {
+		display: inline;
+           color: rgb(220, 220, 220);
+       }
 
-        #time
-        {
-            display: block;
-			height: 1em;
-            color: rgb(150, 150, 150);
-            font-size: 14dp;
-        }
+       #time
+       {
+           display: block;
+		height: 1em;
+           color: rgb(150, 150, 150);
+           font-size: 14dp;
+       }

@@ -39,8 +39,10 @@ public:
     
     void update() const;
     void render() const;
+    void reload() const;
 
 	void setUpdateCb(std::function<void()> cb);
+	void setReloadCb(std::function<void()> cb);
 	
     [[nodiscard]] const std::string_view getName() const;
     [[nodiscard]] bool isMainWin() const;

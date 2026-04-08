@@ -16,6 +16,25 @@ auto requireElements(Names&&... names) {
     return std::make_tuple(requireElement(std::forward<Names>(names))...);
 }
 
+class InvalidElementDynRefErr : public std::runtime_error
+{
+public:
+    InvalidElementDynRefErr(std::string_view elementQuery);
+};
+
+class ElementDynRef
+{
+public:
+    ElementDynRef(Rml::ElementDocument &document, std::string_view query);
+	Rml::Element &resolve();
+	Rml::Element *operator->();
+	void reBind(Rml::ElementDocument &document);
+private:
+	gsl::not_null<Rml::ElementDocument *> document_;
+	std::string query_;
+};
+
+
 void printElementTree(const Rml::Element &parent);
 
 Rml::Element *findParentOrSelfById(Rml::Element *child, const std::string_view id);
@@ -65,6 +84,7 @@ public:
 
     void on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback);
 	void clear();
+	void reBind(Rml::Element &element);
 
 private:
     gsl::not_null<Rml::Element *> element_;
@@ -83,7 +103,6 @@ public:
 
 	TestListener(Rml::Element *element);
 };
-
 
 
 #endif //NANOLIVELENS_RMLUIPP_HXX

@@ -6,16 +6,20 @@
 #include <stdexcept>
 
 #include <EatiEssentials/misc.hxx>
+#include <EatiEssentials/io.hxx>
 #include <RmlUi_Backend.h>
 #include <RmlUi/Debugger.h>
 
 using namespace std::string_literals;
 using namespace Essentials::Misc;
+using namespace Essentials::IO;
 
 namespace RmlUIWin
 {
 
 std::function<void(Rml::Context &)> onReloadTriggered;
+
+static std::unordered_map<gsl::not_null<Rml::Context *>, gsl::not_null<UiWin *>> context2Win;
 
 bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) {
     if (!context)
@@ -93,6 +97,8 @@ bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier ke
             }
             if (onReloadTriggered)
                 onReloadTriggered(*context);
+			auto uiWin = context2Win.at(context);
+			uiWin->reload();
         }
         else
         {
@@ -123,6 +129,7 @@ struct UiWin::SelfData
 	bool _isMainWin;
 	bool _isTransparent;
 	std::function<void()> _updateCb;
+	std::function<void()> _reloadCb;
 };
 
 void UiWin::EventListener::ProcessEvent(Rml::Event& event) {
@@ -186,6 +193,7 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 	_data->_rmlCStyleData->_document->Show();
 
 	Rml::Debugger::Initialise(_data->_rmlCStyleData->_context);
+	context2Win.emplace(_data->_rmlCStyleData->_context, this);
     std::println("Created window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
 }
 
@@ -197,6 +205,7 @@ UiWin &UiWin::operator=(UiWin &&other) noexcept {
 
 UiWin::~UiWin() {
     destroy();
+    context2Win.erase(_data->_rmlCStyleData->_context);
 }
 
 void UiWin::destroy() {
@@ -238,8 +247,30 @@ void UiWin::render() const {
 		_data->_rmlCStyleData->_context->Render();
 }
 
+void UiWin::reload() const {
+	_data->_rmlCStyleData->_document->Close();
+	auto documentptr = _data->_rmlCStyleData->_context->LoadDocument(_data->_selfData->_documentPath.string());
+	if (!documentptr)
+		throw std::runtime_error("Failed to load document for window: "s + _data->_selfData->_name);
+
+	//documentptr->SetInnerRML(readFile(_data->_selfData->_documentPath.string()));
+	
+	_data->_rmlCStyleData->_document = documentptr;
+	//_data->_rmlCStyleData->_document->AddEventListener("click", &_data->_selfData->_eventListener);
+	_data->_rmlCStyleData->_document->Show();
+
+    if (_data->_selfData->_reloadCb)
+        _data->_selfData->_reloadCb();
+}
+
+
+
 void UiWin::setUpdateCb(std::function<void()> cb) {
 	_data->_selfData->_updateCb = cb;
+}
+
+void UiWin::setReloadCb(std::function<void()> cb) {
+	_data->_selfData->_reloadCb = cb;
 }
 
 [[nodiscard]] const std::string_view UiWin::getName() const { 
@@ -340,5 +371,6 @@ void WinManager::cleanupClosedWindows() {
     assert(mainWinIt != wins_.end());
     return **mainWinIt;
 }
+
 
 }

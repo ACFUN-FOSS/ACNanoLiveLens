@@ -127,7 +127,7 @@ struct UiWin::RmlCStyleData
 	gsl::not_null<GLFWwindow *> _win;
 	gsl::not_null<Rml::Context *> _context;
 	gsl::not_null<Rml::ElementDocument *> _document;
-	gsl::not_null<SystemInterface_GLFW *> _systemInterface;
+	//gsl::not_null<SystemInterface_GLFW *> _systemInterface;
 };
 
 struct UiWin::SelfData
@@ -183,7 +183,7 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 				._win = &win,
 				._context = contextptr,
 				._document = documentptr,
-				._systemInterface = dynamic_cast<SystemInterface_GLFW *>(Rml::GetSystemInterface())
+				//._systemInterface = dynamic_cast<SystemInterface_GLFW *>(Rml::GetSystemInterface())
 			});
 
 		}()},
@@ -300,7 +300,9 @@ void UiWin::setReloadCb(std::function<void()> cb) {
 }
 
 [[nodiscard]] Rml::Vector2i UiWin::getMousePos() const {
-	return _data->_rmlCStyleData->_systemInterface->GetMousePosition();
+	//return _data->_rmlCStyleData->_systemInterface->GetMousePosition();
+	//return UNWRAP(dynamic_cast<SystemInterface_GLFW *>(Rml::GetSystemInterface())).GetMousePosition();
+	return UNWRAP(SystemInterface_GLFW::instance).GetMousePosition();
 }
 
 [[nodiscard]] Rml::Vector2i UiWin::getWinPos() const {

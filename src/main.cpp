@@ -9,7 +9,7 @@
 
 #include "danmaku_monitor_win.hxx"
 #include "test_win.hxx"
-#include "js_bindings.hxx"
+//#include "js_bindings.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;

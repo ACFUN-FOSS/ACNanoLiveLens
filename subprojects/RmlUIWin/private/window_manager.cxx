@@ -20,10 +20,20 @@ namespace RmlUIWin
 std::function<void(Rml::Context &)> onReloadTriggered;
 
 static std::unordered_map<gsl::not_null<Rml::Context *>, gsl::not_null<UiWin *>> context2Win;
+static UiWin *modalWin = nullptr;
+
+static bool isInputAllowedForContext(const Rml::Context *context) {
+	if (!modalWin)
+		return true;
+
+	return &modalWin->getContext() == context;
+}
 
 bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) {
     if (!context)
         return true;
+	if (!isInputAllowedForContext(context))
+		return false;
 
     // Result should return true to allow the event to propagate to the next handler.
     bool result = false;
@@ -239,7 +249,11 @@ void UiWin::update() const {
     if (_data->_rmlCStyleData->_context)
 		_data->_rmlCStyleData->_context->Update();
 	if (_data->_selfData->_updateCb)
-		_data->_selfData->_updateCb();
+		try {
+			_data->_selfData->_updateCb();
+		} catch (const std::exception &e) {
+			std::println("UI Runtime error: {}", e.what());
+		}
 }
 
 void UiWin::render() const {
@@ -260,7 +274,11 @@ void UiWin::reload() const {
 	_data->_rmlCStyleData->_document->Show();
 
     if (_data->_selfData->_reloadCb)
-        _data->_selfData->_reloadCb();
+		try {
+			_data->_selfData->_reloadCb();
+		} catch (const std::exception &e) {
+			std::println("UI Runtime error: {}", e.what());
+		}
 }
 
 
@@ -305,6 +323,10 @@ void UiWin::setReloadCb(std::function<void()> cb) {
     return it != wins_.end() ? it->get() : nullptr;
 }
 
+[[nodiscard]] Rml::Element &UiWin::getRootElement() const LIFETIMEBOUND { 
+    return UNWRAP(_data->_rmlCStyleData->_context->GetRootElement());
+}
+
 void UiWin::setWinPos(const Rml::Vector2i pos) {
     Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
 }
@@ -329,6 +351,12 @@ public:
 
 
 // WinManager 实现
+
+WinManager::WinManager() {
+	Backend::SetContextInputFilter([](Rml::Context *context) {
+		return isInputAllowedForContext(context);
+	});
+}
 
 UiWin &WinManager::transferWin(std::unique_ptr<UiWin>&& window) LIFETIMEBOUND {
     wins_.push_back(std::move(window));
@@ -370,6 +398,14 @@ void WinManager::cleanupClosedWindows() {
 
     assert(mainWinIt != wins_.end());
     return **mainWinIt;
+}
+
+void setModalWin(UiWin *window) {
+	modalWin = window;
+}
+
+[[nodiscard]] UiWin *getModalWin() {
+	return modalWin;
 }
 
 

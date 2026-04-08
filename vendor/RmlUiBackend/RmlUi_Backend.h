@@ -37,6 +37,7 @@
 struct GLFWwindow;
 
 using KeyDownCallback = bool (*)(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority);
+using ContextInputFilter = bool (*)(Rml::Context* context);
 
 /**
     This interface serves as a basic abstraction over the various backends included with RmlUi. It is mainly intended as an example to get something
@@ -82,6 +83,7 @@ Rml::RenderInterface* GetRenderInterface();
 // Polls and processes events from the current platform for all registered windows/contexts.
 // @return False to indicate that the application should be closed.
 bool ProcessEvents(bool power_save = false);
+void SetContextInputFilter(ContextInputFilter filter);
 // Request application closure during the next event processing call.
 void RequestExit();
 

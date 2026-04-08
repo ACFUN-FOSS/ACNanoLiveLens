@@ -207,6 +207,7 @@ struct BackendData {
 };
 
 static Rml::UniquePtr<BackendData> data;
+static ContextInputFilter context_input_filter = nullptr;
 
 // 依據 GLFWwindow 指標取得對應的 WindowData
 static WindowData* GetWindowData(GLFWwindow* window)
@@ -216,6 +217,15 @@ static WindowData* GetWindowData(GLFWwindow* window)
 		[window](const std::unique_ptr<WindowData>& w) { return w->glfw_win == window; }
 	);
 	return it != data->windows.end() ? &**it : nullptr;
+}
+
+static bool IsInputAllowedForContext(Rml::Context* context)
+{
+	if (!context)
+		return false;
+	if (!context_input_filter)
+		return true;
+	return context_input_filter(context);
 }
 
 static GLFWwindow* CreateWindowInternal(const char* name, int width, int height, bool allow_resize, GLFWwindow* shared)
@@ -528,6 +538,11 @@ bool Backend::ProcessEvents(bool power_save)
 	return !shouldExit;
 }
 
+void Backend::SetContextInputFilter(ContextInputFilter filter)
+{
+	context_input_filter = filter;
+}
+
 
 
 void Backend::RequestExit()
@@ -585,6 +600,8 @@ static void SetupCallbacks(GLFWwindow* window)
 		auto* w = static_cast<WindowData*>(glfwGetWindowUserPointer(win));
 		if (!w || !w->context)
 			return;
+		if (!IsInputAllowedForContext(w->context))
+			return;
 
 		// Store the active modifiers for later because GLFW doesn't provide them in the callbacks to the mouse input events.
 		w->glfw_active_modifiers = glfw_mods;
@@ -620,20 +637,20 @@ static void SetupCallbacks(GLFWwindow* window)
 
 	glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codepoint) {
 		auto* w = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
-		if (w)
+		if (w && IsInputAllowedForContext(w->context))
 			RmlGLFW::ProcessCharCallback(w->context, codepoint);
 	});
 
 	glfwSetCursorEnterCallback(window, [](GLFWwindow* window, int entered) {
 		auto* w = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
-		if (w)
+		if (w && IsInputAllowedForContext(w->context))
 			RmlGLFW::ProcessCursorEnterCallback(w->context, entered);
 	});
 
 	// Mouse input
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		auto* w = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
-		if (w)
+		if (w && IsInputAllowedForContext(w->context))
 			RmlGLFW::ProcessCursorPosCallback(w->context, window, xpos, ypos, w->glfw_active_modifiers);
 	});
 
@@ -641,13 +658,15 @@ static void SetupCallbacks(GLFWwindow* window)
 		auto* w = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 		if (!w)
 			return;
+		if (!IsInputAllowedForContext(w->context))
+			return;
 		w->glfw_active_modifiers = mods;
 		RmlGLFW::ProcessMouseButtonCallback(w->context, button, action, mods);
 	});
 
 	glfwSetScrollCallback(window, [](GLFWwindow* window, double /*xoffset*/, double yoffset) {
 		auto* w = static_cast<WindowData*>(glfwGetWindowUserPointer(window));
-		if (w)
+		if (w && IsInputAllowedForContext(w->context))
 			RmlGLFW::ProcessScrollCallback(w->context, yoffset, w->glfw_active_modifiers);
 	});
 

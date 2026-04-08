@@ -115,6 +115,7 @@ add_executable(nanolivelens
 	# Windows
 	src/test_win.cxx
 	src/danmaku_monitor_win.cxx
+	src/msg_box.cxx
 
 	# JavaScript bindings
 	# src/js_bindings.cxx

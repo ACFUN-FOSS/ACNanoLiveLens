@@ -4,6 +4,7 @@
 #include "assets.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
+#include "msg_box.hxx"
 #include "utils.hxx"
 
 using namespace RmlUIWin;
@@ -18,8 +19,7 @@ public:
     Impl()
         : uiState_{ [] -> UIState {
             auto mainWin = newBox(UiWin{ "danmaku_monitor", {}, getAssetsDir() / "danmaku_monitor.rml", true });
-            auto &mainWinRootEle = UNWRAP(mainWin->getContext().GetRootElement());
-            SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
+            SimpleEventListenerManager mainWinRootEleEventMan{ mainWin->getRootElement() };
             auto &win = getAppState().winManager->transferWin(std::move(mainWin));
             return { &win, std::move(mainWinRootEleEventMan) };
         }() }
@@ -36,7 +36,7 @@ public:
 				auto danmakuInGui = danmakuInGui_;
 				dbgLog("DanmakuMonitorWin: reload: clearDanmaku");
 
-				auto &mainWinRootEle = UNWRAP(uiState_.mainWin_->getContext().GetRootElement());
+				auto &mainWinRootEle = uiState_.mainWin_->getRootElement();
 				uiState_.mainWinRootEleEventMan_.reBind(mainWinRootEle);
 				danmakuList_.reBind(uiState_.mainWin_->getDocument());
 
@@ -47,7 +47,13 @@ public:
 				}
 			});
 
-			bindEventHandlers();
+			uiState_.mainWinRootEleEventMan_.on("add-danmaku-btn", "click", [this](auto &&_) {
+			addDanmaku({
+				"sender",
+				"contentcontent contentcontent contentcontent contentcontent contentcontent contentcontent",
+				std::chrono::system_clock::now()
+			});
+		});
     }
 
     ~Impl() = default;
@@ -59,22 +65,13 @@ public:
 	void createUIState() {
 		//uiState_.mainWinRootEleEventMan_
 	}
-
-	void bindEventHandlers() {
-		uiState_.mainWinRootEleEventMan_.on("add-danmaku-btn", "click", [this](auto &&_) {
-			addDanmaku({
-				"sender",
-				"contentcontent contentcontent contentcontent contentcontent contentcontent contentcontent",
-				std::chrono::system_clock::now()
-			});
-		});
-	}
-
     void addDanmaku(const DanmakuInfo &danmaku)
     {
 
+		MsgBox::popupOKMsgBox(MsgBox::Type::EINFO, "Add Danmaku");
+
 		auto &document = uiState_.mainWin_->getDocument();
-		dbgLog("document: {}", ptrToHex(&document));
+		//dbgLog("document: {}", ptrToHex(&document));
 
 		auto danmakuItemAppearAnimContainerEle = document.CreateElement("div");
 		danmakuItemAppearAnimContainerEle->SetClass("danmaku-item-appear-anim-container", true);
@@ -109,7 +106,7 @@ public:
 
 	void scrollToEnd() {
 
-		auto &root = UNWRAP(uiState_.mainWin_->getContext().GetRootElement());
+		auto &root = uiState_.mainWin_->getRootElement();
 		//danmaku-list-scroll-container
 		//auto &scrollContainer = UNWRAP(findChildOrSelfById(&root, "danmaku-list-scroll-container"));
 		//scrollContainer.ScrollIntoView(true);

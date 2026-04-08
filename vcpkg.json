@@ -1,9 +1,11 @@
 {
   "dependencies": [
     "boost-dll",
+    "boost-process",
     "boost-stacktrace",
     "concurrencpp",
     "cxxopts",
+    "duktape",
     "glad",
     "glfw3",
     "libiconv",
@@ -21,7 +23,6 @@
         "svg"
       ]
     },
-    "boost-process",
-    "duktape"
+    "cppcodec"
   ]
 }

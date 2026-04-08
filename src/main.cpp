@@ -59,7 +59,7 @@ static void rmluiMain() {
         //TestWin testWin;
 		DanmakuMonitorWin danmakuMonitorWin;
 
-		JSBindings::init(rmlui, danmakuMonitorWin);
+		//JSBindings::init(rmlui, danmakuMonitorWin);
 
 		bool shouldExit = false;
 
@@ -77,7 +77,7 @@ static void rmluiMain() {
             winMan.cleanupClosedWindows();
         }
 
-		JSBindings::shutdown();
+		//JSBindings::shutdown();
     }
 }
 

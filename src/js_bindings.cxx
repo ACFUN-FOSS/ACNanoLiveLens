@@ -1,8 +1,6 @@
 #include "js_bindings.hxx"
 #include "rmluipp.hxx"
 #include "appstate.hxx"
-#include <format>
-#include <duktape.h>
 
 using namespace RmlUIWin;
 

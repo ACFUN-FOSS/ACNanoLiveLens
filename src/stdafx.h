@@ -2,13 +2,19 @@
 #define NANOLIVELENS_PCH_H
 
 // 标准库头文件
+#include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <deque>
+#include <filesystem>
+#include <format>
+#include <fstream>
 #include <functional>
 #include <mutex>
 #include <optional>
 #include <print>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -24,8 +30,7 @@
 #include <EatiEssentials/misc.hxx>
 
 // 第三方库头文件
-//#include <glad/glad.h>
-//#include <glfw/glfw3.h>// 第三方库头文件
+#include <duktape.h>
 #include <pimpl.hpp>
 #include <RmlUI/Core.h>
 #include <RmlUi_Backend.h>

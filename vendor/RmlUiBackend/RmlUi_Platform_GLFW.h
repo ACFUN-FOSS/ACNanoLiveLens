@@ -52,6 +52,8 @@ public:
 	void SetClipboardText(const Rml::String& text) override;
 	void GetClipboardText(Rml::String& text) override;
 
+	static SystemInterface_GLFW* instance;
+
 private:
 	GLFWwindow* window = nullptr;
 
@@ -61,6 +63,8 @@ private:
 	GLFWcursor* cursor_move = nullptr;
 	GLFWcursor* cursor_resize = nullptr;
 	GLFWcursor* cursor_unavailable = nullptr;
+
+	
 };
 
 /**

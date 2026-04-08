@@ -70,7 +70,7 @@ private:
 	void bindEventHandlers() {
 		uiState_.mainWin_->setReloadCb([this] {
 			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_->getRootElement());
-			bindEventHandlers();
+			//bindEventHandlers();
 			refreshUi();
 		});
 

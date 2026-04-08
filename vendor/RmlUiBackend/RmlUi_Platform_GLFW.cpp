@@ -36,6 +36,8 @@
 
 #define GLFW_HAS_EXTRA_CURSORS (GLFW_VERSION_MAJOR >= 3 && GLFW_VERSION_MINOR >= 4)
 
+SystemInterface_GLFW* SystemInterface_GLFW::instance;
+
 SystemInterface_GLFW::SystemInterface_GLFW()
 {
 	cursor_pointer = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
@@ -50,6 +52,8 @@ SystemInterface_GLFW::SystemInterface_GLFW()
 	cursor_resize = cursor_pointer;
 	cursor_unavailable = nullptr;
 #endif
+
+	instance = this;
 }
 
 SystemInterface_GLFW::~SystemInterface_GLFW()

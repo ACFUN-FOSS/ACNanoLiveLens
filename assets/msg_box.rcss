@@ -23,7 +23,7 @@
 {
     display: block;
     width: 100%;
-    height: 100dp;
+    height: 80dp;
     margin: 0 0 12dp 0;
     line-height: 1.35;
     white-space: pre-wrap;
@@ -31,11 +31,13 @@
 
 .msg-box-ok-btn
 {
-    width: 72dp;
+    width: 60dp;
     height: 24dp;
+	margin: 0 40dp 0 0;
     float: right;
     background-color: rgb(76, 120, 210);
-    border-radius: 4dp;
+    border-radius: 6dp;
+	text-align: center;
 }
 
 .msg-box-error .msg-box-title

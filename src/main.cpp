@@ -50,6 +50,8 @@ static void rmluiMain() {
             for (auto &child : windowEles) {
 				child.get().reload();
             }
+
+			//winMan.requestReloadToAllWins();
         };
 
 		initAppState({ &rmlui, &winMan });

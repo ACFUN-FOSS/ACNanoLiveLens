@@ -16,6 +16,32 @@ Rml::Element &requireElement(Rml::Element &parent, const std::string_view id) {
     return *result;
 }
 
+InvalidElementDynRefErr::InvalidElementDynRefErr(std::string_view elementQuery)
+    : std::runtime_error{
+        std::format("Cannot find element `{}'!", elementQuery)
+    } { }
+
+ElementDynRef::ElementDynRef(Rml::ElementDocument &document, std::string_view query)
+	: document_{ &document }, query_{ query } { }
+
+Rml::Element &ElementDynRef::resolve() {
+	const auto result = document_->QuerySelector(query_);
+	if (!result) {
+		throw InvalidElementDynRefErr{ query_ };
+	}
+	return *result;
+}
+
+Rml::Element *ElementDynRef::operator->() {
+	return &resolve();
+}
+
+void ElementDynRef::reBind(Rml::ElementDocument &document) {
+	document_ = &document;
+}
+
+
+
 void printElementTree(const Rml::Element &parent) {
     std::cout << "BEGIN printElementTree\n";
     [](this const auto &self, const Rml::Element &child, int nest) -> void {
@@ -149,6 +175,26 @@ void SimpleEventListenerManager::clear() {
 	eventListeners_.clear();
 }
 
+void SimpleEventListenerManager::reBind(Rml::Element &element) {
+	for (auto &[regRec, listenerBox] : eventListeners_) {
+		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
+
+		if (!childElementPtr)
+			continue;
+		childElementPtr->RemoveEventListener(regRec.event, &*listenerBox);
+	}
+	element_ = &element;
+
+	for (auto &[regRec, listenerBox] : eventListeners_) {
+		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
+
+		if (!childElementPtr)
+			continue;
+		childElementPtr->AddEventListener(regRec.event, &*listenerBox);
+	}
+}
+
+
 
 TestListener::TestListener(Rml::Element *element)
 	: element{ element } { }
@@ -158,3 +204,4 @@ void TestListener::ProcessEvent(Rml::Event &event) {
 		std::cout << "TestListener. element clicked. addr = " << element << std::endl;
 	}
 }
+

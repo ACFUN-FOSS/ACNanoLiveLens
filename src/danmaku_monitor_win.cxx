@@ -9,7 +9,9 @@
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
 using namespace Essentials::IO;
+using namespace Essentials::Misc;
 
+// 太复杂，需要进一步封装
 class DanmakuMonitorWin::Impl
 {
 public:
@@ -21,20 +23,31 @@ public:
             auto &win = getAppState().winManager->transferWin(std::move(mainWin));
             return { &win, std::move(mainWinRootEleEventMan) };
         }() }
-		, danmakuList_{ 
-			&requireElement(UNWRAP(uiState_.mainWin_->getContext().GetRootElement()), "danmaku-list") 
+		, danmakuList_{
+			uiState_.mainWin_->getDocument(), "#danmaku-list"
 		} {
-			uiState_.mainWinRootEleEventMan_.on("add-danmaku-btn", "click", [this](auto &&_) {
-				addDanmaku({
-					"sender",
-					"contentcontent contentcontent contentcontent contentcontent contentcontent contentcontent",
-					std::chrono::system_clock::now()
-				});
-			});
 			uiState_.mainWin_->setUpdateCb([this]() {
+
 				startPendingDanmakuContainerAnim();
 				scrollToEnd();
 			});
+
+			uiState_.mainWin_->setReloadCb([this]() {
+				auto danmakuInGui = danmakuInGui_;
+				dbgLog("DanmakuMonitorWin: reload: clearDanmaku");
+
+				auto &mainWinRootEle = UNWRAP(uiState_.mainWin_->getContext().GetRootElement());
+				uiState_.mainWinRootEleEventMan_.reBind(mainWinRootEle);
+				danmakuList_.reBind(uiState_.mainWin_->getDocument());
+
+				clearDanmaku();
+				// Re-spawn danmakus
+				for (auto &danmakuInGui : danmakuInGui) {
+					addDanmaku(danmakuInGui.danmakuInfo);
+				}
+			});
+
+			bindEventHandlers();
     }
 
     ~Impl() = default;
@@ -43,12 +56,25 @@ public:
     Impl &operator=(const Impl &) = delete;
     Impl &operator=(Impl &&) = delete;
 
+	void createUIState() {
+		//uiState_.mainWinRootEleEventMan_
+	}
+
+	void bindEventHandlers() {
+		uiState_.mainWinRootEleEventMan_.on("add-danmaku-btn", "click", [this](auto &&_) {
+			addDanmaku({
+				"sender",
+				"contentcontent contentcontent contentcontent contentcontent contentcontent contentcontent",
+				std::chrono::system_clock::now()
+			});
+		});
+	}
+
     void addDanmaku(const DanmakuInfo &danmaku)
     {
-        if (!danmakuList_)
-            return;
 
 		auto &document = uiState_.mainWin_->getDocument();
+		dbgLog("document: {}", ptrToHex(&document));
 
 		auto danmakuItemAppearAnimContainerEle = document.CreateElement("div");
 		danmakuItemAppearAnimContainerEle->SetClass("danmaku-item-appear-anim-container", true);
@@ -72,10 +98,23 @@ public:
 
 
 		pendingAnimDanmaku.emplace(&danmakuItemAppearAnimContainerEle_, &danmakuItem_);
+		danmakuInGui_.emplace_back(
+			DanmakuGuiInfo{
+				&danmakuItemAppearAnimContainerEle_,
+				&danmakuItem_
+			},
+			danmaku
+		);
     }
 
 	void scrollToEnd() {
 
+		auto &root = UNWRAP(uiState_.mainWin_->getContext().GetRootElement());
+		//danmaku-list-scroll-container
+		//auto &scrollContainer = UNWRAP(findChildOrSelfById(&root, "danmaku-list-scroll-container"));
+		//scrollContainer.ScrollIntoView(true);
+		danmakuList_->ScrollIntoView(false);
+		//danmakuList.SetScrollTop(danmakuList.GetScrollHeight());
 	}
 
 	// 为待处理的弹幕容器添加动画
@@ -118,19 +157,20 @@ public:
 
     void clearDanmaku()
     {
-        if (!danmakuList_)
-            return;
 
-        while (danmakuList_->GetNumChildren() > 0)
-        {
-            danmakuList_->RemoveChild(danmakuList_->GetChild(0));
-        }
+		for (auto &danmakuInGui : danmakuInGui_) {
+			danmakuList_->RemoveChild(
+				danmakuInGui.guiInfo.danmakuItemAppearAnimContainerEle
+			);
+		}
+
+		danmakuInGui_.clear();
     }
 
 private:
     struct UIState
     {
-        gsl::not_null<UiWin *> mainWin_;
+        gsl::not_null<UiWin *const> mainWin_;
         SimpleEventListenerManager mainWinRootEleEventMan_;
     } uiState_;
 
@@ -141,9 +181,18 @@ private:
 		gsl::not_null<Rml::Element *const> danmakuEle;
 	};
 
-	std::stack<DanmakuGuiInfo> pendingAnimDanmaku;
+	struct DanmakuInGui
+	{
+		DanmakuGuiInfo guiInfo;
+		DanmakuInfo danmakuInfo;
+	};
 
-    Rml::Element *danmakuList_{ nullptr };
+	std::stack<DanmakuGuiInfo> pendingAnimDanmaku;
+	std::vector<DanmakuInGui> danmakuInGui_;
+
+    ElementDynRef danmakuList_;
+
+	std::vector<DanmakuInfo> danmakuInfos_;
 };
 
 DanmakuMonitorWin::DanmakuMonitorWin()

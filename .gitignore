@@ -3,6 +3,7 @@ BUILD
 .idea
 .cache
 .workbuddy
+assets/runtime/*
 
 # Prerequisites
 *.d

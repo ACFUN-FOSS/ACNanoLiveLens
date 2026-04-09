@@ -108,9 +108,13 @@ void Ws::disconnect() {
 	if (m_state->receiveThread.joinable()) {
 		m_state->receiveThread.request_stop();
 		//m_state->receiveThread.join();
-		std::println("Ws::disconnect: TODO: Gracefully stoping receiveThread has not been implemented. Detaching it.");
+		std::println("Ws::disconnect: TODO: Gracefully stoping receiveThread has not been implemented. Killing it.");
 		// I'm so sorry that I have no way to let `ws.read` exit
 		// TODO:
+		#ifdef WIN32
+		HANDLE hNative = m_state->receiveThread.native_handle();
+		TerminateThread(hNative, 1);
+		#endif
 		m_state->receiveThread.detach();
 	}
 	//std::println("Joinging threads: OK");

@@ -26,7 +26,7 @@ add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:anglebrackets>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:W0>")
-
+#add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/fsanitize=address>")
 
 # == Dependencies ==========================
 find_package(Boost REQUIRED COMPONENTS dll stacktrace_from_exception)
@@ -38,6 +38,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(concurrencpp CONFIG REQUIRED)
 find_package(reflectcpp CONFIG REQUIRED)
 find_package(duktape CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 fetch_header_only_library(https://raw.githubusercontent.com/yhirose/cpp-httplib/refs/heads/master/httplib.h httplib)
 fetch_header_only_library(https://raw.githubusercontent.com/mguludag/cpp-pimpl-helper/refs/heads/main/pimpl.hpp cpp_pimpl_helper)
 
@@ -50,6 +51,10 @@ include(thirdparty/ctrl-c-target.cmake)
 find_path(CPPCODEC_INCLUDE_DIRS "cppcodec/base32_crockford.hpp" REQUIRED)
 add_library(cppcodec INTERFACE)
 target_include_directories(cppcodec INTERFACE ${CPPCODEC_INCLUDE_DIRS})
+
+# stb
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE ${Stb_INCLUDE_DIR})
 
 # metapp
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
@@ -116,6 +121,7 @@ add_executable(nanolivelens
 	src/test_win.cxx
 	src/danmaku_monitor_win.cxx
 	src/msg_box.cxx
+	src/login_win.cxx
 
 	# JavaScript bindings
 	# src/js_bindings.cxx
@@ -164,7 +170,8 @@ target_link_libraries(nanolivelens
 	cpp_pimpl_helper
     reflectcpp::reflectcpp
     ctrl-c
-    ${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
+	nanolivelens_core
+    #${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
 )
 
 set_target_properties(nanolivelens PROPERTIES

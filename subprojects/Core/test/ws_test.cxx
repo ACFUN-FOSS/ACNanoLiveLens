@@ -45,7 +45,7 @@ int main() {
 	std::println("[客户端] 已连接");
 
 	for (int i = 1; i <= 3; ++i) {
-		ws.send(R"({"event": "test", "message": "hello"})");
+		ws.send({ {"event", "test"}, {"message", "hello"} });
 		std::println("[客户端] 已发送消息 #{}", i);
 
 		for (int j = 0; j < 20; ++j) {
@@ -77,7 +77,7 @@ int main() {
 	});
 
 	std::println("[移动构造] 移动前发送消息...");
-	ws.send(R"({"event": "move_test", "message": "before_move"})");
+	ws.send({ {"event", "move_test"}, {"message", "before_move"} });
 
 	for (int i = 0; i < 10; ++i) {
 		ws.execCb();
@@ -89,7 +89,7 @@ int main() {
 	std::println("[移动构造] 移动完成");
 
 	std::println("[移动构造] 移动后发送消息...");
-	wsMoved.send(R"({"event": "move_test", "message": "after_move"})");
+	wsMoved.send({ {"event", "move_test"}, {"message", "after_move"} });
 
 	for (int i = 0; i < 10; ++i) {
 		wsMoved.execCb();
@@ -112,7 +112,7 @@ int main() {
 	});
 
 	std::println("[移动赋值] 赋值前发送消息...");
-	wsMoved.send(R"({"event": "assign_test", "message": "before_assign"})");
+	wsMoved.send({ {"event", "assign_test"}, {"message", "before_assign"} });
 
 	for (int i = 0; i < 10; ++i) {
 		wsMoved.execCb();
@@ -125,7 +125,7 @@ int main() {
 	std::println("[移动赋值] 赋值完成");
 
 	std::println("[移动赋值] 赋值后发送消息...");
-	wsAssigned.send(R"({"event": "assign_test", "message": "after_assign"})");
+	wsAssigned.send({ {"event", "assign_test"}, {"message", "after_assign"} });
 
 	for (int i = 0; i < 10; ++i) {
 		wsAssigned.execCb();

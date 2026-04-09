@@ -67,6 +67,7 @@ void AttachContext(GLFWwindow* window, Rml::Context* context, KeyDownCallback ke
 
 Rml::Vector2i GetWindowSize(GLFWwindow* window);
 Rml::Vector2i GetWindowPos(GLFWwindow *window);
+void SetWindowSize(GLFWwindow *window, Rml::Vector2i size);
 void SetWindowPos(GLFWwindow *window, Rml::Vector2i pos);
 
 // Closes windows and release all resources owned by the backend, including the system and render interfaces.

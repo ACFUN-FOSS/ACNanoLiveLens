@@ -1,5 +1,8 @@
 #include "Core/ws.hxx"
 
+#include <condition_variable>
+#include <stop_token>
+
 struct Ws::State
 {
 	std::string url;
@@ -13,13 +16,15 @@ struct Ws::State
 
 	std::deque<WsData> messageQueue;
 	std::mutex messageQueueMutex;
+	std::condition_variable heartbeatCv;
+	std::mutex heartbeatMutex;
 
 	std::jthread receiveThread;
 	std::jthread heartbeatThread;
 	std::atomic<bool> isConnected{false};
 
 	void receiveLoop();
-	void heartbeatLoop();
+	void heartbeatLoop(std::stop_token stopToken);
 	void enqueueMessage(std::string_view message);
 };
 
@@ -74,7 +79,7 @@ void Ws::connect() {
 
 	if (m_state->heartbeatInterval.count() > 0 && m_state->heartbeatGen) {
 		m_state->heartbeatThread = std::jthread([state = m_state.get()](std::stop_token stopToken) {
-			state->heartbeatLoop();
+			state->heartbeatLoop(stopToken);
 		});
 	}
 }
@@ -85,20 +90,30 @@ void Ws::disconnect() {
 	}
 
 	m_state->isConnected = false;
+	m_state->heartbeatCv.notify_all();
 
+	// if (m_state->ws && m_state->ws->is_open()) {
+	// 	std::println("Closing Ws Connection");
+	// 	m_state->ws->close();
+	// 	std::println("Closing Ws Connection: OK");
+	// }
+
+	//std::println("Joinging heartbeatThread");
 	if (m_state->heartbeatThread.joinable()) {
 		m_state->heartbeatThread.request_stop();
 		m_state->heartbeatThread.join();
 	}
-
-	if (m_state->ws && m_state->ws->is_open()) {
-		m_state->ws->close();
-	}
+	//std::println("Joinging receiveThread");
 
 	if (m_state->receiveThread.joinable()) {
 		m_state->receiveThread.request_stop();
-		m_state->receiveThread.join();
+		//m_state->receiveThread.join();
+		std::println("Ws::disconnect: TODO: Gracefully stoping receiveThread has not been implemented. Detaching it.");
+		// I'm so sorry that I have no way to let `ws.read` exit
+		// TODO:
+		m_state->receiveThread.detach();
 	}
+	//std::println("Joinging threads: OK");
 
 	m_state->ws.reset();
 }
@@ -111,9 +126,9 @@ void Ws::once(std::string_view event, Callback cb) {
 	m_state->onceCallbacks[std::string(event)] = std::move(cb);
 }
 
-void Ws::send(std::string_view data) {
+void Ws::send(nlohmann::json data) {
 	if (m_state->isConnected && m_state->ws && m_state->ws->is_open()) {
-		m_state->ws->send(std::string(data));
+		m_state->ws->send(data.dump());
 	}
 }
 
@@ -144,6 +159,7 @@ void Ws::State::receiveLoop() {
 		auto result = ws->read(message);
 		if (result == httplib::ws::ReadResult::Fail) {
 			isConnected = false;
+			heartbeatCv.notify_all();
 			break;
 		}
 		else if (result == httplib::ws::ReadResult::Text) {
@@ -152,14 +168,20 @@ void Ws::State::receiveLoop() {
 	}
 }
 
-void Ws::State::heartbeatLoop() {
+void Ws::State::heartbeatLoop(std::stop_token stopToken) {
+	std::unique_lock lock(heartbeatMutex);
 	while (isConnected) {
-		std::this_thread::sleep_for(heartbeatInterval);
-		if (!isConnected || !ws || !ws->is_open()) {
+		const bool shouldStop = heartbeatCv.wait_for(lock, heartbeatInterval, [this, stopToken] {
+			return stopToken.stop_requested() || !isConnected.load();
+		});
+		if (shouldStop || !ws || !ws->is_open()) {
 			break;
 		}
+
+		lock.unlock();
 		auto packet = heartbeatGen();
 		ws->send(packet.dump());
+		lock.lock();
 	}
 }
 

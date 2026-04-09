@@ -9,6 +9,7 @@
 
 #include "danmaku_monitor_win.hxx"
 #include "test_win.hxx"
+#include "login_win.hxx"
 //#include "js_bindings.hxx"
 
 using namespace RmlUIWin;
@@ -23,6 +24,7 @@ static void rmluiMain() {
 
     // 載入字體
     Rml::LoadFontFace((getAssetsDir() / "NokiaSans-Regular.ttf").string());
+	Rml::LoadFontFace((getAssetsDir() / "wqy-zenhei.ttc").string(), true);
 
     registerCustomElements(rmlui);
 
@@ -57,7 +59,8 @@ static void rmluiMain() {
 		initAppState({ &rmlui, &winMan });
 
         //TestWin testWin;
-		DanmakuMonitorWin danmakuMonitorWin;
+		//DanmakuMonitorWin danmakuMonitorWin;
+		LoginWin loginWin;
 
 		//JSBindings::init(rmlui, danmakuMonitorWin);
 
@@ -98,7 +101,7 @@ int crashHandlerProtectedMain() {
     initSound();
 
     // 初始化后端
-    Backend::Initialize("RmlUi App", 800, 600, true);
+    Backend::Initialize("RmlUi App", 360, 450, true);
 
     //Essentials::Special::callNullptr();
     rmluiMain();

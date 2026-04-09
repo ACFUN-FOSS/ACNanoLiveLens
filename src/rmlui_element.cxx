@@ -15,16 +15,16 @@ RmlUIElement::RmlUIElement(const std::string_view tag, bool isWindowElement)
 void RmlUIElement::OnUpdate() {
     try {
         onUpdate();
-    } catch (...) {
-        std::println("RmlUIElement::OnUpdate caught exception");
+    } catch (std::exception &e) {
+        std::println("RmlUIElement::OnUpdate caught exception: {}", e.what());
     }
 }
 
 void RmlUIElement::ProcessDefaultAction(Rml::Event &event) {
     try {
         processDefaultAction(event);
-    } catch (...) {
-        std::println("RmlUIElement::ProcessDefaultAction caught exception");
+    } catch (std::exception &e) {
+        std::println("RmlUIElement::ProcessDefaultAction caught exception: {}", e.what());
     }
 }
 

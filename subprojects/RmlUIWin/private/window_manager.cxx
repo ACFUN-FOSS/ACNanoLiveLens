@@ -166,8 +166,10 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 			}();
 
 			// 如果是主窗口，读取窗口大小
+			// if (isMain)
+			 	//size = Backend::GetWindowSize(&win);
 			if (isMain)
-				size = Backend::GetWindowSize(&win);
+				Backend::SetWindowSize(&win, size);
 
 			// 創建 RmlUi context
 			auto contextptr = Rml::CreateContext(name, size);

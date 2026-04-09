@@ -35,7 +35,11 @@
 #include <RmlUi/Core/MeshUtilities.h>
 #include <RmlUi/Core/Platform.h>
 #include <RmlUi/Core/SystemInterface.h>
+// TODO:
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <algorithm>
+#include <cctype>
 #include <string.h>
 
 #if defined RMLUI_PLATFORM_WIN32_NATIVE
@@ -1216,36 +1220,16 @@ struct TGAHeader {
 // Restore packing
 #pragma pack()
 
-Rml::TextureHandle RenderInterface_GL3::LoadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source)
+static bool LoadTGA(Rml::Vector2i& texture_dimensions, Rml::Vector<Rml::byte>& image_data, Rml::Span<const Rml::byte> file_data)
 {
-	Rml::FileInterface* file_interface = Rml::GetFileInterface();
-	Rml::FileHandle file_handle = file_interface->Open(source);
-	if (!file_handle)
-	{
-		return false;
-	}
-
-	file_interface->Seek(file_handle, 0, SEEK_END);
-	size_t buffer_size = file_interface->Tell(file_handle);
-	file_interface->Seek(file_handle, 0, SEEK_SET);
-
-	if (buffer_size <= sizeof(TGAHeader))
+	if (file_data.size() <= sizeof(TGAHeader))
 	{
 		Rml::Log::Message(Rml::Log::LT_ERROR, "Texture file size is smaller than TGAHeader, file is not a valid TGA image.");
-		file_interface->Close(file_handle);
 		return false;
 	}
 
-	using Rml::byte;
-	Rml::UniquePtr<byte[]> buffer(new byte[buffer_size]);
-	file_interface->Read(buffer.get(), buffer_size, file_handle);
-	file_interface->Close(file_handle);
-
 	TGAHeader header;
-	memcpy(&header, buffer.get(), sizeof(TGAHeader));
-
-	int color_mode = header.bitsPerPixel / 8;
-	const size_t image_size = header.width * header.height * 4; // We always make 32bit textures
+	memcpy(&header, file_data.data(), sizeof(TGAHeader));
 
 	if (header.dataType != 2)
 	{
@@ -1253,33 +1237,51 @@ Rml::TextureHandle RenderInterface_GL3::LoadTexture(Rml::Vector2i& texture_dimen
 		return false;
 	}
 
+	if (header.width <= 0 || header.height <= 0)
+	{
+		Rml::Log::Message(Rml::Log::LT_ERROR, "Invalid TGA texture dimensions.");
+		return false;
+	}
+
+	const int color_mode = header.bitsPerPixel / 8;
+
 	// Ensure we have at least 3 colors
-	if (color_mode < 3)
+	if (color_mode < 3 || color_mode > 4)
 	{
 		Rml::Log::Message(Rml::Log::LT_ERROR, "Only 24 and 32bit textures are supported.");
 		return false;
 	}
 
-	const byte* image_src = buffer.get() + sizeof(TGAHeader);
-	Rml::UniquePtr<byte[]> image_dest_buffer(new byte[image_size]);
-	byte* image_dest = image_dest_buffer.get();
+	const size_t image_data_offset = sizeof(TGAHeader) + size_t((unsigned char)header.idLength);
+	const size_t source_image_size = size_t(header.width) * size_t(header.height) * size_t(color_mode);
+	if (file_data.size() < image_data_offset + source_image_size)
+	{
+		Rml::Log::Message(Rml::Log::LT_ERROR, "TGA texture data is truncated.");
+		return false;
+	}
+
+	const size_t image_size = size_t(header.width) * size_t(header.height) * 4;
+	image_data.resize(image_size);
+
+	const Rml::byte* image_src = file_data.data() + image_data_offset;
+	Rml::byte* image_dest = image_data.data();
 	const bool top_to_bottom_order = ((header.imageDescriptor & 32) != 0);
 
 	// Targa is BGR, swap to RGB, flip Y axis as necessary, and convert to premultiplied alpha.
-	for (long y = 0; y < header.height; y++)
+	for (int y = 0; y < header.height; y++)
 	{
-		long read_index = y * header.width * color_mode;
-		long write_index = top_to_bottom_order ? (y * header.width * 4) : (header.height - y - 1) * header.width * 4;
-		for (long x = 0; x < header.width; x++)
+		int read_index = y * header.width * color_mode;
+		int write_index = top_to_bottom_order ? (y * header.width * 4) : (header.height - y - 1) * header.width * 4;
+		for (int x = 0; x < header.width; x++)
 		{
 			image_dest[write_index] = image_src[read_index + 2];
 			image_dest[write_index + 1] = image_src[read_index + 1];
 			image_dest[write_index + 2] = image_src[read_index];
 			if (color_mode == 4)
 			{
-				const byte alpha = image_src[read_index + 3];
+				const Rml::byte alpha = image_src[read_index + 3];
 				for (size_t j = 0; j < 3; j++)
-					image_dest[write_index + j] = byte((image_dest[write_index + j] * alpha) / 255);
+					image_dest[write_index + j] = Rml::byte((image_dest[write_index + j] * alpha) / 255);
 				image_dest[write_index + 3] = alpha;
 			}
 			else
@@ -1292,8 +1294,88 @@ Rml::TextureHandle RenderInterface_GL3::LoadTexture(Rml::Vector2i& texture_dimen
 
 	texture_dimensions.x = header.width;
 	texture_dimensions.y = header.height;
+	return true;
+}
 
-	return GenerateTexture({image_dest, image_size}, texture_dimensions);
+static bool LoadPNG(Rml::Vector2i& texture_dimensions, Rml::Vector<Rml::byte>& image_data, Rml::Span<const Rml::byte> file_data)
+{
+	int width = 0;
+	int height = 0;
+	int channels = 0;
+	stbi_uc* decoded = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(file_data.data()), (int)file_data.size(), &width, &height,
+		&channels, STBI_rgb_alpha);
+	if (!decoded)
+	{
+		Rml::Log::Message(Rml::Log::LT_ERROR, "Failed to decode PNG texture: %s", stbi_failure_reason());
+		return false;
+	}
+
+	const size_t image_size = size_t(width) * size_t(height) * 4;
+	image_data.assign(decoded, decoded + image_size);
+	stbi_image_free(decoded);
+
+	for (size_t i = 0; i < image_size; i += 4)
+	{
+		const Rml::byte alpha = image_data[i + 3];
+		image_data[i] = Rml::byte((image_data[i] * alpha) / 255);
+		image_data[i + 1] = Rml::byte((image_data[i + 1] * alpha) / 255);
+		image_data[i + 2] = Rml::byte((image_data[i + 2] * alpha) / 255);
+	}
+
+	texture_dimensions.x = width;
+	texture_dimensions.y = height;
+	return true;
+}
+
+Rml::TextureHandle RenderInterface_GL3::LoadTexture(Rml::Vector2i& texture_dimensions, const Rml::String& source)
+{
+	Rml::FileInterface* file_interface = Rml::GetFileInterface();
+	Rml::FileHandle file_handle = file_interface->Open(source);
+	if (!file_handle)
+	{
+		return false;
+	}
+
+	file_interface->Seek(file_handle, 0, SEEK_END);
+	const size_t buffer_size = file_interface->Tell(file_handle);
+	file_interface->Seek(file_handle, 0, SEEK_SET);
+
+	Rml::Vector<Rml::byte> buffer(buffer_size);
+	if (buffer_size > 0)
+		file_interface->Read(buffer.data(), buffer_size, file_handle);
+	file_interface->Close(file_handle);
+
+	auto HasExtension = [](const Rml::String& path, const char* extension) {
+		const size_t extension_length = strlen(extension);
+		if (path.size() < extension_length)
+			return false;
+
+		const size_t offset = path.size() - extension_length;
+		for (size_t i = 0; i < extension_length; ++i)
+		{
+			if (std::tolower((unsigned char)path[offset + i]) != extension[i])
+				return false;
+		}
+		return true;
+	};
+	auto IsPngData = [](Rml::Span<const Rml::byte> file_data) {
+		static const unsigned char png_signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
+		return file_data.size() >= sizeof(png_signature) &&
+			memcmp(file_data.data(), png_signature, sizeof(png_signature)) == 0;
+	};
+
+	Rml::Vector<Rml::byte> image_data;
+	bool success = false;
+
+	if (HasExtension(source, ".png") || IsPngData(buffer))
+		success = LoadPNG(texture_dimensions, image_data, buffer);
+	else
+		success = LoadTGA(texture_dimensions, image_data, buffer);
+
+	if (!success)
+		return false;
+
+	return GenerateTexture({image_data.data(), image_data.size()}, texture_dimensions);
 }
 
 Rml::TextureHandle RenderInterface_GL3::GenerateTexture(Rml::Span<const Rml::byte> source_data, Rml::Vector2i source_dimensions)

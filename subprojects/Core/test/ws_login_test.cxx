@@ -56,7 +56,7 @@ int main() {
 		auto json = nlohmann::json::parse(data.payload);
 
 		if (json.contains("result") && json["result"] == 1 && json.contains("data")) {
-			auto& respData = json["data"];
+			auto respData = json["data"];
 			if (respData.contains("imageData") && respData.contains("expireTime")) {
 				std::string imageData = respData["imageData"];
 				int64_t expireTime = respData["expireTime"];
@@ -98,7 +98,7 @@ int main() {
 		auto json = nlohmann::json::parse(data.payload);
 
 		if (json.contains("result") && json["result"] == 1 && json.contains("data")) {
-			auto& tokenInfo = json["data"]["tokenInfo"];
+			auto tokenInfo = json["data"]["tokenInfo"];
 
 			std::println("");
 			std::println("========================================");
@@ -124,8 +124,8 @@ int main() {
 		return 1;
 	}
 
-	std::string request = R"({"type": 7, "requestID": ")" + generateRequestID() + R"("})";
-	std::println("[请求] 发送登录二维码请求: {}", request);
+	nlohmann::json request = { {"type", 7}, {"requestID", generateRequestID()} };
+	std::println("[请求] 发送登录二维码请求: {}", request.dump());
 	ws.send(request);
 
 	std::println("");

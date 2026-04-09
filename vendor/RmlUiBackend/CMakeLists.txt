@@ -167,7 +167,7 @@ target_sources(rmlui_backend_GLFW_GL3
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Renderer_GL3.h"
 	"${CMAKE_CURRENT_LIST_DIR}/RmlUi_Include_GL3.h"
 )
-target_link_libraries(rmlui_backend_GLFW_GL3 PUBLIC rmlui_backend_common_headers glfw)
+target_link_libraries(rmlui_backend_GLFW_GL3 PUBLIC rmlui_backend_common_headers glfw stb)
 if(UNIX)
 	# The OpenGL 3 renderer implementation uses dlopen/dlclose
 	# This is required in some UNIX and UNIX-like operating systems to load shared object files at runtime

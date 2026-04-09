@@ -42,6 +42,10 @@
 #include <rfl/json.hpp>
 #include <ctrl-c.h>
 
+// 子项目
+#include "Core/stdafx.h"
+#include "Core/ws.hxx"
+
 namespace stdf = std::filesystem;
 
 #endif

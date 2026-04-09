@@ -1,0 +1,18 @@
+<rml>
+<head>
+    <title>Login</title>
+    <link type="text/rcss" href="main.rcss"/>
+    <link type="text/rcss" href="login_win.rcss"/>
+</head>
+<body>
+    <winframe id="winframe" title="Login">
+        <div class="content login-content" id="content">
+            <div class="login-hint" id="login-hint">请使用 AcFun 手机应用程序扫描二维码以登入</div>
+            <div class="qr-code-container" id="qr-code-container">
+                <img class="qr-code" id="qr-code"/>
+            </div>
+            <button class="refresh-btn" id="refresh-btn">刷新二维码</button>
+        </div>
+    </winframe>
+</body>
+</rml>

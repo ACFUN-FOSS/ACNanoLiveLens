@@ -4,6 +4,7 @@
     "boost-process",
     "boost-stacktrace",
     "concurrencpp",
+    "cppcodec",
     "cxxopts",
     "duktape",
     "glad",
@@ -23,6 +24,6 @@
         "svg"
       ]
     },
-    "cppcodec"
+    "stb"
   ]
 }

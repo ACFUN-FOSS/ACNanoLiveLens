@@ -27,8 +27,11 @@ public:
 		// });
 
 		uiState_.mainWin_->setReloadCb([this]{
-			auto &mainWinRootEle = uiState_.mainWin_->getRootElement();
-			uiState_.mainWinRootEleEventMan_.reBind(mainWinRootEle);
+			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_->getRootElement());
+
+			// Don't do below: will cause crash: you should't unbind / clear event handler during reload.
+			//uiState_.mainWinRootEleEventMan_.clear();
+
 		});
 	
 	}

@@ -18,7 +18,6 @@ WinFrame::WinFrame(const std::string_view tag)
 	SetInnerRML(readFile(getAssetsDir() / "winframe.rml"));
 
 	bindEventHandlers();
-
 	//throw std::runtime_error{ "Test excption" };
 }
 
@@ -54,6 +53,7 @@ void WinFrame::processDefaultAction(Rml::Event &event) {
 void WinFrame::initAfterConstruct() {
 	//dbgLog("INIT: WinFrame");
 	//reload();
+	requireElement(*this, "title-text").SetInnerRML(GetAttribute<std::string>("title", ""));
 }
 
 void WinFrame::reload() {

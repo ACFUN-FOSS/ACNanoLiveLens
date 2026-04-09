@@ -34,6 +34,7 @@
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Profiling.h>
 #include <GLFW/glfw3.h>
+#include <stb_image.h>
 #include <algorithm>
 #include <ranges>
 
@@ -442,6 +443,17 @@ Rml::Vector2i Backend::GetWindowSize(GLFWwindow* window)
 	Rml::Vector2i size;
 	glfwGetFramebufferSize(window, &size.x, &size.y);
 	return size;
+}
+
+void Backend::SetWindowSize(GLFWwindow* window, Rml::Vector2i size) {
+	RMLUI_ASSERT(data && window);
+	auto winIt = std::ranges::find_if(
+		data->windows,
+		[window](const std::unique_ptr<WindowData> &w) { return w->glfw_win == window; }
+	);
+	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
+
+	glfwSetWindowSize(window, size.x, size.y);
 }
 
 Rml::Vector2i Backend::GetWindowPos(GLFWwindow *window) {

@@ -30,7 +30,7 @@ public:
 
 	void on(std::string_view event, Callback cb);
 	void once(std::string_view event, Callback cb);
-	void send(std::string_view data);
+	void send(nlohmann::json data);
 
 	void execCb();
 

@@ -2,9 +2,12 @@
 #include "danmaku_item.hxx"
 #include "appstate.hxx"
 #include "assets.hxx"
+#include "js_binding.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "msg_box.hxx"
+#include "rfl_custom_type.hxx"
+
 #include "utils.hxx"
 
 using namespace RmlUIWin;
@@ -18,7 +21,7 @@ class DanmakuMonitorWin::Impl
 public:
     Impl()
         : uiState_{ [] -> UIState {
-            auto mainWin = newBox(UiWin{ "danmaku_monitor", {}, getAssetsDir() / "danmaku_monitor.rml", true });
+            auto mainWin = newBox(UiWin{ "danmaku_monitor", {700, 1000}, getAssetsDir() / "danmaku_monitor.rml", true });
             SimpleEventListenerManager mainWinRootEleEventMan{ mainWin->getRootElement() };
             auto &win = getAppState().winManager->transferWin(std::move(mainWin));
             return { &win, std::move(mainWinRootEleEventMan) };
@@ -27,7 +30,20 @@ public:
 			uiState_.mainWin_->getDocument(), "#danmaku-list"
 		} {
 			uiState_.mainWin_->setUpdateCb([this]() {
+				static bool first = true;
+				if (first) {
+					// read test danmakus from json
+					auto danmakus = rfl::json::read<std::vector<DanmakuInfo>>(
+						readFile(getAssetsDir() / "test_danmaku.json")
+					).value();
 
+					// add danmakus to gui
+					for (auto &danmaku : danmakus) {
+						addDanmaku(danmaku);
+					}
+
+					first = false;
+				}
 				startPendingDanmakuContainerAnim();
 				scrollToEnd();
 			});
@@ -68,7 +84,10 @@ public:
     void addDanmaku(const DanmakuInfo &danmaku)
     {
 
-		MsgBox::popupOKMsgBox(MsgBox::Type::EINFO, "Add Danmaku");
+		//MsgBox::popupOKMsgBox(MsgBox::Type::EINFO, "Add Danmaku");
+
+
+		//try_eval_module();
 
 		auto &document = uiState_.mainWin_->getDocument();
 		//dbgLog("document: {}", ptrToHex(&document));
@@ -102,6 +121,14 @@ public:
 			},
 			danmaku
 		);
+
+		{
+			auto jsTwinObj = makeJsTwinObject(*getAppState().jsCtx, UNWRAP(metapp::getMetaType<DanmakuGuiInfo>()), danmakuInGui_.back());
+			auto func = getAppState().jsCtx->global()["test"];
+			auto res = JS_Call(getAppState().jsCtx->ctx, qjs::Value{ func }.v, JS_UNDEFINED, 1, &jsTwinObj.v);
+			if (JS_IsException(res))
+				js_std_dump_error(getAppState().jsCtx->ctx);
+		}
     }
 
 	void scrollToEnd() {
@@ -171,19 +198,6 @@ private:
         SimpleEventListenerManager mainWinRootEleEventMan_;
     } uiState_;
 
-
-	struct DanmakuGuiInfo
-	{
-		gsl::not_null<Rml::Element *const> danmakuItemAppearAnimContainerEle;
-		gsl::not_null<Rml::Element *const> danmakuEle;
-	};
-
-	struct DanmakuInGui
-	{
-		DanmakuGuiInfo guiInfo;
-		DanmakuInfo danmakuInfo;
-	};
-
 	std::stack<DanmakuGuiInfo> pendingAnimDanmaku;
 	std::vector<DanmakuInGui> danmakuInGui_;
 
@@ -191,6 +205,29 @@ private:
 
 	std::vector<DanmakuInfo> danmakuInfos_;
 };
+
+template<>
+struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::DeclareMetaTypeBase<DanmakuMonitorWin::DanmakuGuiInfo>
+{
+	static void setup() {
+		getGlobalMetaRepo().registerType<DanmakuMonitorWin::DanmakuGuiInfo>("DanmakuGuiInfo");
+	}
+	static const metapp::MetaClass *getMetaClass() {
+		static const metapp::MetaClass metaClass {
+			metapp::getMetaType<DanmakuMonitorWin::DanmakuGuiInfo>(),
+			[](metapp::MetaClass &mc) {
+				mc.registerVariable("danmakuItemAppearAnimContainerEle", &DanmakuMonitorWin::DanmakuGuiInfo::danmakuItemAppearAnimContainerEle);
+				mc.registerVariable("danmakuEle", &DanmakuMonitorWin::DanmakuGuiInfo::danmakuEle);
+			}
+		};
+		return &metaClass;
+	}
+};
+
+void DanmakuMonitorWin::setupJsBinding(qjs::Context &ctx) {
+	auto metaType = metapp::getMetaType<DanmakuMonitorWin::DanmakuGuiInfo>();
+	regClass(ctx, UNWRAP(metaType));
+}
 
 DanmakuMonitorWin::DanmakuMonitorWin()
     : pImpl{ stdx::pimpl::make_unique<Impl>() }

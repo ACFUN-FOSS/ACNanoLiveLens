@@ -1,8 +1,7 @@
+#include "element_qjs_binding.hxx"
 #include <gsl/gsl>
 #include <quickjs/quickjs.h>
-#include <quickjspp.hpp>
 #include <metapp/variant.h>
-#include <metapp/allmetatypes.h>
 #include <metapp/interfaces/metaclass.h>
 
 struct TypeJsInfo

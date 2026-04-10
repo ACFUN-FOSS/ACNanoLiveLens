@@ -11,6 +11,21 @@ public:
         std::chrono::system_clock::time_point timestamp;
     };
 
+	struct DanmakuGuiInfo
+	{
+		gsl::not_null<Rml::Element *const> danmakuItemAppearAnimContainerEle;
+		gsl::not_null<Rml::Element *const> danmakuEle;
+		void test() {
+			std::cout << "test: " << std::endl;
+		}
+	};
+
+	struct DanmakuInGui
+	{
+		DanmakuGuiInfo guiInfo;
+		DanmakuInfo danmakuInfo;
+	};
+
     DanmakuMonitorWin();
     ~DanmakuMonitorWin();
 
@@ -21,6 +36,8 @@ public:
 
     void addDanmaku(const DanmakuInfo &danmaku);
     void clearDanmaku();
+
+	static void setupJsBinding(qjs::Context &ctx);
 
 private:
     class Impl;

@@ -5,10 +5,10 @@
     <link type="text/rcss" href="danmaku.rcss"/>
 </head>
 <body>
-    <winframe id="winframe">
+    <winframe id="winframe" title="Danmaku monitor">
         <div class="content" id="content">
-            <h1>Danmaku Monitor</h1>
 			<button id="add-danmaku-btn" class="test-btn">Add danmaku</button>
+			
 			<div id="danmaku-list-scroll-container">
             	<div id="danmaku-list"></div>
 			</div>

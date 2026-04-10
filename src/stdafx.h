@@ -30,7 +30,9 @@
 #include <EatiEssentials/misc.hxx>
 
 // 第三方库头文件
-#include <duktape.h>
+#include <metapp/allmetatypes.h>
+#include <metapp/interfaces/metaclass.h>
+#include <quickjs/quickjs-libc.h>
 #include <pimpl.hpp>
 #include <RmlUI/Core.h>
 #include <RmlUi_Backend.h>
@@ -45,6 +47,7 @@
 // 子项目
 #include "Core/stdafx.h"
 #include "Core/ws.hxx"
+#include "element_qjs_binding.hxx"
 
 namespace stdf = std::filesystem;
 

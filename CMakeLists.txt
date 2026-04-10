@@ -90,6 +90,9 @@ set(SOLOUD_DEP_MINIAUDIO_TARGET corrected_targets::Miniaudio)
 add_subdirectory(vendor/Hs/soloud/contrib/simple_with_miniaudio SYSTEM)
 add_subdirectory(vendor/Hs/Soloudpp)
 
+# qjspp
+add_subdirectory(vendor/quickjspp)
+
 # == Subprojects ============================
 add_subdirectory(subprojects/Core)
 add_subdirectory(subprojects/RmlUIWin)
@@ -111,6 +114,7 @@ add_executable(nanolivelens
     src/appstate.cxx
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
+	src/js_binding.cxx
     # src/aclive_client.cxx
 
 	# Elements
@@ -171,6 +175,9 @@ target_link_libraries(nanolivelens
     reflectcpp::reflectcpp
     ctrl-c
 	nanolivelens_core
+	quickjspp
+	element_qjs_binding
+	metapp::metapp
     #${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
 )
 

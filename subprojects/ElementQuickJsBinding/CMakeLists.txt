@@ -15,7 +15,7 @@ target_link_libraries(element_qjs_binding
     PRIVATE
     Microsoft.GSL::GSL
     metapp::metapp
-    quickjs_koush
+    quickjspp
 )
 
 # 导出头文件

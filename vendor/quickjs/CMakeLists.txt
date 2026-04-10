@@ -31,6 +31,8 @@ set_target_properties(quickjs_koush PROPERTIES
 )
 target_compile_definitions(quickjs_koush PRIVATE ${quickjs_private_def} PUBLIC ${quickjs_public_def})
 set_target_properties(quickjs_koush PROPERTIES PUBLIC_HEADER "quickjs.h;quickjs-libc.h")
+# TODO:
+target_include_directories(quickjs_koush PUBLIC ..)
 
 add_library(quickjs_koush-dumpleaks SHARED ${quickjs_src})
 target_compile_definitions(quickjs_koush-dumpleaks PRIVATE ${quickjs_private_def} PUBLIC ${quickjs_public_def} DUMP_LEAKS=1)

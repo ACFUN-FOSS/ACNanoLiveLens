@@ -8,6 +8,7 @@ body
 
 .test-btn
 {
+	display: none;
 	background-color: red;
 	width: 30px;
 	height: 18px;
@@ -50,7 +51,7 @@ winframe
 .winframe-internal-content .title-bar-btns
 {
     float: right;
-    width: 50dp;
+    width: 35dp;
 }
 
 .winframe-internal-content .title-bar-btn

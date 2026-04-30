@@ -27,13 +27,65 @@ static void initJs(qjs::Runtime &rt, qjs::Context &ctx) {
 	
 	setupAllJsBinding(ctx);
 
-	
-
 }
+
+METAPP_REFLECT
+struct TestStruct
+{
+	std::string name;
+	int age;
+	std::string foo() {
+		return "foo";
+	}
+	LifetimeInformant lifetimeInformant;
+};
+
+template<>
+struct metapp::DeclareMetaType<TestStruct> : metapp::DeclareMetaTypeBase<TestStruct>
+{
+	static void setup() {
+		getGlobalMetaRepo().registerType<TestStruct>("TestStruct");
+	}
+	static const metapp::MetaClass *getMetaClass() {
+		static const metapp::MetaClass metaClass {
+			metapp::getMetaType<TestStruct>(),
+			[](metapp::MetaClass &mc) {
+				mc.registerVariable("name", &TestStruct::name);
+				mc.registerVariable("age", &TestStruct::age);
+				mc.registerCallable("foo", &TestStruct::foo);
+			}
+		};
+		return &metaClass;
+	}
+};
 
 static void loadJsScript() {
 	auto script = readFile(getAssetsDir() / "testuserscript.js");
 	try_eval_module(script);
+
+
+	auto metaType = metapp::getMetaType<TestStruct>();
+	regClass(*getAppState().jsCtx, UNWRAP(metaType));
+
+	auto test = getAppState().jsCtx->global()["test"];
+
+
+	std::optional<TestStruct> testStruct = TestStruct{};
+
+
+	auto twin = makeJsTwinObject(
+		*getAppState().jsCtx,
+		UNWRAP(metapp::getMetaType<TestStruct>()),
+		testStruct.value(),
+		testStruct.value().lifetimeInformant.info
+	);
+
+	testStruct.reset();
+
+	auto res = JS_Call(getAppState().jsCtx->ctx, qjs::Value{ test }.v, JS_UNDEFINED, 1, &twin.v);
+	if (JS_IsException(res))
+		js_std_dump_error(getAppState().jsCtx->ctx);
+	
 }
 
 static void rmluiMain() {
@@ -84,7 +136,7 @@ static void rmluiMain() {
 		loadJsScript();
 
         //TestWin testWin;
-		DanmakuMonitorWin danmakuMonitorWin;
+		//DanmakuMonitorWin danmakuMonitorWin;
 		//LoginWin loginWin;
 
 		//JSBindings::init(rmlui, danmakuMonitorWin);

@@ -4,6 +4,35 @@
 #include <metapp/variant.h>
 #include <metapp/interfaces/metaclass.h>
 
+using namespace Essentials::Memory;
+
+LifetimeInformant::LifetimeInformant()
+	: info{ newBox(
+		LifetimeInfo{ std::chrono::steady_clock::now() })} {
+}
+LifetimeInformant::~LifetimeInformant() {
+	info->isAlive = false;
+	info->deathTime = std::chrono::steady_clock::now();
+}
+	
+LifetimeInformant::LifetimeInformant(const LifetimeInformant &other)
+	: LifetimeInformant{ } {
+}
+
+LifetimeInformant::LifetimeInformant(LifetimeInformant &&other) noexcept
+	: LifetimeInformant{ } {
+	other.info->isMovedAway = true;
+	other.info->movedAwayTime = std::chrono::steady_clock::now();
+}
+
+LifetimeInformant &LifetimeInformant::operator=(const LifetimeInformant &other) {
+	if (this == &other)
+		return *this;
+	return *this;
+}
+
+
+
 struct TypeJsInfo
 {
 	JSClassID classID;
@@ -40,12 +69,60 @@ struct JsTwinObjOpaque
 {
 	gsl::not_null<const metapp::MetaType *> type;
 	metapp::Variant cppObjPtrInVariant;
-	metapp::Variant cppObjRefInVariant;
+	Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj;
+
+	// If the JS object is a reference to a C++ object, this field will be empty,
+	// if the JS object owns the C++ object, this field will be the C++ object.
+	metapp::Variant ownedCppObjInVariant;
 };
 
 JsTwinObjOpaque *getJsTwinObjOpaque(JSValue jsvalue) {
 	//return static_cast<JsTwinObjOpaque *>(JS_GetOpaque2(&ctx, jsvalue, JS_GetClassID(jsvalue)));
 	return static_cast<JsTwinObjOpaque *>(JS_GetOpaque(jsvalue, JS_GetClassID(jsvalue)));
+}
+
+bool checkTwinObjLifetime(JSContext &ctx, JSValue jsvalue) {
+	auto opaque = getJsTwinObjOpaque(jsvalue);
+	if (!opaque)
+		return true;
+
+	if (opaque->lifetimeInfoOfCppObj) {
+		if (!opaque->lifetimeInfoOfCppObj->isAlive) {
+			auto elapsedStr = [&]() -> std::string {
+				if (!opaque->lifetimeInfoOfCppObj->deathTime)
+					return std::string{};
+				auto elapsed = std::chrono::steady_clock::now() - opaque->lifetimeInfoOfCppObj->deathTime.value();
+				auto mins = std::chrono::duration_cast<std::chrono::minutes>(elapsed);
+				auto secs = std::chrono::duration_cast<std::chrono::seconds>(elapsed - mins);
+				return std::format("({}m{}s)", mins.count(), secs.count());
+			}();
+			auto msg = std::format(
+				"Attempt to access a C++ object that has been already dead. "
+				"The object has been dead before {}",
+				elapsedStr
+			);
+			JS_ThrowTypeError(&ctx, "%s", msg.c_str());
+			return false;
+		}
+		if (opaque->lifetimeInfoOfCppObj->isMovedAway) {
+			auto elapsedStr = [&]() -> std::string {
+				if (!opaque->lifetimeInfoOfCppObj->movedAwayTime)
+					return std::string{};
+				auto elapsed = std::chrono::steady_clock::now() - *opaque->lifetimeInfoOfCppObj->movedAwayTime;
+				auto mins = std::chrono::duration_cast<std::chrono::minutes>(elapsed);
+				auto secs = std::chrono::duration_cast<std::chrono::seconds>(elapsed - mins);
+				return std::format("({}m{}s)", mins.count(), secs.count());
+			}();
+			auto msg = std::format(
+				"Attempt to access a C++ object that has been already moved away. "
+				"The object has been moved away before {}",
+				elapsedStr
+			);
+			JS_ThrowTypeError(&ctx, "%s", msg.c_str());
+			return false;
+		}
+	}
+	return true;
 }
 
 metapp::Variant unwrapJsTwinObject(JSContext &ctx, JSValue jsvalue) {
@@ -54,11 +131,14 @@ metapp::Variant unwrapJsTwinObject(JSContext &ctx, JSValue jsvalue) {
 	return opaque->cppObjPtrInVariant;
 }
 
+
 metapp::Variant jsValue2Cpp(JSContext &ctx, JSValue jsvalue) {
 	auto opaque = getJsTwinObjOpaque(jsvalue);
 	
 	// Is javascript twin object
 	if (opaque) {
+		if (!checkTwinObjLifetime(ctx, jsvalue))
+			return { };
 		return unwrapJsTwinObject(ctx, jsvalue);
 	}
 
@@ -126,6 +206,8 @@ void regClass(qjs::Context &ctx, const metapp::MetaType &type) {
 
 							
 							// subject: pointer to C++ object
+							if (!checkTwinObjLifetime(*ctx, this_val))
+								return JS_EXCEPTION;
 							metapp::Variant subject = unwrapJsTwinObject(*ctx, this_val);
 							std::vector<metapp::Variant> args;
 							for (int i = 0; i < argc; ++i) {
@@ -180,7 +262,7 @@ void regClass(qjs::Context &ctx, const metapp::MetaType &type) {
 	proto.release();
 }
 
-qjs::Value makeJsTwinObject(qjs::Context &ctx, const metapp::MetaType &type, metapp::Variant cppObj) {
+qjs::Value makeRefJsTwinObject(JSContext &ctx, const metapp::MetaType &type, metapp::Variant cppObj, Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj) {
 
 
 	//auto jsfunc = try_eval(ctx, runtime, "tests").as<std::function<void(MyWidget *)>>();
@@ -193,22 +275,39 @@ qjs::Value makeJsTwinObject(qjs::Context &ctx, const metapp::MetaType &type, met
 	//qjs::js_traits<qjs::Value>::wrap(ctx.ctx, d);
 
 
-	JSValue jsObj = JS_NewObjectClass(ctx.ctx, typeJsInfo.classID);
+	JSValue jsObj = JS_NewObjectClass(&ctx, typeJsInfo.classID);
 
 	gsl::owner<JsTwinObjOpaque *> opaque{ new JsTwinObjOpaque{
 		gsl::not_null<const metapp::MetaType *>{ &type },
 		cppObj,
-		metapp::Variant{ }	// FIXME
+		std::move(lifetimeInfoOfCppObj)
 	}};
 
 	JS_SetOpaque(jsObj, opaque);
 	if (JS_IsException(jsObj))
 		return jsObj;
 	//JS_SetPrototype(ctx.ctx, jsObj, JS_GetClassProto(ctx.ctx, typeJsInfo.classID));
-	return { ctx.ctx, std::move(jsObj) };
+	return { &ctx, std::move(jsObj) };
 }
 
+qjs::Value makeOwnedJsTwinObject(JSContext &ctx, const metapp::MetaType &type, metapp::Variant cppObj) {
+	auto &typeJsInfo = metaType2TypeJsInfo[&type];
+	assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
 
+	JSValue jsObj = JS_NewObjectClass(&ctx, typeJsInfo.classID);
+
+	gsl::owner<JsTwinObjOpaque *> opaque{ new JsTwinObjOpaque{
+		gsl::not_null<const metapp::MetaType *>{ &type },
+		cppObj,
+		{},
+		std::move(cppObj)
+	}};
+
+	JS_SetOpaque(jsObj, opaque);
+	if (JS_IsException(jsObj))
+		return jsObj;
+	return { &ctx, std::move(jsObj) };
+}
                                                                                                                                                                                                                                                                                                                     
 qjs::Value cppValue2Js(JSContext &ctx, std::string_view &&val) {
 	return { &ctx, JS_NewString(&ctx, val.data()) };
@@ -247,6 +346,17 @@ qjs::Value variant2Js(JSContext &ctx, const metapp::Variant &val) {
 		auto strVal = val.get<std::string>();
 		return cppValue2Js(ctx, std::move(strVal));
 	}
+
+	if (val.getMetaType()->isReference()) {
+		// TODO
+	}
+	if (val.getMetaType()->isPointer()) {
+		// TODO
+	}
+
+
+	// Is object
+	return makeOwnedJsTwinObject(ctx, UNWRAP(val.getMetaType()), val);
 
 
 	assert(false && "Unsupported variant type");

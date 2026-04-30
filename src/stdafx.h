@@ -51,4 +51,6 @@
 
 namespace stdf = std::filesystem;
 
+#define METAPP_REFLECT __attribute__((annotate("metapp_reflect")))
+
 #endif

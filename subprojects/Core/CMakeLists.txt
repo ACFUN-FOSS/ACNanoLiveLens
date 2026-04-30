@@ -24,6 +24,7 @@ target_link_libraries(nanolivelens_core
     PUBLIC
     EatiEssentials
     nlohmann_json::nlohmann_json
+	concurrencpp::concurrencpp
     PRIVATE
     httplib
     cppcodec

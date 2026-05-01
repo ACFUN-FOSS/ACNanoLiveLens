@@ -16,7 +16,6 @@ target_link_libraries(rmlui_win
     PRIVATE
     rmlui_backend_GLFW_GL3
     RmlUi::RmlUi
-    glfw
     Microsoft.GSL::GSL
 	PUBLIC
 	EatiEssentials

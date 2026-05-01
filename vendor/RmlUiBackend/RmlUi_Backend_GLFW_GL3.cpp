@@ -478,6 +478,15 @@ void Backend::SetWindowPos(GLFWwindow *window, Rml::Vector2i pos) {
 	glfwSetWindowPos(window, pos.x, pos.y);
 }
 
+Rml::Vector2f Backend::GetMonitorContentScale() {
+	Rml::Vector2f scale{1.f, 1.f};
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	if (monitor) {
+		glfwGetMonitorContentScale(monitor, &scale.x, &scale.y);
+	}
+	return scale;
+}
+
 bool Backend::ProcessEvents(bool power_save)
 {
 	RMLUI_ASSERT(data);

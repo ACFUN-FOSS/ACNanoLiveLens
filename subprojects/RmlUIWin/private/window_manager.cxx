@@ -165,6 +165,11 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 				}
 			}();
 
+            // 根据显示器缩放缩放 size
+            auto scale = Backend::GetMonitorContentScale();
+            size.x *= static_cast<int>(scale.x);
+            size.y *= static_cast<int>(scale.y);
+
 			// 如果是主窗口，读取窗口大小
 			// if (isMain)
 			 	//size = Backend::GetWindowSize(&win);

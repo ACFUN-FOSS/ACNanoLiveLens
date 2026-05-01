@@ -87,6 +87,8 @@ static void rmluiMain() {
 		DanmakuMonitorWin danmakuMonitorWin;
 		//LoginWin loginWin;
 
+        //assert(false);
+
 		//JSBindings::init(rmlui, danmakuMonitorWin);
 
 		bool shouldExit = false;

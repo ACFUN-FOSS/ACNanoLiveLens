@@ -16,12 +16,13 @@ using namespace Essentials::IO;
 using namespace Essentials::Misc;
 
 // 太复杂，需要进一步封装
+// TODO：或将 UiWin 初始化放在外部，要求构造时传入（不一定）
 class DanmakuMonitorWin::Impl
 {
 public:
     Impl()
         : uiState_{ [] -> UIState {
-            auto mainWin = newBox(UiWin{ "danmaku_monitor", {700, 1000}, getAssetsDir() / "danmaku_monitor.rml", true });
+            auto mainWin = newBox(UiWin{ "danmaku_monitor", {466, 666}, getAssetsDir() / "danmaku_monitor.rml", true });
             SimpleEventListenerManager mainWinRootEleEventMan{ mainWin->getRootElement() };
             auto &win = getAppState().winManager->transferWin(std::move(mainWin));
             return { &win, std::move(mainWinRootEleEventMan) };

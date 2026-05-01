@@ -69,6 +69,7 @@ Rml::Vector2i GetWindowSize(GLFWwindow* window);
 Rml::Vector2i GetWindowPos(GLFWwindow *window);
 void SetWindowSize(GLFWwindow *window, Rml::Vector2i size);
 void SetWindowPos(GLFWwindow *window, Rml::Vector2i pos);
+Rml::Vector2f GetMonitorContentScale();
 
 // Closes windows and release all resources owned by the backend, including the system and render interfaces.
 void Shutdown();

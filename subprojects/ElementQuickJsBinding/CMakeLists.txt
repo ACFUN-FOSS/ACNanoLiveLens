@@ -16,6 +16,7 @@ target_link_libraries(element_qjs_binding
     Microsoft.GSL::GSL
     metapp::metapp
     quickjspp
+	EatiEssentials
 )
 
 # 导出头文件

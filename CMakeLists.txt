@@ -9,12 +9,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 list(APPEND CMAKE_MODULE_PATH
-    ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati/CorrectedCmakeTargetForThirdpartyLibs/
-    ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati/Essentials/cmake/modules/eati_cmake_tools
+	${CMAKE_CURRENT_LIST_DIR}/cmake
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/Eati/Essentials/cmake/modules
 )
-include(MiniaudioCorrectedTarget)
-include(Dependencies)
 include(FetchContent)
+include(CorrectedCmakeTargetForThirdpartyLibs/MiniaudioCorrectedTarget)
+include(eati_cmake_tools/Dependencies)
+include(MetappReflection)
 
 if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     # Require a unified runtime output directory.
@@ -179,6 +181,12 @@ target_link_libraries(nanolivelens
 	element_qjs_binding
 	metapp::metapp
     #${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
+)
+gen_metapp_reflection(nanolivelens
+	HEADERS 
+	src/danmaku_monitor_win.hxx
+	AUTO_INCLUDE
+	src/stdafx.h
 )
 
 set_target_properties(nanolivelens PROPERTIES

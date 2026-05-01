@@ -11,6 +11,7 @@ public:
         std::chrono::system_clock::time_point timestamp;
     };
 
+	METAPP_REFLECT
 	struct DanmakuGuiInfo
 	{
 		gsl::not_null<Rml::Element *const> danmakuItemAppearAnimContainerEle;

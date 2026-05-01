@@ -1,7 +1,6 @@
 #include "Core/ws.hxx"
 
-#include <condition_variable>
-#include <stop_token>
+
 
 struct Ws::State
 {
@@ -9,6 +8,7 @@ struct Ws::State
 	std::string eventFieldName;
 	std::chrono::seconds heartbeatInterval;
 	HeartbeatGenerator heartbeatGen;
+
 	std::unique_ptr<httplib::ws::WebSocketClient> ws;
 
 	std::unordered_map<std::string, Callback> eventCallbacks;
@@ -135,6 +135,7 @@ void Ws::send(nlohmann::json data) {
 		m_state->ws->send(data.dump());
 	}
 }
+
 
 void Ws::execCb() {
 	std::deque<WsData> localQueue;

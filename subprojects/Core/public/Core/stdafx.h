@@ -14,6 +14,8 @@
 #include <thread>
 #include <unordered_map>
 #include <utility>
+#include <condition_variable>
+#include <stop_token>
 
 // EATI Essentials 头文件
 #include <EatiEssentials/memory.hxx>
@@ -21,6 +23,9 @@
 // 第三方库头文件
 #include <cppcodec/base64_rfc4648.hpp>
 #include <nlohmann/json.hpp>
+#include <concurrencpp/concurrencpp.h>
+
+namespace accoro = concurrencpp;
 
 // Private dependencies
 #ifdef NANOLIVELENS_CORE_BUILDING

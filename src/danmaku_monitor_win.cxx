@@ -123,13 +123,13 @@ public:
 			danmaku
 		);
 
-		{
-			auto jsTwinObj = makeJsTwinObject(*getAppState().jsCtx, UNWRAP(metapp::getMetaType<DanmakuGuiInfo>()), danmakuInGui_.back());
-			auto func = getAppState().jsCtx->global()["test"];
-			auto res = JS_Call(getAppState().jsCtx->ctx, qjs::Value{ func }.v, JS_UNDEFINED, 1, &jsTwinObj.v);
-			if (JS_IsException(res))
-				js_std_dump_error(getAppState().jsCtx->ctx);
-		}
+		// {
+		// 	auto jsTwinObj = makeJsTwinObject(*getAppState().jsCtx, UNWRAP(metapp::getMetaType<DanmakuGuiInfo>()), danmakuInGui_.back());
+		// 	auto func = getAppState().jsCtx->global()["test"];
+		// 	auto res = JS_Call(getAppState().jsCtx->ctx, qjs::Value{ func }.v, JS_UNDEFINED, 1, &jsTwinObj.v);
+		// 	if (JS_IsException(res))
+		// 		js_std_dump_error(getAppState().jsCtx->ctx);
+		// }
     }
 
 	void scrollToEnd() {
@@ -227,7 +227,7 @@ struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::Decl
 
 void DanmakuMonitorWin::setupJsBinding(qjs::Context &ctx) {
 	auto metaType = metapp::getMetaType<DanmakuMonitorWin::DanmakuGuiInfo>();
-	regClass(ctx, UNWRAP(metaType));
+	//regClass(ctx, UNWRAP(metaType));
 }
 
 DanmakuMonitorWin::DanmakuMonitorWin()

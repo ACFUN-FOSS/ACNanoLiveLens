@@ -195,6 +195,7 @@ set_target_properties(nanolivelens PROPERTIES
 	VS_GLOBAL_RunCodeAnalysis true
 )
 
+
 if(NLLENS_ASSETS_DIR_OVERRIDE)
     if(NLLENS_ASSETS_DIR_OVERRIDE_IS_ABS_PATH)
         target_compile_definitions(nanolivelens PRIVATE NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH="${NLLENS_ASSETS_DIR_OVERRIDE}")

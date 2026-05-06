@@ -1,5 +1,6 @@
 #ifndef ELEMENT_QJS_BINDINGING_HXX
 #define ELEMENT_QJS_BINDINGING_HXX
+#include "metapp/implement/variant_intf.h"
 #include <EatiEssentials/memsafety.hxx>
 #include <metapp/allmetatypes.h>
 #include <quickjspp.hpp>
@@ -21,13 +22,28 @@ struct LifetimeInformant
 	LifetimeInformant(const LifetimeInformant &);
 	LifetimeInformant(LifetimeInformant &&) noexcept;
 	LifetimeInformant &operator=(const LifetimeInformant &);
-	LifetimeInformant &operator=(LifetimeInformant &&) noexcept = delete;
+	LifetimeInformant &operator=(LifetimeInformant &&) noexcept;
 		
 
 	ESSM::Rc<LifetimeInfo> info;
 };
 
-void regClass(qjs::Context &ctx, const metapp::MetaType &type);
+void setDefaultMetaRepo(const metapp::MetaRepo &metarepo);
+
+void regClass(
+	qjs::Context &ctx,
+	const metapp::MetaType &type,
+	std::function<metapp::Variant(const metapp::Variant &)> getPointerOfObj,
+	bool moveable
+);
+
+void regWrapperOfClass(
+	qjs::Context &ctx,
+	const metapp::MetaType &type,
+	const metapp::MetaType &wrappedType,
+	std::function<metapp::Variant(const metapp::Variant &)> getPointerOfObj
+);
+
 qjs::Value makeRefJsTwinObject(JSContext &ctx, const metapp::MetaType &type, metapp::Variant cppObj, ESSM::Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj = {});
 qjs::Value makeOwnedJsTwinObject(JSContext &ctx, const metapp::MetaType &type, metapp::Variant cppObj);
 #endif // !Guard

@@ -1,4 +1,7 @@
 #include "element_qjs_binding.hxx"
+#include "metapp/implement/variant_intf.h"
+#include <exception>
+#include <print>
 #include <gsl/gsl>
 #include <quickjs/quickjs.h>
 #include <metapp/variant.h>
@@ -31,11 +34,33 @@ LifetimeInformant &LifetimeInformant::operator=(const LifetimeInformant &other) 
 	return *this;
 }
 
+LifetimeInformant &LifetimeInformant::operator=(LifetimeInformant &&other) noexcept {
+	if (this == &other)
+		return *this;
+	return *this;
+}
+
 
 
 struct TypeJsInfo
 {
 	JSClassID classID;
+	std::function<metapp::Variant(const metapp::Variant &v)> getPointerOfValue;
+	bool moveable;
+};
+
+struct TypeWrapperJsInfo
+{
+	enum class WrapperType
+	{
+		SEQ_CONTAINER,
+		RC,
+		BOX,
+		WEAK
+	} wrapperType;
+
+	std::function<metapp::Variant(const metapp::Variant &v)> getPointerOfValue;
+
 
 };
 
@@ -55,7 +80,19 @@ public:
 	}
 };
 
+static const metapp::MetaRepo *defaultMetaRepo = nullptr;
+
+void setDefaultMetaRepo(const metapp::MetaRepo &metarepo) {
+	defaultMetaRepo = &metarepo;
+}
+
+static const metapp::MetaRepo &getDefaultMetaRepo() {
+	return UNWRAP(defaultMetaRepo);
+}
+
 std::unordered_map<gsl::not_null<const metapp::MetaType *>, TypeJsInfo, Hasher, EqualFn> metaType2TypeJsInfo;
+
+std::unordered_map<gsl::not_null<const metapp::MetaType *>, TypeWrapperJsInfo, Hasher, EqualFn> metaType2TypeWrapperJsInfo;
 
 void printJsValue(qjs::Context &ctx, JSValue jsval) {
 	auto jsStr = JS_ToString(ctx.ctx, jsval);
@@ -125,12 +162,45 @@ bool checkTwinObjLifetime(JSContext &ctx, JSValue jsvalue) {
 	return true;
 }
 
-metapp::Variant unwrapJsTwinObject(JSContext &ctx, JSValue jsvalue) {
-	auto opaque = getJsTwinObjOpaque(jsvalue);
-	assert(opaque && "Not a JsTwinObject");
-	return opaque->cppObjPtrInVariant;
+// Does the type has its own JS representation (we will not twin a value of
+// this type)
+static bool doesTypeHasItsOwnJSRepresentation(const metapp::MetaType &type) {
+	if (!type.isClass())
+		return false;
+
+	if (type.isPointer() || type.isReference())
+		return false;
+
+	// C++ sequence container will convert into JS array instead of creating a twin.
+	if (type.isArray() || type.getMetaIterable)
+		return true;
+
+	// C++ enum will convert into JS string instead of creating a twin.
+	if (type.isEnum())
+		return true;
+
+	// C++ std::string will convert into JS string instead of creating a twin.
+	if (&type == metapp::getMetaType<std::string>())
+		return true;
+
+	return false;
+	
+	// C++ time_point will convert into JS date instead of creating a twin.
+	//if (&type == metapp::getMetaType<std::chrono::time_point>())
+	//	return true;
 }
 
+metapp::Variant getPointerOfJsTwinObject(JSContext &ctx, JSValue jsvalue) {
+	auto opaque = getJsTwinObjOpaque(jsvalue);
+	assert(opaque && "Not a JsTwinObject");
+
+	if (!opaque->ownedCppObjInVariant.isEmpty()) {
+		auto &typeJsInfo = metaType2TypeJsInfo[opaque->type];
+		assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
+		return typeJsInfo.getPointerOfValue(opaque->ownedCppObjInVariant);
+	}
+	return opaque->cppObjPtrInVariant;
+}
 
 metapp::Variant jsValue2Cpp(JSContext &ctx, JSValue jsvalue) {
 	auto opaque = getJsTwinObjOpaque(jsvalue);
@@ -139,7 +209,7 @@ metapp::Variant jsValue2Cpp(JSContext &ctx, JSValue jsvalue) {
 	if (opaque) {
 		if (!checkTwinObjLifetime(ctx, jsvalue))
 			return { };
-		return unwrapJsTwinObject(ctx, jsvalue);
+		return getPointerOfJsTwinObject(ctx, jsvalue);
 	}
 
 	// Is primitive type
@@ -176,16 +246,19 @@ std::map<int, JsTwinFunctionData> magic2JsTwinFunctionData;
 int newestMagicNum = 0;
 
 
-void regClass(qjs::Context &ctx, const metapp::MetaType &type) {
-	auto &currTypeJsInfo = metaType2TypeJsInfo[&type];
-
+void regClass(
+	qjs::Context &ctx,
+	const metapp::MetaType &type,
+	std::function<metapp::Variant(const metapp::Variant &)> getPointerOfObj,
+	bool moveable
+) {
 	// 1. Build a prototype object with properties and methods
 	qjs::Value proto = ctx.newObject();
 
 	// 1.1 Build javascript proxies for every methods
 	std::vector<std::pair<JSValue, std::string>> jsFuncs;
-	auto metaClass = type.getMetaClass();
-	for (auto &cppFuncItem : metaClass->getCallableView()) {
+	auto &metaClass = UNWRAP(type.getMetaClass());
+	for (auto &cppFuncItem : metaClass.getCallableView()) {
 		
 		int funcMagicNum = ++newestMagicNum;
 		magic2JsTwinFunctionData.insert({
@@ -208,14 +281,34 @@ void regClass(qjs::Context &ctx, const metapp::MetaType &type) {
 							// subject: pointer to C++ object
 							if (!checkTwinObjLifetime(*ctx, this_val))
 								return JS_EXCEPTION;
-							metapp::Variant subject = unwrapJsTwinObject(*ctx, this_val);
+							metapp::Variant subject = getPointerOfJsTwinObject(*ctx, this_val);
 							std::vector<metapp::Variant> args;
 							for (int i = 0; i < argc; ++i) {
 								args.push_back(jsValue2Cpp(*ctx, argv[i]));
 							}
 							
 							// Call C++ function
-							auto res = getNonReferenceMetaType(*functionData.callable)->getMetaCallable()->invoke(
+							auto &metaCallable = UNWRAP(getNonReferenceMetaType(*functionData.callable)->getMetaCallable());
+							if (auto &returnType = UNWRAP(metaCallable.getReturnType(*functionData.callable));
+								!returnType.isVoid()) {
+								auto returnTypeName = getDefaultMetaRepo().getType(&returnType).getName();
+								
+								if (!doesTypeHasItsOwnJSRepresentation(returnType)) {
+
+									auto &typeJsInfo = metaType2TypeJsInfo[&returnType];
+									//assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
+									if (typeJsInfo.classID == 0) {
+										std::println("Type {} not registered via regClass", returnTypeName);
+										std::terminate();
+									}
+									if (!typeJsInfo.moveable) {
+
+										JS_ThrowTypeError(ctx, "Return type of the function (%s) is not moveable, hence it cannot \"move\" into the JavaScript VM.", returnTypeName.c_str());
+										return JS_EXCEPTION;
+									}
+								}
+							}
+							auto res = metaCallable.invoke(
 								*functionData.callable,
 								subject,
 								args
@@ -247,7 +340,7 @@ void regClass(qjs::Context &ctx, const metapp::MetaType &type) {
 	JSClassDef classDef{
 		.class_name = type.getMetaClass()->getType(&type).getName().c_str(),
 		.finalizer = [](JSRuntime *rt, JSValue val) {
-			auto opaque = getJsTwinObjOpaque(val);
+			gsl::owner<JsTwinObjOpaque *> opaque{ getJsTwinObjOpaque(val) };
 			assert(opaque && "Not a JsTwinObject");
 			delete opaque;
 		},
@@ -256,7 +349,14 @@ void regClass(qjs::Context &ctx, const metapp::MetaType &type) {
 		.call = nullptr,
 		.exotic = nullptr
 	};
-	JS_NewClassID(&currTypeJsInfo.classID);
+
+	auto &currTypeJsInfo = metaType2TypeJsInfo[&type];
+	currTypeJsInfo.getPointerOfValue = getPointerOfObj;
+	currTypeJsInfo.moveable = moveable;
+
+	JSClassID classID = 0;
+	JS_NewClassID(&classID);
+	currTypeJsInfo.classID = classID;
 	JS_NewClass(JS_GetRuntime(ctx.ctx), currTypeJsInfo.classID, &classDef);
 	JS_SetClassProto(ctx.ctx, currTypeJsInfo.classID, proto.v);
 	proto.release();
@@ -349,11 +449,20 @@ qjs::Value variant2Js(JSContext &ctx, const metapp::Variant &val) {
 
 	if (val.getMetaType()->isReference()) {
 		// TODO
+		return makeRefJsTwinObject(ctx, UNWRAP(val.getMetaType()), val);
 	}
 	if (val.getMetaType()->isPointer()) {
-		// TODO
+		return makeRefJsTwinObject(ctx, UNWRAP(val.getMetaType()), val);
 	}
 
+	if (auto jsInfo = metaType2TypeWrapperJsInfo.find(val.getMetaType());
+		jsInfo != metaType2TypeWrapperJsInfo.end()) {
+		// Is sequence container of objects
+		switch (jsInfo->second.wrapperType) {
+		case TypeWrapperJsInfo::WrapperType::SEQ_CONTAINER:
+			-
+		} 
+	}
 
 	// Is object
 	return makeOwnedJsTwinObject(ctx, UNWRAP(val.getMetaType()), val);

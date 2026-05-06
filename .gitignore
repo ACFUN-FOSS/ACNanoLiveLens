@@ -46,3 +46,4 @@ assets/runtime/*
 
 # debug information files
 *.dwo
+/tools/__pycache__

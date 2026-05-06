@@ -2,11 +2,6 @@
 #include "appstate.hxx"
 #include "danmaku_monitor_win.hxx"
 
-metapp::MetaRepo &getGlobalMetaRepo() {
-	static metapp::MetaRepo metaRepo;
-	return metaRepo;
-}
-
 void setupAllJsBinding(qjs::Context &ctx) {
 	DanmakuMonitorWin::setupJsBinding(ctx);
 }
@@ -25,7 +20,6 @@ try_eval_module(std::string_view code) {
 		js_std_free_handlers(getAppState().jsRuntime->rt);
 		return getAppState().jsCtx->newObject();
 	}
-
 }
 
 qjs::Value

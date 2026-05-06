@@ -51,6 +51,10 @@
 
 namespace stdf = std::filesystem;
 
+#if defined(__clang__)
 #define METAPP_REFLECT __attribute__((annotate("metapp_reflect")))
+#else
+#define METAPP_REFLECT
+#endif
 
 #endif

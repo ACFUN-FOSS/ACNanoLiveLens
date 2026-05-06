@@ -6,7 +6,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # 生成器脚本路径（按你的项目结构调整）
 if(NOT METAPP_GENERATOR_SCRIPT)
-    set(METAPP_GENERATOR_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tools/metapp_reg_code_gen.py")
+    set(METAPP_GENERATOR_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tools/meta_gen_main.py")
 endif()
 
 function(gen_metapp_reflection target)

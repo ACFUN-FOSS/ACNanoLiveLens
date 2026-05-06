@@ -16,6 +16,7 @@ target_link_libraries(element_qjs_binding
     Microsoft.GSL::GSL
     metapp::metapp
     quickjspp
+    PUBLIC
 	EatiEssentials
 )
 
@@ -23,4 +24,27 @@ target_link_libraries(element_qjs_binding
 target_include_directories(element_qjs_binding
     PUBLIC public
     PRIVATE ${NLLENS_VENDOR_DIR}
+)
+
+add_executable(element_qjs_binding__lifetime_test
+    test/lifetime_test.cxx
+)
+
+target_link_libraries(element_qjs_binding__lifetime_test
+    PRIVATE
+    element_qjs_binding
+    quickjspp
+    metapp::metapp
+)
+
+add_executable(element_qjs_binding__value_to_js_test
+    test/value_to_js_test.cxx
+    test/test_common.hxx
+)
+
+target_link_libraries(element_qjs_binding__value_to_js_test
+    PRIVATE
+    element_qjs_binding
+    quickjspp
+    metapp::metapp
 )

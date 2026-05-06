@@ -14,4 +14,6 @@ struct AppState
 void initAppState(AppState &&appState);
 AppState &getAppState();
 
+metapp::MetaRepo &getGlobalMetaRepo();
+
 #endif

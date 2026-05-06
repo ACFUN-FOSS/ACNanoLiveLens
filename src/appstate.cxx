@@ -10,3 +10,8 @@ AppState &getAppState() {
 	assert(globalAppState.has_value() && "AppState is not initialized yet!");
     return *globalAppState;
 }
+
+metapp::MetaRepo &getGlobalMetaRepo() {
+	static metapp::MetaRepo metaRepo;
+	return metaRepo;
+}

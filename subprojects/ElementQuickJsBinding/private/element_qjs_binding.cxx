@@ -6,6 +6,7 @@
 #include <quickjs/quickjs.h>
 #include <metapp/variant.h>
 #include <metapp/interfaces/metaclass.h>
+#include <metapp/interfaces/metaindexable.h>
 
 using namespace Essentials::Memory;
 
@@ -60,8 +61,6 @@ struct TypeWrapperJsInfo
 	} wrapperType;
 
 	std::function<metapp::Variant(const metapp::Variant &v)> getPointerOfValue;
-
-
 };
 
 class Hasher
@@ -408,6 +407,21 @@ qjs::Value makeOwnedJsTwinObject(JSContext &ctx, const metapp::MetaType &type, m
 		return jsObj;
 	return { &ctx, std::move(jsObj) };
 }
+
+qjs::Value makeJsArrayByCppSeqContainer(JSContext &ctx, metapp::Variant cppSeqContainer) {
+	auto metaType = metapp::getNonReferenceMetaType(cppSeqContainer);
+	auto metaIndexable = metaType->getMetaIndexable();
+	auto sizeInfo = metaIndexable->getSizeInfo(cppSeqContainer);
+	auto size = sizeInfo.getSize();
+
+	JSValue jsArray = JS_NewArray(&ctx);
+	for (std::size_t i = 0; i < size; ++i) {
+		auto elementVar = metaIndexable->get(cppSeqContainer, i);
+		auto jsVal = variant2Js(ctx, elementVar);
+		JS_DefinePropertyValueUint32(&ctx, jsArray, static_cast<uint32_t>(i), jsVal.val, JS_PROP_C_W_E);
+	}
+	return { &ctx, std::move(jsArray) };
+}
                                                                                                                                                                                                                                                                                                                     
 qjs::Value cppValue2Js(JSContext &ctx, std::string_view &&val) {
 	return { &ctx, JS_NewString(&ctx, val.data()) };
@@ -460,9 +474,13 @@ qjs::Value variant2Js(JSContext &ctx, const metapp::Variant &val) {
 		// Is sequence container of objects
 		switch (jsInfo->second.wrapperType) {
 		case TypeWrapperJsInfo::WrapperType::SEQ_CONTAINER:
-			-
-		} 
-	}
+			return makeJsArrayByCppSeqContainer(ctx, val);
+        case TypeWrapperJsInfo::WrapperType::RC:
+        case TypeWrapperJsInfo::WrapperType::BOX:
+        case TypeWrapperJsInfo::WrapperType::WEAK:
+            break;
+        }
+    }
 
 	// Is object
 	return makeOwnedJsTwinObject(ctx, UNWRAP(val.getMetaType()), val);

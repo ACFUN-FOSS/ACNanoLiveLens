@@ -7,6 +7,11 @@ charset = utf-8
 indent_style = tab
 indent_size = 4
 
+[*.rst]
+indent_style = space
+indent_size = 3
+
+
 # Visual C++ 代码样式设置
 # EATI C++ style configuration
 [*.{cxx,hxx}]

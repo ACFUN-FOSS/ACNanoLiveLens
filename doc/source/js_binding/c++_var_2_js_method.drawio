@@ -1,0 +1,39 @@
+<mxfile host="Electron">
+  <diagram name="第 1 页" id="ZHH8-MglSN3IO-Zzh8E1">
+    <mxGraphModel dx="683" dy="598" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=left;fontFamily=FandolSong;" value="JavaScript string&lt;div&gt;JavaScript number&lt;/div&gt;&lt;div&gt;JavaScript array&lt;/div&gt;&lt;div&gt;...&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="10" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;align=center;fontFamily=FandolSong;" value="EJSObj&lt;div&gt;(JavaScript with opaque)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="260" x="170" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-7" edge="1" parent="1" source="UM6QF19hYWpS-z4nCmeb-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=FandolSong;" target="UM6QF19hYWpS-z4nCmeb-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-8" edge="1" parent="1" source="UM6QF19hYWpS-z4nCmeb-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;fontFamily=FandolSong;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="220" y="148" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-9" edge="1" parent="1" source="UM6QF19hYWpS-z4nCmeb-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.854;entryY=-0.041;entryDx=0;entryDy=0;fontFamily=FandolSong;entryPerimeter=0;" target="UM6QF19hYWpS-z4nCmeb-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontFamily=FandolSong;" value="&lt;span style=&quot;&quot;&gt;C++ object&lt;/span&gt;" vertex="1">
+          <mxGeometry height="30" width="120" x="160" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-11" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontFamily=FandolSong;" value="翻译&lt;div&gt;(translation)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="90" x="25" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-12" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontFamily=FandolSong;" value="孪生&lt;div&gt;(twining)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="90" x="150" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="UM6QF19hYWpS-z4nCmeb-13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;fontFamily=FandolSong;" value="移植&lt;div&gt;(transplant)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="90" x="240" y="90" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -28,6 +28,12 @@ struct LifetimeInformant
 	ESSM::Rc<LifetimeInfo> info;
 };
 
+template <typename T>
+concept LifetimeAware = requires(T obj)
+{
+	{obj.lifetimeInformant} -> std::same_as<LifetimeInformant>;
+};
+
 void setDefaultMetaRepo(const metapp::MetaRepo &metarepo);
 
 void regClass(

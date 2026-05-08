@@ -1,0 +1,40 @@
+# Configuration file for the Sphinx documentation builder.
+#
+# For the full list of built-in configuration values, see the documentation:
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
+
+# -- Project information -----------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+
+project = 'ACNanoLiveLens'
+copyright = '2025-2026, AcFun-FOSS'
+author = 'UNTITLED'
+
+# -- General configuration ---------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+
+extensions = ["sphinxcontrib.pseudocode2"]
+
+templates_path = ['_templates']
+exclude_patterns = []
+
+language = 'zh_CN'
+highlight_language = 'C++'
+
+# -- Options for HTML output -------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+
+html_theme = 'shibuya'
+html_static_path = ['_static']
+
+# -- Options for pseudocode2 -------------------------------------------------
+# https://github.com/DeepPSP/sphinxcontrib-pseudocode2
+
+pseudocode2_options = {
+    "lineNumber": True,           # Global default: enable line numbering
+    "lineNumberPunc": " | ",      # Punctuation after line numbers (e.g., "1 | ")
+    "commentDelimiter": "#",      # Global default comment delimiter
+    "noEnd": False,               # Global default: show "END" for control blocks
+    "titlePrefix": "PseudoCode",  # Global default title prefix (replace "Algorithm")
+    "scopeLines": True,           # Global default: enable scope line highlighting
+}

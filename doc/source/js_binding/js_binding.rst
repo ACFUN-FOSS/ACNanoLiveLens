@@ -1,11 +1,12 @@
 JavaScript 绑定
 ****************
 
+.. _cpp2js-rule:
 
-C++ 值或引用转换为 JavaScript 值的方式
-==========================================
+C++ 值转换为 JavaScript 值的方式和规则
+================================================
 
-.. image:: c++_var_2_js_method.drawio.svg
+.. drawio-image:: c++_var_2_js_method.drawio
 
 将 C++ 值转换为 JavaScript 值，有「翻译」「孪生」「移植」三种方式。ElementQuickJsBinding 具有通用的转换函数 ``cpp2Js`` 以及其 variant 版本 ``cppVariant2Js``，可将 C++ 值转换为 JavaScript 值。对于一个 C++ 值，ElementQuickJsBinding 会按照以下规则决定采用哪种方式：
 
@@ -22,8 +23,7 @@ C++ 值或引用转换为 JavaScript 值的方式
 
 * 对于除了 ``char *`` 以外的任意 ``T *`` 以及 ``std::reference_wrapper<T>``：均采用孪生方式。
 
-
-概念: *可翻译*
+具名要求: *可翻译*
 ------------------
 一个 C++ 结构体或类是 *可翻译* 的，如果：
 
@@ -86,12 +86,20 @@ EJSObj
 
 若非，则该孪生体在被 JavaScript 使用时不会判断源对象是否被销毁或移动，需要用户手动确保内存安全。
 
-驱动程序（Driver）
----------------------
+驱动程序（Driver）（未定）
+---------------------------
 
 ElementQuickJsBinding 提供一种机制，允许用户说明对于同一类类，均有哪些共同的函数或属性可供 JavaScript 侧调用。该功能在类模板上尤其有用。
 
-（未定）
+理由：目前对任意类型 T 的转换方法是一套固定的规则（:ref:`cpp2js-rule`），我们希望用户可以针对某一类类（如 ``std::vector<T>`` 的所有实例）可以短路这种规则，自己编程实现到 JavaScript 的转换以及反向转换。
+
+（？？这真的有意义吗？用户可以通过使 T 成为 *可翻译的* 来使 ElementQuickJsBinding 采用自定义的转换逻辑）
+
+（有，因为可能 T 未必期望被翻译成 JavaScript 原生对象 / 值，而是一个有用户定义的 Opaque 的 JavaScript 对象）。
+
+（？？那么使用驱动程序和采用固定规则的边界在哪里？要把所有转换规则都用驱动程序实现吗？）
+
+（我们决定采用这样的方式组织代码，实现需要翻译的 C++ 类型的翻译，但不允许用户自行编写自己的驱动程序）
 
 .. code-block:: C++
    :linenos:
@@ -108,19 +116,60 @@ ElementQuickJsBinding 提供一种机制，允许用户说明对于同一类类�
    template <ContiguousContainer T>
    class ContiguousContainerDriver
    {
-      // ？？？如何告知 ElementQuickJsBinding 所有可对 std::vector<T> 的操作？
-      // 这样吗？
-      static const metapp::MetaClass getMethods() {
-         static const metapp::MetaClass metaClass{
-            metapp::getMetaType<T>(),
-            [](metapp::MetaClass & mc) {
-               mc.registerCallable("add", [](T &vec, typename T::value_type &&value) {
-                  vec.push_back(std::move(value));
-               });
-            }
+      static std::optional<qjs::value> prototype;
+
+
+      // For some classes...
+      struct MyOpaque
+      {
+         gsl::not_null<T *> vec;
+      };
+
+      void setup() {
+         prototype.emplace();
+         *prototype["add"] = [](qjs::value &self, qjs::array args) {
+            std::vector<metapp::Variant> cppArgs;
+				for (auto &arg : args) {
+					cppArgs.push_back(js2Cpp(arg));
+				}
+
+            ejsobjGetUserOpaque(self).vec->push_back(
+               js2Cpp(cppArgs[0]).get<typename T::value_type&>()
+            );
+            return qjs::undefined();
          };
+      }
+      
+      qjs::value cppToJs(T &vec) {
+         qjs::value obj{ JS_NewObjectWithPrototype(*prototype) };
+         ejsobjSetUserOpaque(MyOpaque{ &vec });
+         return obj;
+      }
+
+      // For some classes...
+      qjs::value cppToJs(T &vec) {
+         qjs::array arr;
+         for (auto &item : vec) {
+            arr.push_back(cpp2Js(item));
+         }
+         return arr;
       }
    };
 
    regClass<std::vector<A>, ContiguousContainerDriver>(...);
    regClass<std::vector<B>, ContiguousContainerDriver>(...);
+
+.. code-block:: C++
+   :linenos:
+
+   // （ElementQuickJsBinding 内部）
+   qjs::value cppVariantToJs(metapp::variant &variant) {
+      if (auto driverWrapperIt = drivers.find(variant.getMetaType())) {
+         // drivers 是一个 MetaType -> Driver 类包装 的 Map
+
+         // 包装后的 cppToJs 是 qjs::value cppToJs(metapp::variant &variant)
+         driverWrapperIt->cppToJs(variant);
+      } else {
+         // 默認規則.....
+      }
+   }

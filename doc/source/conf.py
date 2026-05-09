@@ -13,19 +13,24 @@ author = 'UNTITLED'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinxcontrib.pseudocode2"]
+extensions = ["sphinxcontrib.pseudocode2", "sphinxcontrib.drawio"]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
 language = 'zh_CN'
-highlight_language = 'C++'
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'shibuya'
 html_static_path = ['_static']
+#html_theme = 'shibuya'
+html_theme = 'bizstyle'
+
+if html_theme == 'bizstyle':
+    html_css_files = [
+        'css/bizstyle_custom.css'
+    ]
 
 # -- Options for pseudocode2 -------------------------------------------------
 # https://github.com/DeepPSP/sphinxcontrib-pseudocode2
@@ -38,3 +43,9 @@ pseudocode2_options = {
     "titlePrefix": "PseudoCode",  # Global default title prefix (replace "Algorithm")
     "scopeLines": True,           # Global default: enable scope line highlighting
 }
+
+drawio_builder_export_format = {
+	"html": "svg",
+	"latex": "pdf"
+}
+drawio_default_export_scale = 110

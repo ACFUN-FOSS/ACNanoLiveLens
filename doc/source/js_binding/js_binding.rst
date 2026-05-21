@@ -25,6 +25,9 @@ C++ 值或引用转换为 JavaScript 值的方式
 
 概念: *可翻译*
 ------------------
+
+可翻译的对象主要用于纯数据类型，我们希望 a) 它不需要经由 EJSObj 这一中间介质；b) 这种对象在 JS 中有不同于 C++ 的表示。
+
 一个 C++ 结构体或类是 *可翻译* 的，如果：
 
 * 该结构体使用 regType 注册，且满足 ``EJS::Translatable`` 概念。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用指定的 ``translateToJS`` 函数，将这种 JavaScript 对象转换为 C++ 值时，会调用指定的 ``detranslate`` 来将 JavaScript 对象转换为 C++ 值。``detranslate`` 必须进行有效性校验，并在不符合要求时抛出异常。
@@ -85,6 +88,8 @@ EJSObj
 如果通过 ``cpp2Js`` 转换且该结构体或类满足 ``EJS::LifetimeAware``，或通过 ``cppVariant2Js`` 转换并传入了 ``Rc<LifetimeInfo>`` （？），则该孪生体在被 JavaScript 使用时会判断源对象是否被销毁或移动。如果源对象被销毁或移动，则会抛出 JavaScript 异常，从而避免非法内存访问。
 
 若非，则该孪生体在被 JavaScript 使用时不会判断源对象是否被销毁或移动，需要用户手动确保内存安全。
+
+如果某个 C++ 对象的成员函数返回了一个引用或指针，该引用或指针将被孪生处理，且不满足概念「生命周期可感知」，则孪生的 EJSObj 的有效生命周期将会视为与这个 C++ 对象一致。
 
 驱动程序（Driver）
 ---------------------

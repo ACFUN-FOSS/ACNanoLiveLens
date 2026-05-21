@@ -1,2 +1,3 @@
 sphinxcontrib-pseudocode2
 shibuya
+sphinxcontrib-drawio

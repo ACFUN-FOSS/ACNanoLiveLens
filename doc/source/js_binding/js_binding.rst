@@ -32,14 +32,15 @@ C++ 值转换为 JavaScript 值的方式和规则
 
 翻译主要用于纯数据类型，我们希望 a) 某种对象到 JavaScript 的转换不需要经由 EJSObj 这一中间介质；b) JavaScript JS 中有不同于 C++ 的表示。
 
-具名要求: *可翻译*
+概念: *可翻译*
 ------------------
 
 一个 C++ 结构体或类是 *可翻译* 的，如果：
 
-* 该结构体使用 regType 注册，且满足 ``EJS::Translatable`` 概念。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用指定的 ``translateToJS`` 函数，将这种 JavaScript 对象转换为 C++ 值时，会调用指定的 ``detranslate`` 来将 JavaScript 对象转换为 C++ 值。``detranslate`` 必须进行有效性校验，并在不符合要求时抛出异常。
+* 该结构体使用 regType 注册，且满足 ``EJS::Translatable`` C++ 概念。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用指定的 ``translateToJS`` 函数，将这种 JavaScript 对象转换为 C++ 值时，会调用指定的 ``detranslate`` 来将 JavaScript 对象转换为 C++ 值。``detranslate`` 必须进行有效性校验，并在不符合要求时抛出异常。
 * 该结构体使用 regType 注册，且 ``EJS::CompileTimeMeta<T>::autoTranslateViaReflectpp`` 为编译期真。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用 ``reflectpp`` 库转换为 rfl::Generic，然后转换为 JavaScript 对象；在将这种 JavaScript 对象转换为 C++ 值时，会利用 ``reflectpp`` 库将 JavaScript 对象转换为 rfl::Generic，然后反序列化为 C++ 值。
 * 该结构体使用 regTypeDyn 注册，且提供了 translator。
+
 
 转换方法：孪生（Twining）
 ------------------------------
@@ -53,7 +54,7 @@ C++ 值转换为 JavaScript 值的方式和规则
 
 - T * （除了 char * ，因为 char * 被翻译为 string ）
 - std::reference_wrapper<T>
-也就是说， 只要 C++ 侧表达的是"指向某对象的引用语义"，就走孪生 。
+也就是说， 只要 C++ 侧表达的是"指向某对象的引用语义"，就走孪生。
 
 
 EJSObj
@@ -65,12 +66,29 @@ EJSObj
 
 被移植的 C++ 对象和被孪生的 C++ 对象统称为「关联的 C++ 对象」「关联对象」。
 
+
+有效性和生命周期
+~~~~~~~~~~~~~~~~~~~~~~
+
+如果通过 ``cpp2Js`` 转换且该结构体或类满足 ``EJS::LifetimeAware``，或通过 ``cppVariant2Js`` 转换并传入了 ``Rc<LifetimeInfo>`` （？），则该孪生体为「生命周期可感知」。则该孪生体在被 JavaScript 使用时会判断源对象是否被销毁或移动。如果源对象被销毁或移动，则会抛出 JavaScript 异常，从而避免非法内存访问。
+
+若非，则该孪生体在被 JavaScript 使用时不会判断源对象是否被销毁或移动，需要用户手动确保内存安全。
+
+如果某个 C++ 对象的成员函数返回了一个引用或指针，该引用或指针将被孪生处理，且转换出的孪生体不「生命周期可感知」，则孪生的 EJSObj 的有效生命周期将会视为与这个 C++ 对象一致。
+
+Setup
+---------------------------
+
+执行 regType 时，Setup 是一个重要的阶段：它向脚本引擎注册一种新的类型，以及这种类型的定义（原型等）。
+
+假设 regType 类型 type，且找不到 type 的驱动程序，且 t 不是可翻译的，那么 ElementQuickJsBinding 将会利用 metapp 的数据，创建一种默认原型。这种原型包含一系列 JS_NewCFunctionMagic 出来的 JS 代理函数和……的代理属性。
+
 属性
 ~~~~~~~~~~~~~~~~~~~~~~
 
-每当 JavaScript 代码尝试访问 EJSObj 的属性时，ElementQuickJsBinding 会获取关联 C++ 对象的属性值，然后转换为 JavaScript 类型并返回给 JavaScript 代码。
+每当这种默认原型的实例的属性被访问时，它会获取关联 C++ 对象的属性值，然后转换为 JavaScript 类型并返回给 JavaScript 代码。
 
-每当 JavaScript 代码尝试设置 EJSObj 的属性时（假设设置属性 prop 为 value），ElementQuickJsBinding 将首先将 value 转换为 C++ 类型，然后按照顺序查找遍历 prop 的所有 operator= 重载，直到找到一个可以将 value 转换为其参数的重载，最后调用该重载设置属性。
+每当这种默认原型的实例的属性被设定时（假设设置属性 prop 为 value），它会首先将 value 转换为 C++ 类型，然后按照顺序查找遍历 prop 的所有 operator= 重载，直到找到一个可以将 value 转换为其参数的重载，最后调用该重载设置属性。
 
 .. pcode::
    :linenos:
@@ -92,34 +110,18 @@ EJSObj
 返回值处理
 ~~~~~~~~~~~~~~~~~~~~~~
 
-当 JavaScript 调用了 EJSObj 的函数，且函数有返回值，ElementQuickJsBinding 会先调用函数，然后如此处理返回值：
+每当这种默认原型的实例的函数被调用，且函数有返回值，它会先调用关联 C++ 对象的函数，然后如此处理返回值：
 
 *  如果返回值为 ``T &``，则将之包装为 ``std::reference_wrapper<T>``，然后执行 ``cpp2VariantJs`` 转换，返回给 JavaScript 代码。
 *  如果返回值为 ``T *`` 或 ``std::reference_wrapper<T>`` 或 ``T``，则直接执行 ``cpp2VariantJs`` 转换，返回给 JavaScript 代码。
 
-有效性和生命周期
-~~~~~~~~~~~~~~~~~~~~~~
-
-如果通过 ``cpp2Js`` 转换且该结构体或类满足 ``EJS::LifetimeAware``，或通过 ``cppVariant2Js`` 转换并传入了 ``Rc<LifetimeInfo>`` （？），则该孪生体在被 JavaScript 使用时会判断源对象是否被销毁或移动。如果源对象被销毁或移动，则会抛出 JavaScript 异常，从而避免非法内存访问。
-
-若非，则该孪生体在被 JavaScript 使用时不会判断源对象是否被销毁或移动，需要用户手动确保内存安全。
-
-如果某个 C++ 对象的成员函数返回了一个引用或指针，该引用或指针将被孪生处理，且不满足概念「生命周期可感知」，则孪生的 EJSObj 的有效生命周期将会视为与这个 C++ 对象一致。
-
-驱动程序（Driver）（未定）
+驱动程序（Driver）
 ---------------------------
 
-ElementQuickJsBinding 提供一种机制，允许用户说明对于同一类类，均有哪些共同的函数或属性可供 JavaScript 侧调用。该功能在类模板上尤其有用。
+ElementQuickJsBinding 提供一种机制，允许用户自定义对某种类型，自定义其 setup 逻辑（如构造原型对象）、cpp2js 和 js2cpp 逻辑。
 
-理由：目前对任意类型 T 的转换方法是一套固定的规则（:ref:`cpp2js-rule`），我们希望用户可以针对某一类类（如 ``std::vector<T>`` 的所有实例）可以短路这种规则，自己编程实现到 JavaScript 的转换以及反向转换。
+ElementQuickJsBinding 自身也使用这种机制，来提供 std::shared_ptr<T> 的支持：它的 setup 步骤将会创建一个包含 T 中所有成员代理函数和代理对象的原型，以便 JS 可以穿透访问 shared_ptr 所实际指向的对象。
 
-（？？这真的有意义吗？用户可以通过使 T 成为 *可翻译的* 来使 ElementQuickJsBinding 采用自定义的转换逻辑）
-
-（有，因为可能 T 未必期望被翻译成 JavaScript 原生对象 / 值，而是一个有用户定义的 Opaque 的 JavaScript 对象）。
-
-（？？那么使用驱动程序和采用固定规则的边界在哪里？要把所有转换规则都用驱动程序实现吗？）
-
-（我们决定采用这样的方式组织代码，实现需要翻译的 C++ 类型的翻译，但不允许用户自行编写自己的驱动程序）
 
 .. code-block:: C++
    :linenos:
@@ -138,8 +140,6 @@ ElementQuickJsBinding 提供一种机制，允许用户说明对于同一类类�
    {
       static std::optional<qjs::value> prototype;
 
-
-      // For some classes...
       struct MyOpaque
       {
          gsl::not_null<T *> vec;
@@ -166,30 +166,8 @@ ElementQuickJsBinding 提供一种机制，允许用户说明对于同一类类�
          return obj;
       }
 
-      // For some classes...
-      qjs::value cppToJs(T &vec) {
-         qjs::array arr;
-         for (auto &item : vec) {
-            arr.push_back(cpp2Js(item));
-         }
-         return arr;
-      }
+    
    };
 
-   regClass<std::vector<A>, ContiguousContainerDriver>(...);
-   regClass<std::vector<B>, ContiguousContainerDriver>(...);
-
-.. code-block:: C++
-   :linenos:
-
-   // （ElementQuickJsBinding 内部）
-   qjs::value cppVariantToJs(metapp::variant &variant) {
-      if (auto driverWrapperIt = drivers.find(variant.getMetaType())) {
-         // drivers 是一个 MetaType -> Driver 类包装 的 Map
-
-         // 包装后的 cppToJs 是 qjs::value cppToJs(metapp::variant &variant)
-         driverWrapperIt->cppToJs(variant);
-      } else {
-         // 默認規則.....
-      }
-   }
+   regType<std::vector<A>, ContiguousContainerDriver>(...);
+   regType<std::vector<B>, ContiguousContainerDriver>(...);

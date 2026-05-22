@@ -7,7 +7,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 创建库
 add_library(element_qjs_binding
-    private/element_qjs_binding.cxx
+    #private/element_qjs_binding.cxx
+	private/ejs_obj.cxx
+	private/lifetime_informant.cxx
+	private/binding.cxx
 )
 
 # 链接依赖

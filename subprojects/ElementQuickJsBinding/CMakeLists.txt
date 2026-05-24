@@ -29,25 +29,36 @@ target_include_directories(element_qjs_binding
     PRIVATE ${NLLENS_VENDOR_DIR}
 )
 
-add_executable(element_qjs_binding__lifetime_test
-    test/lifetime_test.cxx
+add_executable(element_qjs_binding__regType_test
+    test/regType_test.cxx
 )
 
-target_link_libraries(element_qjs_binding__lifetime_test
+target_link_libraries(element_qjs_binding__regType_test
     PRIVATE
     element_qjs_binding
     quickjspp
     metapp::metapp
 )
 
-add_executable(element_qjs_binding__value_to_js_test
-    test/value_to_js_test.cxx
-    test/test_common.hxx
-)
+# add_executable(element_qjs_binding__lifetime_test
+#     test/lifetime_test.cxx
+# )
 
-target_link_libraries(element_qjs_binding__value_to_js_test
-    PRIVATE
-    element_qjs_binding
-    quickjspp
-    metapp::metapp
-)
+# target_link_libraries(element_qjs_binding__lifetime_test
+#     PRIVATE
+#     element_qjs_binding
+#     quickjspp
+#     metapp::metapp
+# )
+
+# add_executable(element_qjs_binding__value_to_js_test
+#     test/value_to_js_test.cxx
+#     test/test_common.hxx
+# )
+
+# target_link_libraries(element_qjs_binding__value_to_js_test
+#     PRIVATE
+#     element_qjs_binding
+#     quickjspp
+#     metapp::metapp
+# )

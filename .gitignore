@@ -4,6 +4,7 @@ BUILD
 .cache
 .workbuddy
 assets/runtime/*
+nanolivelens-cppcheck-build-dir
 
 # Prerequisites
 *.d

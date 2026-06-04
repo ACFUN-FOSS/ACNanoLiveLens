@@ -12,14 +12,14 @@ namespace ElementEngine::QJSBinding
 
 struct TypeInfoCreatingData
 {
-	gsl::not_null<metapp::MetaType *> type;
+	gsl::not_null<const metapp::MetaType *> type;
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()>  shareLifetimeInfoFunc;
 	bool moveable;
 };
 
 struct TypeInfo
 {
-	gsl::not_null<metapp::MetaType *> type;
+	gsl::not_null<const metapp::MetaType *> type;
 	JSClassID classID;
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()>  shareLifetimeInfoFunc;
 	bool moveable;
@@ -32,7 +32,8 @@ void regTypeStatic() {
 	// Analysis T, and make TypeInfoCreatingData from it
 	// and call regType.
 	regType({
-		[]() {
+		.type = metapp::getMetaType<T>(),
+		.shareLifetimeInfoFunc = []() {
 			if constexpr (LifetimeAware<T>) {
 				//static_assert(false, "DBG 1");
 				return getLifetimeInfo<T>();
@@ -40,9 +41,8 @@ void regTypeStatic() {
 				//static_assert(false, "DBG 2");
 				return nullptr;
 			}
-			
-		}(),
-		[]() {
+		},
+		.moveable = []() {
 			if constexpr (std::is_move_constructible_v<T>) {
 				return true;
 			} else {
@@ -60,7 +60,7 @@ JSValue cpp2JSTransplant(JSContext &ctx, metapp::Variant cppObj);
 
 JSValue cpp2JSTranslate(JSContext &ctx, metapp::Variant cppObjPtr);
 
-JSValue cpp2JSAuto(JSContext &ctx, metapp::Variant cppVal);
+JSValue cpp2JSAuto(JSContext &ctx, metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
 
 template <typename T>
 JSValue cpp2JSAutoStatic(const T &cppVal) {

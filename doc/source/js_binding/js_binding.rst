@@ -8,7 +8,7 @@ C++ 值转换为 JavaScript 值的方式和规则
 
 .. drawio-image:: c++_var_2_js_method.drawio
 
-将 C++ 值转换为 JavaScript 值，有「翻译」「孪生」「移植」三种方式。ElementQuickJsBinding 具有通用的转换函数 ``cpp2Js`` 以及其 variant 版本 ``cppVariant2Js``，可将 C++ 值转换为 JavaScript 值。对于一个 C++ 值，ElementQuickJsBinding 会按照以下规则决定采用哪种方式：
+将 C++ 值转换为 JavaScript 值，有「翻译」「孪生」「移植」三种方式。ElementQuickJsBinding 具有通用的转换函数 ``cpp2JSAuto`` 以及其静态版本 ``cpp2JSAutoStatic``，可将 C++ 值转换为 JavaScript 值。对于一个 C++ 值，ElementQuickJsBinding 会按照以下规则决定采用哪种方式：
 
 * 对于任意 ``T``：
 
@@ -37,9 +37,9 @@ C++ 值转换为 JavaScript 值的方式和规则
 
 一个 C++ 结构体或类是 *可翻译* 的，如果：
 
-* 该结构体使用 regType 注册，且满足 ``EJS::Translatable`` C++ 概念。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用指定的 ``translateToJS`` 函数，将这种 JavaScript 对象转换为 C++ 值时，会调用指定的 ``detranslate`` 来将 JavaScript 对象转换为 C++ 值。``detranslate`` 必须进行有效性校验，并在不符合要求时抛出异常。
-* 该结构体使用 regType 注册，且 ``EJS::CompileTimeMeta<T>::autoTranslateViaReflectpp`` 为编译期真。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用 ``reflectpp`` 库转换为 rfl::Generic，然后转换为 JavaScript 对象；在将这种 JavaScript 对象转换为 C++ 值时，会利用 ``reflectpp`` 库将 JavaScript 对象转换为 rfl::Generic，然后反序列化为 C++ 值。
-* 该结构体使用 regTypeDyn 注册，且提供了 translator。
+* 该结构体使用 regTypeStatic 注册，且满足 ``EJS::Translatable`` C++ 概念。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用指定的 ``translateToJS`` 函数，将这种 JavaScript 对象转换为 C++ 值时，会调用指定的 ``detranslate`` 来将 JavaScript 对象转换为 C++ 值。``detranslate`` 必须进行有效性校验，并在不符合要求时抛出异常。
+* 该结构体使用 regTypeStatic 注册，且 ``EJS::CompileTimeMeta<T>::autoTranslateViaReflectpp`` 为编译期真。若如此，ElementQuickJsBinding 在翻译此类型变量时将会利用 ``reflectpp`` 库转换为 rfl::Generic，然后转换为 JavaScript 对象；在将这种 JavaScript 对象转换为 C++ 值时，会利用 ``reflectpp`` 库将 JavaScript 对象转换为 rfl::Generic，然后反序列化为 C++ 值。
+* 该结构体使用 regType 注册，且在 TypeInfoCreatingData 参数中提供了 translator。
 
 
 转换方法：孪生（Twining）
@@ -110,7 +110,7 @@ Setup
 有效性和生命周期
 ~~~~~~~~~~~~~~~~~~~~~~
 
-如果通过 ``cpp2JsAutoStatic`` 转换且该结构体或类满足 ``EJS::LifetimeAware``，或通过 ``cpp2JsAuto`` 转换并传入了 ``Rc<LifetimeInfo>`` （？），则该孪生体为「生命周期可感知」。则该孪生体在被 JavaScript 使用时会判断源对象是否被销毁或移动。如果源对象被销毁或移动，则会抛出 JavaScript 异常，从而避免非法内存访问。
+如果通过 ``cpp2JsAutoStatic`` 转换且该结构体或类满足 ``EJS::LifetimeAware``，或通过 ``cpp2JsAuto`` 转换并传入了 ``Rc<LifetimeInfo>`` ，则该孪生体为「生命周期可感知」。则该孪生体在被 JavaScript 使用时会判断源对象是否被销毁或移动。如果源对象被销毁或移动，则会抛出 JavaScript 异常，从而避免非法内存访问。
 
 若非，则该孪生体在被 JavaScript 使用时不会判断源对象是否被销毁或移动，需要用户手动确保内存安全。
 

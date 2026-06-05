@@ -10,6 +10,19 @@
 namespace ElementEngine::QJSBinding
 {
 
+struct Translator
+{
+	std::function<JSValue(std::any)> translateToJS;
+	std::function<std::any(JSValue)> detranslate;
+};
+
+
+template <typename T>
+concept Translatable = requires(T obj) {
+	{obj.translateToJS} -> std::same_as<decltype(Translator::translateToJS)>;
+	{obj.detranslate} -> std::same_as<decltype(Translator::detranslate)>;
+}
+
 struct TypeInfoCreatingData
 {
 	gsl::not_null<const metapp::MetaType *> type;
@@ -21,7 +34,7 @@ struct TypeInfo
 {
 	gsl::not_null<const metapp::MetaType *> type;
 	JSClassID classID;
-	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()>  shareLifetimeInfoFunc;
+	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()> shareLifetimeInfoFunc;
 	bool moveable;
 };
 
@@ -42,13 +55,7 @@ void regTypeStatic() {
 				return nullptr;
 			}
 		},
-		.moveable = []() {
-			if constexpr (std::is_move_constructible_v<T>) {
-				return true;
-			} else {
-				return false;
-			}
-		}()
+		.moveable = std::is_move_constructible_v<T>
 	});
 }
 

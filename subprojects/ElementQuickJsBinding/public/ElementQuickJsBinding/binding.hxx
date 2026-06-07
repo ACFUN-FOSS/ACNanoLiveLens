@@ -12,22 +12,24 @@ namespace ElementEngine::QJSBinding
 
 struct Translator
 {
+	// std::any: Refw<const T>
 	std::function<JSValue(std::any)> translateToJS;
 	std::function<std::any(JSValue)> detranslate;
 };
 
 
 template <typename T>
-concept Translatable = requires(T obj) {
-	{obj.translateToJS} -> std::same_as<decltype(Translator::translateToJS)>;
-	{obj.detranslate} -> std::same_as<decltype(Translator::detranslate)>;
-}
+concept Translatable = requires(JSValue jsVal, T cppVal) {
+	{ T::translateToJS(cppVal) } -> std::same_as<JSValue>;
+	{ T::detranslate(jsVal) } -> std::same_as<T>;
+};
 
 struct TypeInfoCreatingData
 {
 	gsl::not_null<const metapp::MetaType *> type;
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()>  shareLifetimeInfoFunc;
 	bool moveable;
+	std::optional<Translator> translator;
 };
 
 struct TypeInfo
@@ -36,6 +38,7 @@ struct TypeInfo
 	JSClassID classID;
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()> shareLifetimeInfoFunc;
 	bool moveable;
+	std::optional<Translator> translator;
 };
 
 void regType(TypeInfoCreatingData typeInfo);
@@ -55,7 +58,21 @@ void regTypeStatic() {
 				return nullptr;
 			}
 		},
-		.moveable = std::is_move_constructible_v<T>
+		.moveable = std::is_move_constructible_v<T>,
+		.translator = []() {
+			if constexpr (Translatable<T>) {
+				return Translator{
+					.translateToJS = [](std::any cppVal) -> JSValue{
+						return T::translateToJS(std::any_cast<ESSM::Refw<const T >>(cppVal));
+					},
+					.detranslate = [](JSValue jsVal) -> T{
+						return T::detranslate(jsVal);
+					}
+				};
+			} else {
+				return std::nullopt;
+			}
+		}()
 	});
 }
 

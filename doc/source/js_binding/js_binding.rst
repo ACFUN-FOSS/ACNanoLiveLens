@@ -72,7 +72,7 @@ Setup
 
 执行 regType 时，Setup 是一个重要的阶段：它向脚本引擎注册一种新的类型，以及这种类型的定义（原型等）。
 
-假设 regType 类型 type，且找不到 type 的驱动程序，且 t 不是可翻译的，那么 ElementQuickJsBinding 将会利用 metapp 的数据，创建一种默认原型。这种原型包含一系列 JS_NewCFunctionMagic 出来的 JS 代理函数和……的代理属性。
+假设 regType 类型 t，t 不是可翻译的，那么 ElementQuickJsBinding 将会利用 metapp 的数据，创建一种默认原型。这种原型包含一系列 JS_NewCFunctionMagic 出来的 JS 代理函数和……的代理属性。
 
 属性
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -116,59 +116,3 @@ Setup
 
 如果某个 C++ 对象的成员函数返回了一个引用或指针，该引用或指针将被孪生处理，且转换出的孪生体不「生命周期可感知」，则孪生的 EJSObj 的有效生命周期将会视为与这个 C++ 对象一致。
 
-驱动程序（Driver）
----------------------------
-
-ElementQuickJsBinding 提供一种机制，允许用户自定义对某种类型，自定义其 setup 逻辑（如构造原型对象）、cpp2js 和 js2cpp 逻辑。
-
-ElementQuickJsBinding 自身也使用这种机制，来提供 std::shared_ptr<T> 的支持：它的 setup 步骤将会创建一个包含 T 中所有成员代理函数和代理对象的原型，以便 JS 可以穿透访问 shared_ptr 所实际指向的对象。
-
-
-.. code-block:: C++
-   :linenos:
-
-   // https://en.cppreference.com/cpp/named_req/ContiguousContainer
-   template <typename C>
-   concept ContiguousContainer = requires(C c) {
-      { c.data() } -> std::same_as<typename C::pointer>;
-      { c.size() } -> std::convertible_to<std::size_t>;
-      // Ensure elements are stored contiguously
-      requires std::contiguous_iterator<typename C::iterator>;
-   };
-
-   template <ContiguousContainer T>
-   class ContiguousContainerDriver
-   {
-      static std::optional<qjs::value> prototype;
-
-      struct MyOpaque
-      {
-         gsl::not_null<T *> vec;
-      };
-
-      void setup() {
-         prototype.emplace();
-         *prototype["add"] = [](qjs::value &self, qjs::array args) {
-            std::vector<metapp::Variant> cppArgs;
-				for (auto &arg : args) {
-					cppArgs.push_back(js2Cpp(arg));
-				}
-
-            ejsobjGetUserOpaque(self).vec->push_back(
-               js2Cpp(cppArgs[0]).get<typename T::value_type&>()
-            );
-            return qjs::undefined();
-         };
-      }
-      
-      qjs::value cppToJs(T &vec) {
-         qjs::value obj{ JS_NewObjectWithPrototype(*prototype) };
-         ejsobjSetUserOpaque(MyOpaque{ &vec });
-         return obj;
-      }
-
-    
-   };
-
-   regType<std::vector<A>, ContiguousContainerDriver>(...);
-   regType<std::vector<B>, ContiguousContainerDriver>(...);

@@ -2,7 +2,9 @@
 #define _H_O7641
 
 #include <metapp/allmetatypes.h>
+#include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
+#include <EatiEssentials/memsafety.hxx>
 
 #include "ElementQuickJsBinding/lifetime_informant.hxx"
 #include "metapp/metatype.h"
@@ -35,62 +37,82 @@ struct TypeInfoCreatingData
 struct TypeInfo
 {
 	gsl::not_null<const metapp::MetaType *> type;
-	JSClassID classID;
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()> shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
+
+	struct JSVMRuntimeData
+	{
+		JSClassID classID;
+	} jsVMRuntimeData;
+
+	bool isTranslatableType();
 };
 
-void regType(TypeInfoCreatingData typeInfo);
+class Binding
+{
+private:
+	gsl::not_null<qjs::Runtime *const> rt;
+	gsl::not_null<qjs::Context *const> ctx;
+	std::vector<TypeInfo> regedTypes;
+public:
 
-template <typename T>
-void regTypeStatic() {
-	// Analysis T, and make TypeInfoCreatingData from it
-	// and call regType.
-	regType({
-		.type = metapp::getMetaType<T>(),
-		.shareLifetimeInfoFunc = []() {
-			if constexpr (LifetimeAware<T>) {
-				//static_assert(false, "DBG 1");
-				return getLifetimeInfo<T>();
-			} else {
-				//static_assert(false, "DBG 2");
-				return nullptr;
-			}
-		},
-		.moveable = std::is_move_constructible_v<T>,
-		.translator = []() {
-			if constexpr (Translatable<T>) {
-				return Translator{
-					.translateToJS = [](std::any cppVal) -> JSValue{
-						return T::translateToJS(std::any_cast<ESSM::Refw<const T >>(cppVal));
-					},
-					.detranslate = [](JSValue jsVal) -> T{
-						return T::detranslate(jsVal);
-					}
-				};
-			} else {
-				return std::nullopt;
-			}
-		}()
-	});
-}
+	Binding(qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
 
-void deregType(const metapp::MetaType *type);
+	TypeInfo &findTypeInfoOfJsTwin(JSValue jsvalue);
 
-JSValue cpp2JSTwin(JSContext &ctx, metapp::Variant cppObjPtr);
-
-JSValue cpp2JSTransplant(JSContext &ctx, metapp::Variant cppObj);
-
-JSValue cpp2JSTranslate(JSContext &ctx, metapp::Variant cppObjPtr);
-
-JSValue cpp2JSAuto(JSContext &ctx, metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
-
-template <typename T>
-JSValue cpp2JSAutoStatic(const T &cppVal) {
+	void regType(TypeInfoCreatingData &&typeInfo);
 	
-}
+	template <typename T>
+	void regTypeStatic() {
+		// Analysis T, and make TypeInfoCreatingData from it
+		// and call regType.
+		regType({
+			.type = metapp::getMetaType<T>(),
+			.shareLifetimeInfoFunc = []() {
+				if constexpr (LifetimeAware<T>) {
+					//static_assert(false, "DBG 1");
+					return getLifetimeInfo<T>();
+				} else {
+					//static_assert(false, "DBG 2");
+					return nullptr;
+				}
+			},
+			.moveable = std::is_move_constructible_v<T>,
+			.translator = []() {
+				if constexpr (Translatable<T>) {
+					return Translator{
+						.translateToJS = [](std::any cppVal) -> JSValue{
+							return T::translateToJS(std::any_cast<ESSM::Refw<const T >>(cppVal));
+						},
+						.detranslate = [](JSValue jsVal) -> T{
+							return T::detranslate(jsVal);
+						}
+					};
+				} else {
+					return std::nullopt;
+				}
+			}()
+		});
+	}
 
+	void deregType(const metapp::MetaType *type);
+
+	JSValue cpp2JSTwin(JSContext &ctx, metapp::Variant cppObjPtr);
+
+	JSValue cpp2JSTransplant(JSContext &ctx, metapp::Variant cppObj);
+
+	JSValue cpp2JSTranslate(JSContext &ctx, metapp::Variant cppObjPtr);
+
+	JSValue cpp2JSAuto(JSContext &ctx, metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
+
+	template <typename T>
+	JSValue cpp2JSAutoStatic(const T &cppVal) {
+
+	}
+
+	bool checkTwinObjLifetime(JSValue jsvalue);
+};
 
 }
 

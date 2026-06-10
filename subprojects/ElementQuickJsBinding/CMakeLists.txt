@@ -19,8 +19,10 @@ target_link_libraries(element_qjs_binding
     Microsoft.GSL::GSL
     metapp::metapp
     quickjspp
+	
     PUBLIC
 	EatiEssentials
+	cpp_pimpl_helper
 )
 
 # 导出头文件

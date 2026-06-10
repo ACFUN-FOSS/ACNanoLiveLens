@@ -5,6 +5,7 @@
 #include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
 #include <EatiEssentials/memsafety.hxx>
+#include <pimpl.hpp>
 
 #include "ElementQuickJsBinding/lifetime_informant.hxx"
 #include "metapp/metatype.h"
@@ -55,8 +56,12 @@ private:
 	gsl::not_null<qjs::Runtime *const> rt;
 	gsl::not_null<qjs::Context *const> ctx;
 	std::vector<TypeInfo> regedTypes;
+	
+	struct Detail;
+	stdx::pimpl::unique_ptr<Detail> detail;
+	
 public:
-
+	LifetimeInformant lifetimeInformant;
 	Binding(qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
 
 	TypeInfo &findTypeInfoOfJsTwin(JSValue jsvalue);
@@ -111,7 +116,7 @@ public:
 
 	}
 
-	bool checkTwinObjLifetime(JSValue jsvalue);
+	
 };
 
 }

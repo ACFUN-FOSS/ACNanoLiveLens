@@ -40,4 +40,8 @@ Rc<LifetimeInformant::LifetimeInfo> LifetimeInformant::shareLifetimeInfo() {
 	return info;
 }
 
+NullPointerExcp::NullPointerExcp(std::string_view className)
+	: std::runtime_error{ std::format("The {} points to nothing.", className) }
+	{ }
+
 }

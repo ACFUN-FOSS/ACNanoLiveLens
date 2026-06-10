@@ -32,16 +32,67 @@ private:
 	ESSM::Rc<LifetimeInfo> info;
 };
 
+
 template <typename T>
 concept LifetimeAware = requires(T obj)
 {
-	{obj.lifetimeInformant} -> std::same_as<LifetimeInformant>;
+	{obj.lifetimeInformant} -> std::same_as<LifetimeInformant &>;
 };
 
 template <LifetimeAware T>
 ESSM::Rc<LifetimeInformant::LifetimeInfo> getLifetimeInfo(T &lifetimeAware) {
 	return lifetimeAware.lifetimeInformant.shareLifetimeInfo();
 }
+
+class NullPointerExcp : public std::runtime_error
+{
+public:
+	NullPointerExcp(std::string_view className);
+};
+
+class TargetGone : public std::runtime_error
+{
+public:
+	using std::runtime_error::runtime_error;
+};
+
+template <LifetimeAware T>
+class LifetimeAwareWRef
+{
+private:
+	T *ptr = nullptr;
+	ESSM::Rc<LifetimeInformant::LifetimeInfo> li;
+public:
+	LifetimeAwareWRef() = default;
+	LifetimeAwareWRef(T &ref)
+		: ptr{ &ref },
+		  li{ getLifetimeInfo(ref) } { }
+	~LifetimeAwareWRef() = default;
+	LifetimeAwareWRef(const LifetimeAwareWRef& that) = default;
+	LifetimeAwareWRef(LifetimeAwareWRef&& that) = default;
+	LifetimeAwareWRef &operator=(const LifetimeAwareWRef& that) = default;
+	LifetimeAwareWRef &operator=(LifetimeAwareWRef&& that) = default;
+
+	T *operator->() {
+		if (!ptr)
+			throw NullPointerExcp{ "LifetimeAwareWRef" };
+		if (li->isMovedAway || !li->isAlive)
+			throw TargetGone{ "The target of the reference is gone." };
+			return ptr;
+	}
+
+	bool isValid() {
+		return ptr != nullptr;
+	}
+
+	operator bool() {
+		return isValid();
+	}
+
+	T &operator*() {
+		return *operator->();
+	}
+};
 
 }
 

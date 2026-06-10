@@ -1,13 +1,17 @@
 #include "ElementQuickJsBinding/binding.hxx"
 #include <EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx>
+#include <EatiEssentials/container_and_view_and_ranges/container_lease.hxx>
 #include "metapp/interfaces/metaclass.h"
 #include <stdexcept>
 #include <rfl.hpp>
 
 using namespace Essentials::ContainerAndView;
+using namespace Essentials::Memory;
 
 namespace ElementEngine::QJSBinding
 {
+
+static std::map<gsl::not_null<JSContext *>, gsl::not_null<Binding *>> ctxToBindingMap;
 
 static std::string_view getTypeName(const metapp::MetaType &type) {
 	return UNWRAP(type.getMetaClass()).getType(&type).getName();
@@ -17,14 +21,20 @@ bool TypeInfo::isTranslatableType() {
 	return translator.has_value();
 }
 
+struct Binding::Detail
+{
+	
+};
+
 Binding::Binding(qjs::Runtime &rt, qjs::Context &ctx)
 	: rt{ &rt }, ctx{ &ctx } { }
 
 struct JsTwinObjOpaque
 {
 	gsl::not_null<const metapp::MetaType *> type;
+	LifetimeAwareWRef<Binding> binding;
 	metapp::Variant cppObjPtrInVariant;
-	ESSM::Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj;
+	Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj;
 
 	// For twined & translated value: this field will be empty,
 	// For transplanted value: this field will be the C++ object.
@@ -54,7 +64,7 @@ TypeInfo &Binding::findTypeInfoOfJsTwin(JSValue jsvalue) {
 
 }
 
-static bool checkTwinObjLifetimeInGivenCtx(JSContext &ctx, JSValue jsvalue) {
+bool Binding::checkTwinObjLifetime(JSValue jsvalue) {
 	auto opaque = getJsTwinObjOpaque(jsvalue);
 	if (!opaque)
 		return true;
@@ -74,7 +84,7 @@ static bool checkTwinObjLifetimeInGivenCtx(JSContext &ctx, JSValue jsvalue) {
 				"The object has been dead before {}",
 				elapsedStr
 			);
-			JS_ThrowTypeError(&ctx, "%s", msg.c_str());
+			JS_ThrowTypeError(ctx->ctx, "%s", msg.c_str());
 			return false;
 		}
 		if (opaque->lifetimeInfoOfCppObj->isMovedAway) {
@@ -91,22 +101,33 @@ static bool checkTwinObjLifetimeInGivenCtx(JSContext &ctx, JSValue jsvalue) {
 				"The object has been moved away before {}",
 				elapsedStr
 			);
-			JS_ThrowTypeError(&ctx, "%s", msg.c_str());
+			JS_ThrowTypeError(ctx->ctx, "%s", msg.c_str());
 			return false;
 		}
 	}
 	return true;
 }
 
-bool Binding::checkTwinObjLifetime(JSValue jsvalue) {
-	auto &opaque = EXCEPT(getJsTwinObjOpaque(jsvalue), "Not a JsTwinObject");
+// bool Binding::checkTwinObjLifetime(JSValue jsvalue) {
+// 	auto &opaque = EXCEPT(getJsTwinObjOpaque(jsvalue), "Not a twin object");
 
-	if (!opaque.ownedCppObjInVariant.isEmpty()) {
-		auto &typeJsInfo = findTypeInfoOfJsTwin(opaque.type);
-		assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
-		return typeJsInfo.getPointerOfValue(opaque.ownedCppObjInVariant);
-	}
-	return opaque.cppObjPtrInVariant;
+// 	if (!opaque.ownedCppObjInVariant.isEmpty()) {
+// 		auto &typeJsInfo = findTypeInfoOfJsTwin(opaque.type);
+// 		assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
+// 		return typeJsInfo.getPointerOfValue(opaque.ownedCppObjInVariant);
+// 	}
+// 	return opaque.cppObjPtrInVariant;
+// }
+
+static Binding &getBindingByTwinObjOpaque(JSValue jsvalue) {
+	auto opaque = getJsTwinObjOpaque(jsvalue);
+	if (!opaque)
+		throw std::invalid_argument{ "jsvalue is not a twin." };
+
+	if (!opaque->binding)
+		throw std::runtime_error{ "The binding of the twin object is gone." };
+
+	return *opaque->binding;
 }
 
 void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
@@ -145,50 +166,53 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 			}
 		});
 
+		auto proxyMethod = [](JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv,
+		   int magic) noexcept -> JSValue {
+				auto functionDataIt = jsProxyMethodsData.find(magic);
+				assert(functionDataIt != jsProxyMethodsData.end() && "Cannot find JsTwinFunctionData with magicNum");
+				auto &functionData = functionDataIt->second;
+				auto &binding = getBindingByTwinObjOpaque(this_val);
+				
+				if (!binding.checkTwinObjLifetime(this_val))
+					return JS_EXCEPTION;
+				metapp::Variant subject = getPointerToCppObjByJsTwinObject(*ctx, this_val);
+				std::vector<metapp::Variant> args;
+				for (int i = 0; i < argc; ++i) {
+					args.push_back(jsValue2Cpp(*ctx, argv[i]));
+				}
+				
+				// Call C++ function
+				auto &metaCallable = UNWRAP(getNonReferenceMetaType(functionData.callable)->getMetaCallable());
+				if (auto &returnType = UNWRAP(metaCallable.getReturnType(*functionData.callable));
+					!returnType.isVoid()) {
+					auto returnTypeName = getDefaultMetaRepo().getType(&returnType).getName();
+					
+					if (!doesTypeHasItsOwnJSRepresentation(returnType)) {
+						auto &typeJsInfo = metaType2TypeJsInfo[&returnType];
+						//assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
+						if (typeJsInfo.classID == 0) {
+							std::println("Type {} not registered via regClass", returnTypeName);
+							std::terminate();
+						}
+						if (!typeJsInfo.moveable) {
+							JS_ThrowTypeError(ctx, "Return type of the function (%s) is not moveable, hence it cannot \"move\" into the JavaScript VM.", returnTypeName.c_str());
+							return JS_EXCEPTION;
+						}
+					}
+				}
+				auto res = metaCallable.invoke(
+					*functionData.callable,
+					subject,
+					args
+				);
+				
+				auto jsRes = variant2Js(*ctx, res);
+				return jsRes.release();
+		}
+
 		jsFuncs.push_back({
 			JS_NewCFunctionMagic(ctx->ctx,
-				[](JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv,
-				   int magic) noexcept -> JSValue {
-						auto functionDataIt = jsProxyMethodsData.find(magic);
-						assert(functionDataIt != jsProxyMethodsData.end() && "Cannot find JsTwinFunctionData wiith magicNum");
-						auto &functionData = functionDataIt->second;
-						
-						if (!checkTwinObjLifetimeInGivenCtx(UNWRAP(ctx), this_val))
-							return JS_EXCEPTION;
-						metapp::Variant subject = getPointerToCppObjByJsTwinObject(*ctx, this_val);
-						std::vector<metapp::Variant> args;
-						for (int i = 0; i < argc; ++i) {
-							args.push_back(jsValue2Cpp(*ctx, argv[i]));
-						}
-						
-						// Call C++ function
-						auto &metaCallable = UNWRAP(getNonReferenceMetaType(functionData.callable)->getMetaCallable());
-						if (auto &returnType = UNWRAP(metaCallable.getReturnType(*functionData.callable));
-							!returnType.isVoid()) {
-							auto returnTypeName = getDefaultMetaRepo().getType(&returnType).getName();
-							
-							if (!doesTypeHasItsOwnJSRepresentation(returnType)) {
-								auto &typeJsInfo = metaType2TypeJsInfo[&returnType];
-								//assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
-								if (typeJsInfo.classID == 0) {
-									std::println("Type {} not registered via regClass", returnTypeName);
-									std::terminate();
-								}
-								if (!typeJsInfo.moveable) {
-									JS_ThrowTypeError(ctx, "Return type of the function (%s) is not moveable, hence it cannot \"move\" into the JavaScript VM.", returnTypeName.c_str());
-									return JS_EXCEPTION;
-								}
-							}
-						}
-						auto res = metaCallable.invoke(
-							*functionData.callable,
-							subject,
-							args
-						);
-						
-						auto jsRes = variant2Js(*ctx, res);
-						return jsRes.release();
-				},
+				,
 				cppFuncItem.getName().c_str(),
 				cppFuncItem.asCallable().getMetaType()->getMetaCallable()->getParameterCountInfo(cppFuncItem.asCallable()).getMinParameterCount(),
 				JS_CFUNC_generic_magic,

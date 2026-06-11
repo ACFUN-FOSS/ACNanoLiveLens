@@ -3,8 +3,10 @@
  */
 #ifndef ESS_ADDANDREMOVEABLE_REF_HXX
 #define ESS_ADDANDREMOVEABLE_REF_HXX
-#include <utility>
+#include <algorithm>
+#include <concepts>
 #include <iterator>
+#include <utility>
 #include <gsl/pointers>
 #include "EatiEssentials/memsafety.hxx"
 
@@ -20,12 +22,33 @@ concept AddandremoveableContainer = requires(C &c) {
     c.erase(c.begin());
 };
 
+template <typename C, typename TKey, typename TVal>
+concept AddandremoveableAssoContainer = requires(C &c) {
+    typename C::key_type;
+    typename C::mapped_type;
+    requires std::same_as<typename C::key_type, TKey>;
+    requires std::same_as<typename C::mapped_type, TVal>;
+    c.emplace(std::declval<TKey>(), std::declval<TVal>());
+    { c.begin() } -> std::forward_iterator;
+    { c.end() } -> std::forward_iterator;
+    c.erase(std::declval<const TKey &>());
+};
+
+
 template <typename T>
 class IAddandremoveableContainerRef {
 public:
     virtual ~IAddandremoveableContainerRef() = default;
     virtual void add(T &&value) = 0;
     virtual void remove(const T &value) = 0;
+};
+
+template <typename TKey, typename TVal>
+class IAddandremoveableAssoContainerRef {
+public:
+    virtual ~IAddandremoveableAssoContainerRef() = default;
+    virtual void add(TKey &&key, TVal &&value) = 0;
+    virtual void remove(const TKey &key) = 0;
 };
 
 /**
@@ -49,15 +72,35 @@ public:
         : container_{ c } {}
 
     void add(T&& value) override {
-        container_.emplace_back(std::move(value));
+        container_->emplace_back(std::move(value));
     }
 
     void remove(const T& value) override {
-        auto it = std::find(container_.begin(), container_.end(), value);
-        if (it != container_.end()) {
-            container_.erase(it);
+        auto it = std::find(container_->begin(), container_->end(), value);
+        if (it != container_->end()) {
+            container_->erase(it);
             //std::cout << "[Wrapper] Removed from " << typeid(Container).name() << "\n";
         }
+    }
+
+private:
+    gsl::not_null<Container *> container_;
+};
+
+template <typename TKey, typename TVal, typename Container>
+    requires AddandremoveableAssoContainer<Container, TKey, TVal>
+class AddandremoveableAssoContainerRef : public IAddandremoveableAssoContainerRef<TKey, TVal>
+{
+public:
+    explicit AddandremoveableAssoContainerRef(Container &c LIFETIMEBOUND)
+        : container_{ c } {}
+
+    void add(TKey &&key, TVal &&value) override {
+        container_->emplace(std::move(key), std::move(value));
+    }
+
+    void remove(const TKey &key) override {
+        container_->erase(key);
     }
 
 private:

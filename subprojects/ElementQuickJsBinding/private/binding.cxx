@@ -2,6 +2,7 @@
 #include <EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx>
 #include <EatiEssentials/container_and_view_and_ranges/container_lease.hxx>
 #include "metapp/interfaces/metaclass.h"
+#include "pimpl.hpp"
 #include <stdexcept>
 #include <rfl.hpp>
 
@@ -23,11 +24,14 @@ bool TypeInfo::isTranslatableType() {
 
 struct Binding::Detail
 {
-	
+	AssoContainerLease<gsl::not_null<JSContext *>, gsl::not_null<Binding *>> ctxToBindingMapLease;
+
+	Detail(Binding& binding LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND)
+		: ctxToBindingMapLease{ ctxToBindingMap, ctx.ctx, &binding } { }
 };
 
 Binding::Binding(qjs::Runtime &rt, qjs::Context &ctx)
-	: rt{ &rt }, ctx{ &ctx } { }
+	: rt{ &rt }, ctx{ &ctx }, detail{ stdx::pimpl::make_unique<Detail>(*this, ctx) }  { }
 
 struct JsTwinObjOpaque
 {
@@ -172,6 +176,14 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 				assert(functionDataIt != jsProxyMethodsData.end() && "Cannot find JsTwinFunctionData with magicNum");
 				auto &functionData = functionDataIt->second;
 				auto &binding = getBindingByTwinObjOpaque(this_val);
+
+				{
+					auto bindingFoundInMap = ctxToBindingMap.find(ctx);
+					assert(
+						bindingFoundInMap != ctxToBindingMap.end()
+						&& bindingFoundInMap->second == &binding
+					);
+				}
 				
 				if (!binding.checkTwinObjLifetime(this_val))
 					return JS_EXCEPTION;

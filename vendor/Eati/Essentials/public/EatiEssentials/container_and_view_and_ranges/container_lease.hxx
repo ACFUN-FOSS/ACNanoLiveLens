@@ -27,7 +27,7 @@ class ContainerLease {
 public:
     template <typename Container>
         requires AddandremoveableContainer<Container> && std::same_as<typename Container::value_type, T>
-    ContainerLease(Container& container, T value) 
+    ContainerLease(Container& container LIFETIMEBOUND, T value) 
         : value_{ value },
           wrapper_{ newBox(AddandremoveableContainerRef<T, Container>{ container }) } {
         // 在运行时创建具体的包装器
@@ -48,6 +48,42 @@ public:
 private:
     T value_;
     Memory::Box<IAddandremoveableContainerRef<T>> wrapper_; // 运行时指向具体的容器逻辑
+};
+
+/**
+ * @class AssoContainerLease
+ * @brief A class for managing the “lease” of a key-value pair within an associative container.
+ *
+ * Associate-container-version of ContainerLease.
+ *
+ * @tparam TKey The type of the key being managed.
+ * @tparam TVal The type of the mapped value being managed.
+ */
+template <typename TKey, typename TVal>
+class AssoContainerLease {
+public:
+    template <typename Container>
+        requires AddandremoveableAssoContainer<Container, TKey, TVal>
+    AssoContainerLease(Container& container LIFETIMEBOUND, TKey key, TVal value)
+        : key_{ key },
+          wrapper_{ newBox(AddandremoveableAssoContainerRef<TKey, TVal, Container>{ container }) } {
+        wrapper_->add(std::move(key), std::move(value));
+    }
+
+    ~AssoContainerLease() {
+        if (wrapper_) {
+            wrapper_->remove(key_);
+        }
+    }
+
+    AssoContainerLease(AssoContainerLease &&) = default;
+    AssoContainerLease(const AssoContainerLease &) = delete;
+    AssoContainerLease& operator=(const AssoContainerLease &) = delete;
+    AssoContainerLease& operator=(AssoContainerLease &&) = default;
+
+private:
+    TKey key_;
+    Memory::Box<IAddandremoveableAssoContainerRef<TKey, TVal>> wrapper_;
 };
 
 }

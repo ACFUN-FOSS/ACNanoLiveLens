@@ -171,7 +171,7 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 		});
 
 		auto proxyMethod = [](JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv,
-		   int magic) noexcept -> JSValue {
+		   int magic) -> JSValue {
 				auto functionDataIt = jsProxyMethodsData.find(magic);
 				assert(functionDataIt != jsProxyMethodsData.end() && "Cannot find JsTwinFunctionData with magicNum");
 				auto &functionData = functionDataIt->second;

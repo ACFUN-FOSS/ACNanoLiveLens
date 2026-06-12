@@ -30,7 +30,7 @@ concept Translatable = requires(JSValue jsVal, T cppVal) {
 struct TypeInfoCreatingData
 {
 	gsl::not_null<const metapp::MetaType *> type;
-	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()>  shareLifetimeInfoFunc;
+	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(std::any cppValRefw)>  shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
 };
@@ -78,10 +78,10 @@ public:
 		// and call regType.
 		regType({
 			.type = metapp::getMetaType<T>(),
-			.shareLifetimeInfoFunc = []() {
+			.shareLifetimeInfoFunc = [](std::any cppValRefw) {
 				if constexpr (LifetimeAware<T>) {
 					//static_assert(false, "DBG 1");
-					return getLifetimeInfo<T>();
+					return getLifetimeInfo<T>(std::any_cast<ESSM::Refw<const T>>(cppValRefw));
 				} else {
 					//static_assert(false, "DBG 2");
 					return nullptr;
@@ -92,7 +92,7 @@ public:
 				if constexpr (Translatable<T>) {
 					return Translator{
 						.translateToJS = [](std::any cppVal) -> JSValue{
-							return T::translateToJS(std::any_cast<ESSM::Refw<const T >>(cppVal));
+							return T::translateToJS(std::any_cast<ESSM::Refw<const T>>(cppVal));
 						},
 						.detranslate = [](JSValue jsVal) -> T{
 							return T::detranslate(jsVal);

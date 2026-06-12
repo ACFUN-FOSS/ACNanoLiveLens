@@ -199,14 +199,15 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 				metapp::Variant subject = binding.getPointerToCppObjByJsTwinObject(this_val);
 				std::vector<metapp::Variant> args;
 				for (int i = 0; i < argc; ++i) {
-					args.push_back(jsValue2Cpp(*ctx, argv[i]));
+					// NOLINENEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+					args.push_back(binding.js2Cpp(argv[i]));
 				}
 				
 				// Call C++ function
 				auto &metaCallable = UNWRAP(getNonReferenceMetaType(functionData.callable)->getMetaCallable());
 				if (auto &returnType = UNWRAP(metaCallable.getReturnType(*functionData.callable));
 					!returnType.isVoid()) {
-					auto returnTypeName = getDefaultMetaRepo().getType(&returnType).getName();
+					auto returnTypeName = binding.metaRepo->getType(&returnType).getName();
 					
 					// old >>>>>>>>>>
 					// if (!doesTypeHasItsOwnJSRepresentation(returnType)) {
@@ -222,6 +223,9 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 					// 	}
 					// }
 					// old <<<<<<<<<<<<
+
+					//auto ret = binding.js2Cpp(res);
+
 				}
 				auto res = metaCallable.invoke(
 					*functionData.callable,

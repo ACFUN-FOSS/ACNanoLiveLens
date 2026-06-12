@@ -70,6 +70,23 @@ public:
 	bool checkTwinObjLifetime(JSValue jsvalue);
 	metapp::Variant getPointerToCppObjByJsTwinObject(JSValue jsvalue);
 
+	void deregType(const metapp::MetaType &type);
+
+	JSValue cpp2JSTwin(metapp::Variant cppObjPtr);
+
+	JSValue cpp2JSTransplant(metapp::Variant cppObj);
+
+	JSValue cpp2JSTranslate(metapp::Variant cppObjPtr);
+
+	JSValue cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
+
+	template <typename T>
+	JSValue cpp2JSAutoStatic(const T &cppVal) {
+
+	}
+
+	metapp::Variant js2Cpp(JSValue jsVal);
+
 	void regType(TypeInfoCreatingData &&typeInfo);
 	
 	template <typename T>
@@ -103,21 +120,6 @@ public:
 				}
 			}()
 		});
-	}
-
-	void deregType(const metapp::MetaType *type);
-
-	JSValue cpp2JSTwin(JSContext &ctx, metapp::Variant cppObjPtr);
-
-	JSValue cpp2JSTransplant(JSContext &ctx, metapp::Variant cppObj);
-
-	JSValue cpp2JSTranslate(JSContext &ctx, metapp::Variant cppObjPtr);
-
-	JSValue cpp2JSAuto(JSContext &ctx, metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
-
-	template <typename T>
-	JSValue cpp2JSAutoStatic(const T &cppVal) {
-
 	}
 
 	

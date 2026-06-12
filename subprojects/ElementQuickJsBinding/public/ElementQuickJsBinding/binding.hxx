@@ -53,6 +53,8 @@ struct TypeInfo
 class Binding
 {
 private:
+	gsl::not_null<metapp::MetaRepo *> metaRepo;
+
 	gsl::not_null<qjs::Runtime *const> rt;
 	gsl::not_null<qjs::Context *const> ctx;
 	std::vector<TypeInfo> regedTypes;
@@ -62,9 +64,11 @@ private:
 	
 public:
 	LifetimeInformant lifetimeInformant;
-	Binding(qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
+	Binding(metapp::MetaRepo &metaRepo LIFETIMEBOUND, qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
 
 	TypeInfo &findTypeInfoOfJsTwin(JSValue jsvalue);
+	bool checkTwinObjLifetime(JSValue jsvalue);
+	metapp::Variant getPointerToCppObjByJsTwinObject(JSValue jsvalue);
 
 	void regType(TypeInfoCreatingData &&typeInfo);
 	

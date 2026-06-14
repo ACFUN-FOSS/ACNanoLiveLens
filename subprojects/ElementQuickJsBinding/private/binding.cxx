@@ -3,6 +3,7 @@
 #include <EatiEssentials/container_and_view_and_ranges/container_lease.hxx>
 #include "metapp/interfaces/metaclass.h"
 #include "pimpl.hpp"
+#include "quickjs/quickjs.h"
 #include <stdexcept>
 #include <rfl.hpp>
 
@@ -142,10 +143,19 @@ metapp::Variant Binding::getPointerToCppObjByJsTwinObject(JSValue jsvalue) {
 	return opaque->cppObjPtrInVariant;
 }
 
-
 void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
-    auto typeInfo = rfl::as<TypeInfo>(std::move(typeInfoCd));
 
+	if (std::ranges::find_if(regedTypes, [&](auto &typeInfo){
+		return typeInfo.type == typeInfoCd.type;
+	}) != regedTypes.end()) {
+		throw std::runtime_error{
+			std::format("类型 {} 已被注册进 Binding。",
+				getTypeName(*typeInfoCd.type)
+			) };
+	}
+
+	auto typeInfo = rfl::as<TypeInfo>(std::move(typeInfoCd));
+	regedTypes.push_back(typeInfo);
 
 	// New type setup
     // Translatable type
@@ -167,7 +177,7 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 	static std::map<int, JsTwinMethodData> jsProxyMethodsData;
 	static int jsProxyMethodNewestMagicNum = 0;
 
-	std::vector<std::pair<JSValue, std::string>> jsFuncs;
+	std::vector<std::pair<JSValue, std::string>> jsMethods;
 	auto &metaClass = UNWRAP(typeInfo.type->getMetaClass());
 	for (auto &cppFuncItem : metaClass.getCallableView()) {
 		
@@ -179,15 +189,16 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 			}
 		});
 
-		auto proxyMethod = [](JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv,
+		static auto proxyMethod = [](JSContext &ctx, JSValueConst this_val, std::span<JSValueConst> args,
 		   int magic) -> JSValue {
 				auto functionDataIt = jsProxyMethodsData.find(magic);
 				assert(functionDataIt != jsProxyMethodsData.end() && "Cannot find JsTwinFunctionData with magicNum");
 				auto &functionData = functionDataIt->second;
 				auto &binding = getBindingByTwinObjOpaque(this_val);
 
+				// 校验：通过 JS 上下文在全局映射中查找的 Binding，应与通过 JS 对象 opaque 获取的 Binding 一致
 				{
-					auto bindingFoundInMap = ctxToBindingMap.find(ctx);
+					auto bindingFoundInMap = ctxToBindingMap.find(&ctx);
 					assert(
 						bindingFoundInMap != ctxToBindingMap.end()
 						&& bindingFoundInMap->second == &binding
@@ -197,49 +208,40 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 				if (!binding.checkTwinObjLifetime(this_val))
 					return JS_EXCEPTION;
 				metapp::Variant subject = binding.getPointerToCppObjByJsTwinObject(this_val);
-				std::vector<metapp::Variant> args;
-				for (int i = 0; i < argc; ++i) {
+				std::vector<metapp::Variant> args2CppResult;
+				for (auto arg : args) {
 					// NOLINENEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-					args.push_back(binding.js2Cpp(argv[i]));
+					args2CppResult.push_back(binding.js2Cpp(arg));
 				}
 				
 				// Call C++ function
 				auto &metaCallable = UNWRAP(getNonReferenceMetaType(functionData.callable)->getMetaCallable());
-				if (auto &returnType = UNWRAP(metaCallable.getReturnType(*functionData.callable));
-					!returnType.isVoid()) {
-					auto returnTypeName = binding.metaRepo->getType(&returnType).getName();
-					
-					// old >>>>>>>>>>
-					// if (!doesTypeHasItsOwnJSRepresentation(returnType)) {
-					// 	auto &typeJsInfo = metaType2TypeJsInfo[&returnType];
-					// 	//assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
-					// 	if (typeJsInfo.classID == 0) {
-					// 		std::println("Type {} not registered via regClass", returnTypeName);
-					// 		std::terminate();
-					// 	}
-					// 	if (!typeJsInfo.moveable) {
-					// 		JS_ThrowTypeError(ctx, "Return type of the function (%s) is not moveable, hence it cannot \"move\" into the JavaScript VM.", returnTypeName.c_str());
-					// 		return JS_EXCEPTION;
-					// 	}
-					// }
-					// old <<<<<<<<<<<<
-
-					//auto ret = binding.js2Cpp(res);
-
-				}
 				auto res = metaCallable.invoke(
 					*functionData.callable,
 					subject,
-					args
+					args2CppResult
 				);
 				
-				auto jsRes = variant2Js(*ctx, res);
-				return jsRes.release();
-		}
+				auto jsRes = binding.cpp2JSAuto(res);
+				return jsRes;
+		};
 
-		jsFuncs.push_back({
+		jsMethods.push_back({
 			JS_NewCFunctionMagic(ctx->ctx,
-				,
+				[](JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv,
+					int magic) noexcept -> JSValue {
+					try {
+						return proxyMethod(
+							*ctx,
+							this_val,
+							std::span<JSValueConst>{ argv, static_cast<std::size_t>(argc) },
+							magic
+						);
+					} catch (const std::exception &ex) {
+						JS_ThrowTypeError(ctx, "%s", ex.what());
+						return JS_EXCEPTION;
+					}
+				},
 				cppFuncItem.getName().c_str(),
 				cppFuncItem.asCallable().getMetaType()->getMetaCallable()->getParameterCountInfo(cppFuncItem.asCallable()).getMinParameterCount(),
 				JS_CFUNC_generic_magic,
@@ -247,10 +249,47 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 			),
 			cppFuncItem.getName()
 		});
+
 	}
 
-	
-	
+	for (auto jsFunc : jsMethods) {
+		proto[jsFunc.second.c_str()] = std::move(jsFunc.first);
+	}
+
+	// 1.2. Build proxy properties and add into the prototype
+	// TODO
+
+	// 2. Build a class for C++ type
+	std::string className{ getTypeName(*typeInfo.type) };
+	JSClassDef classDef{
+		.class_name = className.c_str(),
+		.finalizer = [](JSRuntime *rt, JSValue val) noexcept {
+			gsl::owner<JsTwinObjOpaque *> opaque{ getJsTwinObjOpaque(val) };
+			assert(opaque && "Not a JsTwinObject");
+			delete opaque;
+		},
+		.gc_mark = [](JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func) noexcept {
+		},
+		.call = nullptr,
+		.exotic = nullptr
+	};
+
+	JSClassID classID = 0;
+	JS_NewClassID(&classID);
+	typeInfo.jsVMRuntimeData.classID = classID;
+
+	if (JS_NewClass(JS_GetRuntime(ctx->ctx), classID, &classDef) < 0) {
+		//JS_ThrowInternalError(ctx->ctx, "Can't register class %s", classDef.class_name);
+		throw std::runtime_error{
+			std::format("注册类 {} 失败。",
+				className)
+		};
+	}
+
+	JS_SetClassProto(ctx->ctx, classID, proto.v);
+	proto.release();
+
+	regedTypes.push_back(std::move(typeInfo));
 }
 
 

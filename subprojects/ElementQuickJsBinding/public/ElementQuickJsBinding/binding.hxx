@@ -9,14 +9,14 @@
 
 #include "ElementQuickJsBinding/lifetime_informant.hxx"
 #include "metapp/metatype.h"
+#include "metapp/utilities/utility.h"
 
 namespace ElementEngine::QJSBinding
 {
 
 struct Translator
 {
-	// std::any: Refw<const T>
-	std::function<JSValue(std::any)> translateToJS;
+	std::function<JSValue(const metapp::Variant &)> translateToJS;
 	std::function<std::any(JSValue)> detranslate;
 };
 
@@ -30,7 +30,9 @@ concept Translatable = requires(JSValue jsVal, T cppVal) {
 struct TypeInfoCreatingData
 {
 	gsl::not_null<const metapp::MetaType *> type;
-	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(std::any cppValRefw)>  shareLifetimeInfoFunc;
+	// Called only for twin conversion. cppVal is a non-owning access Variant for an
+	// existing C++ object, normally wrapping T & or T *, not an owned/transplanted T.
+	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)>  shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
 };
@@ -38,7 +40,9 @@ struct TypeInfoCreatingData
 struct TypeInfo
 {
 	gsl::not_null<const metapp::MetaType *> type;
-	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>()> shareLifetimeInfoFunc;
+	// Same contract as TypeInfoCreatingData::shareLifetimeInfoFunc.
+	// cppVal should be dereferenceable to the registered raw type T.
+	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)> shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
 
@@ -95,12 +99,11 @@ public:
 		// and call regType.
 		regType({
 			.type = metapp::getMetaType<T>(),
-			.shareLifetimeInfoFunc = [](std::any cppValRefw) {
+			.shareLifetimeInfoFunc = [](const metapp::Variant &cppVal) {
 				if constexpr (LifetimeAware<T>) {
-					//static_assert(false, "DBG 1");
-					return getLifetimeInfo<T>(std::any_cast<ESSM::Refw<const T>>(cppValRefw));
+					auto cppObjRef = metapp::dereference(cppVal);
+					return getLifetimeInfo<T>(cppObjRef.get<T &>());
 				} else {
-					//static_assert(false, "DBG 2");
 					return nullptr;
 				}
 			},
@@ -108,8 +111,8 @@ public:
 			.translator = []() {
 				if constexpr (Translatable<T>) {
 					return Translator{
-						.translateToJS = [](std::any cppVal) -> JSValue{
-							return T::translateToJS(std::any_cast<ESSM::Refw<const T>>(cppVal));
+						.translateToJS = [](const metapp::Variant &cppVal) -> JSValue{
+							return T::translateToJS(metapp::dereference(cppVal).get<const T &>());
 						},
 						.detranslate = [](JSValue jsVal) -> T{
 							return T::detranslate(jsVal);

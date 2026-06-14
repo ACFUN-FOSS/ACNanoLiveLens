@@ -15,4 +15,6 @@ documentation for details.
    :maxdepth: 2
    :caption: Contents:
 
+   coding_style_and_patterns
+   eati_essentials_overview
    js_binding/js_binding

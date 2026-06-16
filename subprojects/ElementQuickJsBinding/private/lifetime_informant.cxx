@@ -1,4 +1,5 @@
 #include "ElementQuickJsBinding/lifetime_informant.hxx"
+#include <format>
 
 using namespace Essentials::Memory;
 

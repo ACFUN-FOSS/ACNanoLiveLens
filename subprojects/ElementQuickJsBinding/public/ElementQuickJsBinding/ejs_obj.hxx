@@ -5,6 +5,8 @@
 #include <EatiEssentials/memory.hxx>
 #include <metapp/allmetatypes.h>
 #include <quickjs/quickjs.h>
+#include <optional>
+#include <string>
 
 #include "lifetime_informant.hxx"
 

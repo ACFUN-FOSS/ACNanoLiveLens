@@ -42,7 +42,6 @@ struct TypeInfoCreatingData
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)>  shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
-	std::function<metapp::Variant(metapp::Variant &cppVal)> makeVariantRef;
 };
 
 struct TypeInfo
@@ -53,7 +52,6 @@ struct TypeInfo
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)> shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
-	std::function<metapp::Variant(metapp::Variant &cppVal)> makeVariantRef;
 
 	struct JSVMRuntimeData
 	{
@@ -86,11 +84,11 @@ public:
 
 	void deregType(const metapp::MetaType &type);
 
-	JSValue cpp2JSTwin(metapp::Variant cppObjPtr);
+	JSValue cpp2JSTwin(metapp::Variant cppObjRef);
 
-	JSValue cpp2JSTransplant(metapp::Variant cppObj);
+	JSValue cpp2JSTransplant(metapp::Variant cppObjRef);
 
-	JSValue cpp2JSTranslate(metapp::Variant cppObjPtr);
+	JSValue cpp2JSTranslate(metapp::Variant cppValRef);
 
 	JSValue cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
 
@@ -117,9 +115,6 @@ public:
 				}
 			},
 			.moveable = std::is_move_constructible_v<T>,
-			.makeVariantRef = [](metapp::Variant &cppVal) -> metapp::Variant {
-				return metapp::Variant::reference(cppVal.get<T &>());
-			},
 			.translator = []() {
 				if constexpr (Translatable<T>) {
 					return Translator{

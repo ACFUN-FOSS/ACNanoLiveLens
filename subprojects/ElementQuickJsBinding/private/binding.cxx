@@ -34,9 +34,17 @@ static const metapp::MetaType &getRawType(const metapp::Variant &cppVal) {
 	return UNWRAP(metapp::getNonReferenceMetaType(metapp::getPointedType(cppVal)));
 }
 
+static bool isRefVariant(const metapp::Variant &cppVal) {
+	return UNWRAP(cppVal.getMetaType()).isReference();
+}
+
 static bool isReferenceOrPointerVariant(const metapp::Variant &cppVal) {
-	auto type = cppVal.getMetaType();
-	return type->isReference() || type->isPointer();
+	auto &type = UNWRAP(cppVal.getMetaType());
+	return type.isReference() || type.isPointer();
+}
+
+static metapp::Variant makeRefVariantOfVariant(const metapp::Variant &cppVal) {
+	return metapp::Variant::reference(cppVal);
 }
 
 static JSValue throwJsTypeError(JSContext &ctx, const std::exception &ex) {
@@ -98,10 +106,10 @@ metapp::Variant Binding::getCppObjRefByEJSObj(JSValue jsvalue) {
 
 	switch (opaque->makingMethod) {
 	case EJSObjOpaque::MakingMethod::twined:
-		return opaque->cppObjPtrInVariant;
+		return opaque->cppObjRefInVariant;
 	case EJSObjOpaque::MakingMethod::transplanted:
 		assert(!opaque->ownedCppObjInVariant.isEmpty() && "Transplanted EJSObj must own a C++ object.");
-		return findTypeInfoOfEJSObj(jsvalue).makeVariantRef(opaque->ownedCppObjInVariant);
+		return makeRefVariantOfVariant(opaque->ownedCppObjInVariant);
 	}
 
 	assert(false && "Unknown EJSObj making method.");
@@ -141,12 +149,12 @@ static metapp::Variant makeRefFromReferenceOrPointerVariant(const metapp::Varian
 	return metapp::depointer(cppVal);
 }
 
-JSValue Binding::cpp2JSTwin(metapp::Variant cppObjPtr) {
-	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjPtr));
+JSValue Binding::cpp2JSTwin(metapp::Variant cppObjRef) {
+	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjRef));
 	if (typeInfo.jsVMRuntimeData.classID == 0)
 		throw std::logic_error{ "Type is registered as translatable and cannot be converted to an EJSObj twin." };
 
-	auto cppObjRef = makeRefFromReferenceOrPointerVariant(cppObjPtr);
+	//auto cppObjRef = makeRefFromReferenceOrPointerVariant(cppObjRefOrPtr);
 	Rc<LifetimeInformant::LifetimeInfo> lifetimeInfo;
 	if (typeInfo.shareLifetimeInfoFunc)
 		lifetimeInfo = typeInfo.shareLifetimeInfoFunc(cppObjRef);
@@ -154,14 +162,14 @@ JSValue Binding::cpp2JSTwin(metapp::Variant cppObjPtr) {
 	return makeEJSObj(*ctx->ctx, typeInfo.jsVMRuntimeData.classID, EJSObjOpaque{
 		.makingMethod = EJSObjOpaque::MakingMethod::twined,
 		.type = typeInfo.type,
-		.cppObjPtrInVariant = std::move(cppObjRef),
+		.cppObjRefInVariant = std::move(cppObjRef),
 		.lifetimeInfoOfCppObj = std::move(lifetimeInfo),
 		.ownedCppObjInVariant = {}
 	});
 }
 
-JSValue Binding::cpp2JSTransplant(metapp::Variant cppObj) {
-	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObj));
+JSValue Binding::cpp2JSTransplant(metapp::Variant cppObjRef) {
+	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjRef));
 	if (typeInfo.jsVMRuntimeData.classID == 0)
 		throw std::logic_error{ "Type is registered as translatable and cannot be transplanted as an EJSObj." };
 
@@ -177,22 +185,26 @@ JSValue Binding::cpp2JSTransplant(metapp::Variant cppObj) {
 	return makeEJSObj(*ctx->ctx, typeInfo.jsVMRuntimeData.classID, EJSObjOpaque{
 		.makingMethod = EJSObjOpaque::MakingMethod::transplanted,
 		.type = typeInfo.type,
-		.cppObjPtrInVariant = nullptr,
+		.cppObjRefInVariant = {},
 		.lifetimeInfoOfCppObj = {},
-		.ownedCppObjInVariant = std::move(cppObj)
+		.ownedCppObjInVariant = std::move(cppObjRef)
 	});
 }
 
-JSValue Binding::cpp2JSTranslate(metapp::Variant cppObjPtr) {
-	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjPtr));
-	if (!typeInfo.translator) {
-		throw std::runtime_error{
-			std::format("Type {} is not translatable.", getTypeName(*typeInfo.type))
+// The value wrappered by cppValRef can be any type, including pointer.
+JSValue Binding::cpp2JSTranslate(metapp::Variant cppValRef) {
+	if (!isRefVariant(cppValRef))
+		throw std::invalid_argument{ "cppValRef is not a reference variant." };
+
+	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppValRef));
+	if (!typeInfo.translator) 
+		throw std::invalid_argument{
+			std::format("cppValRef Type {} is not translatable.", getTypeName(*typeInfo.type))
 		};
-	}
-	auto cppObjRef = isReferenceOrPointerVariant(cppObjPtr)
-		? makeRefFromReferenceOrPointerVariant(cppObjPtr)
-		: typeInfo.makeVariantRef(cppObjPtr);
+		
+	auto cppObjRef = isReferenceOrPointerVariant(cppValRef)
+		? makeRefFromReferenceOrPointerVariant(cppValRef)
+		: makeRefVariantOfVariant(cppValRef);
 	return typeInfo.translator->translateToJS(typeInfo.translator->makeTranslateInput(cppObjRef));
 }
 

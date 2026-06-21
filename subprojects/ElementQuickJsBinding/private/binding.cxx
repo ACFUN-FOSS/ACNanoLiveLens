@@ -1,10 +1,19 @@
 #include "ElementQuickJsBinding/binding.hxx"
+#include "ElementQuickJsBinding/ejs_obj.hxx"
 #include <EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx>
 #include <EatiEssentials/container_and_view_and_ranges/container_lease.hxx>
 #include "metapp/interfaces/metaclass.h"
 #include "pimpl.hpp"
 #include "quickjs/quickjs.h"
+#include <cassert>
+#include <format>
+#include <map>
+#include <ranges>
+#include <span>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 #include <rfl.hpp>
 
 using namespace Essentials::ContainerAndView;
@@ -25,6 +34,24 @@ static const metapp::MetaType &getRawType(const metapp::Variant &cppVal) {
 	return UNWRAP(metapp::getNonReferenceMetaType(metapp::getPointedType(cppVal)));
 }
 
+static bool isRefVariant(const metapp::Variant &cppVal) {
+	return UNWRAP(cppVal.getMetaType()).isReference();
+}
+
+static bool isReferenceOrPointerVariant(const metapp::Variant &cppVal) {
+	auto &type = UNWRAP(cppVal.getMetaType());
+	return type.isReference() || type.isPointer();
+}
+
+static metapp::Variant makeRefVariantOfVariant(const metapp::Variant &cppVal) {
+	return metapp::Variant::reference(cppVal);
+}
+
+static JSValue throwJsTypeError(JSContext &ctx, const std::exception &ex) {
+	JS_ThrowTypeError(&ctx, "%s", ex.what());
+	return JS_EXCEPTION;
+}
+
 bool TypeInfo::isTranslatableType() {
 	return translator.has_value();
 }
@@ -41,115 +68,56 @@ Binding::Binding(metapp::MetaRepo &metaRepo, qjs::Runtime &rt, qjs::Context &ctx
 	: metaRepo{ &metaRepo }, rt{ &rt }, ctx{ &ctx },
 	  detail{ stdx::pimpl::make_unique<Detail>(*this, ctx) }  { }
 
-struct JsTwinObjOpaque
-{
-	gsl::not_null<const metapp::MetaType *> type;
-	LifetimeAwareWRef<Binding> binding;
-	metapp::Variant cppObjPtrInVariant;
-	Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj;
 
-	// For twined & translated value: this field will be empty,
-	// For transplanted value: this field will be the C++ object.
-	metapp::Variant ownedCppObjInVariant;
-};
-
-static JsTwinObjOpaque *getJsTwinObjOpaque(JSValue jsvalue) {
-	//return static_cast<JsTwinObjOpaque *>(JS_GetOpaque2(&ctx, jsvalue, JS_GetClassID(jsvalue)));
-	return static_cast<JsTwinObjOpaque *>(JS_GetOpaque(jsvalue, JS_GetClassID(jsvalue)));
-}
-
-TypeInfo &Binding::findTypeInfoOfJsTwin(JSValue jsvalue) {
-	auto twinOpaque = getJsTwinObjOpaque(jsvalue);
-	if (!twinOpaque)
-		throw std::invalid_argument{ "jsvalue is not a twin." };
+TypeInfo &Binding::findTypeInfoOfEJSObj(JSValue jsvalue) {
+	auto ejsObjOpaque = getEJSObjOpaque(jsvalue);
+	if (!ejsObjOpaque)
+		throw std::invalid_argument{ "jsvalue is not a EJSObj." };
 
 	return findOrThrow(
 		regedTypes,
 		[&](auto &typeInfo){
-			return typeInfo.type == twinOpaque->type;
+			return typeInfo.type == ejsObjOpaque->type;
 		},
 		[&](){ return std::runtime_error{
 			std::format("类型 {} 没有被注册进 Binding。",
-				getTypeName(*twinOpaque->type)
+				getTypeName(*ejsObjOpaque->type)
 		) }; }
 	);
 
 }
 
-bool Binding::checkTwinObjLifetime(JSValue jsvalue) {
-	auto opaque = getJsTwinObjOpaque(jsvalue);
+bool Binding::checkEJSObjLifetime(JSValue jsvalue) {
+	auto opaque = getEJSObjOpaque(jsvalue);
 	if (!opaque)
 		return true;
 
-	if (opaque->lifetimeInfoOfCppObj) {
-		if (!opaque->lifetimeInfoOfCppObj->isAlive) {
-			auto elapsedStr = [&]() -> std::string {
-				if (!opaque->lifetimeInfoOfCppObj->deathTime)
-					return std::string{};
-				auto elapsed = std::chrono::steady_clock::now() - opaque->lifetimeInfoOfCppObj->deathTime.value();
-				auto mins = std::chrono::duration_cast<std::chrono::minutes>(elapsed);
-				auto secs = std::chrono::duration_cast<std::chrono::seconds>(elapsed - mins);
-				return std::format("({}m{}s)", mins.count(), secs.count());
-			}();
-			auto msg = std::format(
-				"Attempt to access a C++ object that has been already dead. "
-				"The object has been dead before {}",
-				elapsedStr
-			);
-			JS_ThrowTypeError(ctx->ctx, "%s", msg.c_str());
-			return false;
-		}
-		if (opaque->lifetimeInfoOfCppObj->isMovedAway) {
-			auto elapsedStr = [&]() -> std::string {
-				if (!opaque->lifetimeInfoOfCppObj->movedAwayTime)
-					return std::string{};
-				auto elapsed = std::chrono::steady_clock::now() - *opaque->lifetimeInfoOfCppObj->movedAwayTime;
-				auto mins = std::chrono::duration_cast<std::chrono::minutes>(elapsed);
-				auto secs = std::chrono::duration_cast<std::chrono::seconds>(elapsed - mins);
-				return std::format("({}m{}s)", mins.count(), secs.count());
-			}();
-			auto msg = std::format(
-				"Attempt to access a C++ object that has been already moved away. "
-				"The object has been moved away before {}",
-				elapsedStr
-			);
-			JS_ThrowTypeError(ctx->ctx, "%s", msg.c_str());
-			return false;
-		}
+	if (auto invalidReason = opaque->getLifetimeInvalidReason()) {
+		JS_ThrowTypeError(ctx->ctx, "%s", invalidReason->c_str());
+		return false;
 	}
 	return true;
 }
 
-// bool Binding::checkTwinObjLifetime(JSValue jsvalue) {
-// 	auto &opaque = EXCEPT(getJsTwinObjOpaque(jsvalue), "Not a twin object");
-
-// 	if (!opaque.ownedCppObjInVariant.isEmpty()) {
-// 		auto &typeJsInfo = findTypeInfoOfJsTwin(opaque.type);
-// 		assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
-// 		return typeJsInfo.getPointerOfValue(opaque.ownedCppObjInVariant);
-// 	}
-// 	return opaque.cppObjPtrInVariant;
-// }
-
-static Binding &getBindingByTwinObjOpaque(JSValue jsvalue) {
-	auto opaque = getJsTwinObjOpaque(jsvalue);
+metapp::Variant Binding::getCppObjRefByEJSObj(JSValue jsvalue) {
+	auto opaque = getEJSObjOpaque(jsvalue);
 	if (!opaque)
-		throw std::invalid_argument{ "jsvalue is not a twin." };
+		throw std::invalid_argument{ "jsvalue is not a EJSObj." };
 
-	if (!opaque->binding)
-		throw std::runtime_error{ "The binding of the twin object is gone." };
+	switch (opaque->makingMethod) {
+	case EJSObjOpaque::MakingMethod::twined:
+		return opaque->cppObjRefInVariant;
+	case EJSObjOpaque::MakingMethod::transplanted:
+		assert(!opaque->ownedCppObjInVariant.isEmpty() && "Transplanted EJSObj must own a C++ object.");
+		return makeRefVariantOfVariant(opaque->ownedCppObjInVariant);
+	}
 
-	return *opaque->binding;
+	assert(false && "Unknown EJSObj making method.");
+	return { };
 }
 
-metapp::Variant Binding::getPointerToCppObjByJsTwinObject(JSValue jsvalue) {
-	auto opaque = getJsTwinObjOpaque(jsvalue);
-	if (!opaque)
-		throw std::invalid_argument{ "jsvalue is not a twin." };
-
-	if (!opaque->ownedCppObjInVariant.isEmpty())
-		return opaque->ownedCppObjInVariant;
-	return opaque->cppObjPtrInVariant;
+metapp::Variant Binding::getPointerToCppObjByEJSObj(JSValue jsvalue) {
+	return getCppObjRefByEJSObj(jsvalue);
 }
 
 static TypeInfo *findTypeInfoByCppType(std::vector<TypeInfo> &regedTypes, const metapp::MetaType &type) {
@@ -176,81 +144,82 @@ static TypeInfo &findRegedTypeInfoByCppType(std::vector<TypeInfo> &regedTypes, c
 	return *typeInfo;
 }
 
-JSValue Binding::cpp2JSTwin(metapp::Variant cppObjPtr) {
-	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjPtr));
-	assert(typeInfo.jsVMRuntimeData.classID != 0 && "Type not registered in QuickJS runtime.");
+static metapp::Variant makeRefFromReferenceOrPointerVariant(const metapp::Variant &cppVal) {
+	assert(isReferenceOrPointerVariant(cppVal) && "Expected a Variant holding reference or pointer.");
+	return metapp::depointer(cppVal);
+}
 
-	JSValue jsObj = JS_NewObjectClass(ctx->ctx, typeInfo.jsVMRuntimeData.classID);
-	if (JS_IsException(jsObj))
-		return jsObj;
+JSValue Binding::cpp2JSTwin(metapp::Variant cppObjRef) {
+	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjRef));
+	if (typeInfo.jsVMRuntimeData.classID == 0)
+		throw std::logic_error{ "Type is registered as translatable and cannot be converted to an EJSObj twin." };
 
+	//auto cppObjRef = makeRefFromReferenceOrPointerVariant(cppObjRefOrPtr);
 	Rc<LifetimeInformant::LifetimeInfo> lifetimeInfo;
 	if (typeInfo.shareLifetimeInfoFunc)
-		lifetimeInfo = typeInfo.shareLifetimeInfoFunc(cppObjPtr);
+		lifetimeInfo = typeInfo.shareLifetimeInfoFunc(cppObjRef);
 
-	gsl::owner<JsTwinObjOpaque *> opaque{ new JsTwinObjOpaque{
+	return makeEJSObj(*ctx->ctx, typeInfo.jsVMRuntimeData.classID, EJSObjOpaque{
+		.makingMethod = EJSObjOpaque::MakingMethod::twined,
 		.type = typeInfo.type,
-		.binding = *this,
-		.cppObjPtrInVariant = std::move(cppObjPtr),
+		.cppObjRefInVariant = std::move(cppObjRef),
 		.lifetimeInfoOfCppObj = std::move(lifetimeInfo),
 		.ownedCppObjInVariant = {}
-	} };
-
-	JS_SetOpaque(jsObj, opaque);
-	return jsObj;
+	});
 }
 
-JSValue Binding::cpp2JSTransplant(metapp::Variant cppObj) {
-	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObj));
-	assert(typeInfo.jsVMRuntimeData.classID != 0 && "Type not registered in QuickJS runtime.");
+JSValue Binding::cpp2JSTransplant(metapp::Variant cppObjRef) {
+	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjRef));
+	if (typeInfo.jsVMRuntimeData.classID == 0)
+		throw std::logic_error{ "Type is registered as translatable and cannot be transplanted as an EJSObj." };
 
 	if (!typeInfo.moveable) {
-		JS_ThrowTypeError(
-			ctx->ctx,
-			"Type %s is not moveable, hence it cannot move into the JavaScript VM.",
-			getTypeName(*typeInfo.type).data()
-		);
-		return JS_EXCEPTION;
-	}
-
-	JSValue jsObj = JS_NewObjectClass(ctx->ctx, typeInfo.jsVMRuntimeData.classID);
-	if (JS_IsException(jsObj))
-		return jsObj;
-
-	gsl::owner<JsTwinObjOpaque *> opaque{ new JsTwinObjOpaque{
-		.type = typeInfo.type,
-		.binding = *this,
-		.cppObjPtrInVariant = metapp::Variant::reference(cppObj),
-		.lifetimeInfoOfCppObj = {},
-		.ownedCppObjInVariant = std::move(cppObj)
-	} };
-
-	JS_SetOpaque(jsObj, opaque);
-	return jsObj;
-}
-
-JSValue Binding::cpp2JSTranslate(metapp::Variant cppObjPtr) {
-	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppObjPtr));
-	if (!typeInfo.translator) {
 		throw std::runtime_error{
-			std::format("Type {} is not translatable.", getTypeName(*typeInfo.type))
+			std::format(
+				"Type {} is not moveable, hence it cannot move into the JavaScript VM.",
+				getTypeName(*typeInfo.type)
+			)
 		};
 	}
-	return typeInfo.translator->translateToJS(cppObjPtr);
+
+	return makeEJSObj(*ctx->ctx, typeInfo.jsVMRuntimeData.classID, EJSObjOpaque{
+		.makingMethod = EJSObjOpaque::MakingMethod::transplanted,
+		.type = typeInfo.type,
+		.cppObjRefInVariant = {},
+		.lifetimeInfoOfCppObj = {},
+		.ownedCppObjInVariant = std::move(cppObjRef)
+	});
+}
+
+// The value wrappered by cppValRef can be any type, including pointer.
+JSValue Binding::cpp2JSTranslate(metapp::Variant cppValRef) {
+	if (!isRefVariant(cppValRef))
+		throw std::invalid_argument{ "cppValRef is not a reference variant." };
+
+	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppValRef));
+	if (!typeInfo.translator) 
+		throw std::invalid_argument{
+			std::format("cppValRef Type {} is not translatable.", getTypeName(*typeInfo.type))
+		};
+		
+	auto cppObjRef = isReferenceOrPointerVariant(cppValRef)
+		? makeRefFromReferenceOrPointerVariant(cppValRef)
+		: makeRefVariantOfVariant(cppValRef);
+	return typeInfo.translator->translateToJS(typeInfo.translator->makeTranslateInput(cppObjRef));
 }
 
 JSValue Binding::cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo) {
 	if (cppVal.isEmpty())
 		return JS_NULL;
 
-	auto type = metapp::getNonReferenceMetaType(cppVal);
-	if (type->isVoid())
+	auto nonReferenceType = metapp::getNonReferenceMetaType(cppVal);
+	if (nonReferenceType->isVoid())
 		return JS_UNDEFINED;
 
-	if (type->isArithmetic()) {
-		if (type->getTypeKind() == metapp::tkBool)
+	if (nonReferenceType->isArithmetic()) {
+		if (nonReferenceType->getTypeKind() == metapp::tkBool)
 			return JS_NewBool(ctx->ctx, cppVal.cast<bool>().get<bool>());
-		if (type->isIntegral())
+		if (nonReferenceType->isIntegral())
 			return JS_NewInt64(ctx->ctx, cppVal.cast<long long>().get<long long>());
 		return JS_NewFloat64(ctx->ctx, cppVal.cast<double>().get<double>());
 	}
@@ -263,10 +232,10 @@ JSValue Binding::cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeI
 		return JS_NewStringLen(ctx->ctx, str.data(), str.size());
 	}
 
-	if (type->isReference() || type->isPointer()) {
+	if (isReferenceOrPointerVariant(cppVal)) {
 		auto jsObj = cpp2JSTwin(std::move(cppVal));
 		if (lifetimeInfo && !JS_IsException(jsObj)) {
-			auto opaque = getJsTwinObjOpaque(jsObj);
+			auto opaque = getEJSObjOpaque(jsObj);
 			assert(opaque && "Created twin object without opaque.");
 			opaque->lifetimeInfoOfCppObj = Rc<LifetimeInformant::LifetimeInfo>{
 				lifetimeInfo,
@@ -278,7 +247,8 @@ JSValue Binding::cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeI
 
 	if (auto typeInfo = findTypeInfoByCppType(regedTypes, getRawType(cppVal));
 		typeInfo && typeInfo->translator) {
-		return typeInfo->translator->translateToJS(cppVal);
+		auto cppObjRef = typeInfo->makeVariantRef(cppVal);
+		return typeInfo->translator->translateToJS(typeInfo->translator->makeTranslateInput(cppObjRef));
 	}
 
 	return cpp2JSTransplant(std::move(cppVal));
@@ -335,20 +305,13 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 				auto functionDataIt = jsProxyMethodsData.find(magic);
 				assert(functionDataIt != jsProxyMethodsData.end() && "Cannot find JsTwinFunctionData with magicNum");
 				auto &functionData = functionDataIt->second;
-				auto &binding = getBindingByTwinObjOpaque(this_val);
-
-				// 校验：通过 JS 上下文在全局映射中查找的 Binding，应与通过 JS 对象 opaque 获取的 Binding 一致
-				{
-					auto bindingFoundInMap = ctxToBindingMap.find(&ctx);
-					assert(
-						bindingFoundInMap != ctxToBindingMap.end()
-						&& bindingFoundInMap->second == &binding
-					);
-				}
+				auto bindingFoundInMap = ctxToBindingMap.find(&ctx);
+				assert(bindingFoundInMap != ctxToBindingMap.end() && "No Binding is associated with this QuickJS context.");
+				auto &binding = *bindingFoundInMap->second;
 				
-				if (!binding.checkTwinObjLifetime(this_val))
+				if (!binding.checkEJSObjLifetime(this_val))
 					return JS_EXCEPTION;
-				metapp::Variant subject = binding.getPointerToCppObjByJsTwinObject(this_val);
+				metapp::Variant subject = binding.getCppObjRefByEJSObj(this_val);
 				std::vector<metapp::Variant> args2CppResult;
 				for (auto arg : args) {
 					// NOLINENEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
@@ -379,8 +342,7 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 							magic
 						);
 					} catch (const std::exception &ex) {
-						JS_ThrowTypeError(ctx, "%s", ex.what());
-						return JS_EXCEPTION;
+						return throwJsTypeError(*ctx, ex);
 					}
 				},
 				cppFuncItem.getName().c_str(),
@@ -405,9 +367,7 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 	JSClassDef classDef{
 		.class_name = className.c_str(),
 		.finalizer = [](JSRuntime *rt, JSValue val) noexcept {
-			gsl::owner<JsTwinObjOpaque *> opaque{ getJsTwinObjOpaque(val) };
-			assert(opaque && "Not a JsTwinObject");
-			delete opaque;
+			freeEJSObjOpaque(val);
 		},
 		.gc_mark = [](JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func) noexcept {
 		},

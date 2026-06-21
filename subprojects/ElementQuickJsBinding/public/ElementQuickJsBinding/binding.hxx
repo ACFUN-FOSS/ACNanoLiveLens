@@ -4,8 +4,13 @@
 #include <metapp/allmetatypes.h>
 #include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
+#include <EatiEssentials/memory.hxx>
 #include <EatiEssentials/memsafety.hxx>
 #include <pimpl.hpp>
+#include <any>
+#include <functional>
+#include <optional>
+#include <vector>
 
 #include "ElementQuickJsBinding/lifetime_informant.hxx"
 #include "metapp/metatype.h"
@@ -16,14 +21,16 @@ namespace ElementEngine::QJSBinding
 
 struct Translator
 {
-	std::function<JSValue(const metapp::Variant &)> translateToJS;
+	std::function<std::any(const metapp::Variant &)> makeTranslateInput;
+	// Holds ESSM::Refw<T> for the registered C++ type T.
+	std::function<JSValue(const std::any &)> translateToJS;
 	std::function<std::any(JSValue)> detranslate;
 };
 
 
 template <typename T>
-concept Translatable = requires(JSValue jsVal, T cppVal) {
-	{ T::translateToJS(cppVal) } -> std::same_as<JSValue>;
+concept Translatable = requires(JSValue jsVal, T &cppRef) {
+	{ T::translateToJS(cppRef) } -> std::same_as<JSValue>;
 	{ T::detranslate(jsVal) } -> std::same_as<T>;
 };
 
@@ -31,7 +38,7 @@ struct TypeInfoCreatingData
 {
 	gsl::not_null<const metapp::MetaType *> type;
 	// Called only for twin conversion. cppVal is a non-owning access Variant for an
-	// existing C++ object, normally wrapping T & or T *, not an owned/transplanted T.
+	// existing C++ object, normally wrapping T &.
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)>  shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
@@ -41,7 +48,7 @@ struct TypeInfo
 {
 	gsl::not_null<const metapp::MetaType *> type;
 	// Same contract as TypeInfoCreatingData::shareLifetimeInfoFunc.
-	// cppVal should be dereferenceable to the registered raw type T.
+	// cppVal should hold a reference to the registered raw type T.
 	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)> shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
@@ -70,17 +77,18 @@ public:
 	LifetimeInformant lifetimeInformant;
 	Binding(metapp::MetaRepo &metaRepo LIFETIMEBOUND, qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
 
-	TypeInfo &findTypeInfoOfJsTwin(JSValue jsvalue);
-	bool checkTwinObjLifetime(JSValue jsvalue);
-	metapp::Variant getPointerToCppObjByJsTwinObject(JSValue jsvalue);
+	TypeInfo &findTypeInfoOfEJSObj(JSValue jsvalue);
+	bool checkEJSObjLifetime(JSValue jsvalue);
+	metapp::Variant getCppObjRefByEJSObj(JSValue jsvalue);
+	metapp::Variant getPointerToCppObjByEJSObj(JSValue jsvalue);
 
 	void deregType(const metapp::MetaType &type);
 
-	JSValue cpp2JSTwin(metapp::Variant cppObjPtr);
+	JSValue cpp2JSTwin(metapp::Variant cppObjRef);
 
-	JSValue cpp2JSTransplant(metapp::Variant cppObj);
+	JSValue cpp2JSTransplant(metapp::Variant cppObjRef);
 
-	JSValue cpp2JSTranslate(metapp::Variant cppObjPtr);
+	JSValue cpp2JSTranslate(metapp::Variant cppValRef);
 
 	JSValue cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
 
@@ -101,8 +109,7 @@ public:
 			.type = metapp::getMetaType<T>(),
 			.shareLifetimeInfoFunc = [](const metapp::Variant &cppVal) {
 				if constexpr (LifetimeAware<T>) {
-					auto cppObjRef = metapp::dereference(cppVal);
-					return getLifetimeInfo<T>(cppObjRef.get<T &>());
+					return getLifetimeInfo<T>(cppVal.get<T &>());
 				} else {
 					return nullptr;
 				}
@@ -111,8 +118,11 @@ public:
 			.translator = []() {
 				if constexpr (Translatable<T>) {
 					return Translator{
-						.translateToJS = [](const metapp::Variant &cppVal) -> JSValue{
-							return T::translateToJS(metapp::dereference(cppVal).get<const T &>());
+						.makeTranslateInput = [](const metapp::Variant &cppVal) -> std::any{
+							return ESSM::Refw<T>{ cppVal.get<T &>() };
+						},
+						.translateToJS = [](const std::any &cppRef) -> JSValue{
+							return T::translateToJS(std::any_cast<ESSM::Refw<T>>(cppRef).get());
 						},
 						.detranslate = [](JSValue jsVal) -> T{
 							return T::detranslate(jsVal);

@@ -38,7 +38,7 @@ public:
     void addDanmaku(const DanmakuInfo &danmaku);
     void clearDanmaku();
 
-	static void setupJsBinding(qjs::Context &ctx);
+	//static void setupJsBinding(qjs::Context &ctx);
 
 private:
     class Impl;

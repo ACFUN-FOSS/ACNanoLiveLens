@@ -2,6 +2,10 @@
 #define _H_7QIVK
 
 #include <chrono>
+#include <concepts>
+#include <optional>
+#include <stdexcept>
+#include <string_view>
 #include <EatiEssentials/memory.hxx>
 
 namespace ElementEngine::QJSBinding

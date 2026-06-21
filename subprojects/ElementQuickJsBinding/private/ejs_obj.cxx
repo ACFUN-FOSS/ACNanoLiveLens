@@ -1,9 +1,16 @@
 #include "ElementQuickJsBinding/ejs_obj.hxx"
+#include <chrono>
+#include <format>
+#include <set>
+#include <utility>
 
 namespace ElementEngine::QJSBinding
 {
 
 std::optional<std::string> EJSObjOpaque::getLifetimeInvalidReason() {
+	if (!lifetimeInfoOfCppObj)
+		return { };
+
 	if (lifetimeInfoOfCppObj->isMovedAway) {
 		auto elapsedStr = [&]() -> std::string {
 			if (!lifetimeInfoOfCppObj->movedAwayTime)
@@ -40,38 +47,45 @@ std::optional<std::string> EJSObjOpaque::getLifetimeInvalidReason() {
 	return { };
 }
 
-static std::any *getEJSOpaqueWrapperAny(JSValue jsvalue) {
-	auto opaque = JS_GetOpaque(jsvalue, JS_GetClassID(jsvalue));
-	if (!opaque)
-		return nullptr;
+static std::set<JSClassID> &getEJSClassIDs() {
+	static std::set<JSClassID> ejsClassIDs;
+	return ejsClassIDs;
+}
 
-	// NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-	auto any = reinterpret_cast<std::any *>(opaque);
-	return any;
+static bool isEJSClassID(JSClassID classID) {
+	return getEJSClassIDs().contains(classID);
+}
+
+static void registerEJSClassID(JSClassID classID) {
+	getEJSClassIDs().insert(classID);
 }
 
 EJSObjOpaque *getEJSObjOpaque(JSValue jsvalue) {
-	auto any = getEJSOpaqueWrapperAny(jsvalue);
-	if (!any || any->type() != typeid(EJSObjOpaque))
+	auto classID = JS_GetClassID(jsvalue);
+	if (!isEJSClassID(classID))
 		return nullptr;
 
-	return std::any_cast<EJSObjOpaque>(any);
+	return static_cast<EJSObjOpaque *>(JS_GetOpaque(jsvalue, classID));
 }
 
 JSValue makeEJSObj(JSContext &ctx, int classID, EJSObjOpaque opaque) {
 	JSValue jsobj = JS_NewObjectClass(&ctx, classID);
-	gsl::owner<std::any *> realOpaque{ new std::any{
-		opaque
-	} };
+	if (JS_IsException(jsobj))
+		return jsobj;
+
+	registerEJSClassID(classID);
+
+	gsl::owner<EJSObjOpaque *> realOpaque{ new EJSObjOpaque{ std::move(opaque) } };
+	JS_SetOpaque(jsobj, realOpaque);
 	return jsobj;
 }
 
 void freeEJSObjOpaque(JSValue jsvalue) {
-	gsl::owner<std::any *> opaqueWrapperAny{ getEJSOpaqueWrapperAny(jsvalue) };
-	if (!opaqueWrapperAny)
-		throw std::invalid_argument{ "Not a EJSObj" };
+	gsl::owner<EJSObjOpaque *> opaque{ getEJSObjOpaque(jsvalue) };
+	if (!opaque)
+		return;
 
-	delete opaqueWrapperAny;
+	delete opaque;
 }
 
 }

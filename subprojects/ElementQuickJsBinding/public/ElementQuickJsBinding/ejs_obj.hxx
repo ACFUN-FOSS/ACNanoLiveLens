@@ -5,6 +5,8 @@
 #include <EatiEssentials/memory.hxx>
 #include <metapp/allmetatypes.h>
 #include <quickjs/quickjs.h>
+#include <optional>
+#include <string>
 
 #include "lifetime_informant.hxx"
 
@@ -25,7 +27,7 @@ public:
 
 	gsl::not_null<const metapp::MetaType *> type;
 
-	metapp::Variant cppObjPtrInVariant;
+	metapp::Variant cppObjRefInVariant;
 	ESSM::Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj;
 
 	// If the JS object is a reference to a C++ object, this field will be empty,

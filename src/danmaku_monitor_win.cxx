@@ -2,7 +2,7 @@
 #include "danmaku_item.hxx"
 #include "appstate.hxx"
 #include "assets.hxx"
-#include "js_binding.hxx"
+//#include "js_binding.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "msg_box.hxx"
@@ -225,10 +225,10 @@ struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::Decl
 	}
 };
 
-void DanmakuMonitorWin::setupJsBinding(qjs::Context &ctx) {
-	auto metaType = metapp::getMetaType<DanmakuMonitorWin::DanmakuGuiInfo>();
-	//regClass(ctx, UNWRAP(metaType));
-}
+// void DanmakuMonitorWin::setupJsBinding(qjs::Context &ctx) {
+// 	auto metaType = metapp::getMetaType<DanmakuMonitorWin::DanmakuGuiInfo>();
+// 	//regClass(ctx, UNWRAP(metaType));
+// }
 
 DanmakuMonitorWin::DanmakuMonitorWin()
     : pImpl{ stdx::pimpl::make_unique<Impl>() }

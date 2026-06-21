@@ -19,27 +19,8 @@ using namespace Essentials::IO;
 
 static bool ctrlCPressed = false;
 
-static void initJs(qjs::Runtime &rt, qjs::Context &ctx) {
-	js_std_init_handlers(rt.rt);
-	JS_SetModuleLoaderFunc(rt.rt, nullptr, js_module_loader, nullptr);
-	js_init_module_std(ctx.ctx, "std");
-	js_init_module_os(ctx.ctx, "os");
-	
-	setupAllJsBinding(ctx);
-
-}
 
 
-
-static void loadJsScript() {
-	auto script = readFile(getAssetsDir() / "testuserscript.js");
-	try_eval_module(script);
-
-
-
-	
-	
-}
 
 static void rmluiMain() {
 
@@ -79,18 +60,18 @@ static void rmluiMain() {
 			//winMan.requestReloadToAllWins();
         };
 
-		qjs::Runtime rt;
-		qjs::Context ctx(rt);
+		//qjs::Runtime rt;
+		//qjs::Context ctx(rt);
 
-		initJs(rt, ctx);
+		//initJs(rt, ctx);
 		
-		initAppState({ &rmlui, &winMan, &rt, &ctx });
+		initAppState({ &rmlui, &winMan });
 
-		loadJsScript();
+		//loadJsScript();
 
         //TestWin testWin;
 		//DanmakuMonitorWin danmakuMonitorWin;
-		//LoginWin loginWin;
+		LoginWin loginWin;
 
         //assert(false);
 

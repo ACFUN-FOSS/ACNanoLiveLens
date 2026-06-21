@@ -99,7 +99,7 @@ add_subdirectory(vendor/quickjspp)
 add_subdirectory(subprojects/Core)
 add_subdirectory(subprojects/RmlUIWin)
 add_subdirectory(subprojects/EmergUI)
-add_subdirectory(subprojects/ElementQuickJsBinding)
+# add_subdirectory(subprojects/ElementQuickJsBinding)
 
 # == Targets ================================
 
@@ -116,7 +116,7 @@ add_executable(nanolivelens
     src/appstate.cxx
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
-	src/js_binding.cxx
+	# src/js_binding.cxx
     # src/aclive_client.cxx
 
 	# Elements
@@ -178,7 +178,7 @@ target_link_libraries(nanolivelens
     ctrl-c
 	nanolivelens_core
 	quickjspp
-	element_qjs_binding
+	# element_qjs_binding
 	metapp::metapp
     #${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
 )

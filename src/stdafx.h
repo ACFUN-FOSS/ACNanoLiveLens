@@ -47,7 +47,6 @@
 // 子项目
 #include "Core/stdafx.h"
 #include "Core/ws.hxx"
-#include "element_qjs_binding.hxx"
 
 namespace stdf = std::filesystem;
 

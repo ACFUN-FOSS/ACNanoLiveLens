@@ -34,8 +34,9 @@ public:
 	Impl &operator=(Impl &&) = delete;
 
 	void showModal() {
-		auto oldModalWin = getModalWin();
-		setModalWin(uiState_.mainWin_);
+		auto &winManager = *getAppState().winManager;
+		auto oldModalWin = winManager.getModalWin();
+		winManager.setModalWin(uiState_.mainWin_);
 
 		while (true) {
 			auto shouldContinue = Backend::ProcessEvents(false);
@@ -57,7 +58,7 @@ public:
 			}
 		}
 
-		setModalWin(oldModalWin);
+		winManager.setModalWin(oldModalWin);
 	}
 
 private:
@@ -68,7 +69,7 @@ private:
 	};
 
 	void bindEventHandlers() {
-		uiState_.mainWin_->setReloadCb([this] {
+		uiState_.mainWin_->setDocumentChangedCb([this] {
 			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_->getRootElement());
 			//bindEventHandlers();
 			refreshUi();

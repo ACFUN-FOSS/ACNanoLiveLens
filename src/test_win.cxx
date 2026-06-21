@@ -26,7 +26,7 @@ public:
 		// 	std::print("btn click\n");
 		// });
 
-		uiState_.mainWin_->setReloadCb([this]{
+		uiState_.mainWin_->setDocumentChangedCb([this]{
 			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_->getRootElement());
 
 			// Don't do below: will cause crash: you should't unbind / clear event handler during reload.

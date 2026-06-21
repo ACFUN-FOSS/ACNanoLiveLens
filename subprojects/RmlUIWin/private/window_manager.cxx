@@ -6,128 +6,31 @@
 #include <stdexcept>
 
 #include <EatiEssentials/misc.hxx>
-#include <EatiEssentials/io.hxx>
 #include <RmlUi_Backend.h>
 #include <RmlUi/Debugger.h>
 
 using namespace std::string_literals;
 using namespace Essentials::Misc;
-using namespace Essentials::IO;
+using namespace Essentials::Memory;
 
 namespace RmlUIWin
 {
 
-std::function<void(Rml::Context &)> onReloadTriggered;
+static WinManager *activeWinManager = nullptr;
 
-static std::unordered_map<gsl::not_null<Rml::Context *>, gsl::not_null<UiWin *>> context2Win;
-static UiWin *modalWin = nullptr;
-
-static bool isInputAllowedForContext(const Rml::Context *context) {
-	if (!modalWin)
+static bool processKeyDownShortcutsBridge(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) {
+	if (!activeWinManager) {
 		return true;
+	}
 
-	return &modalWin->getContext() == context;
+	return activeWinManager->processKeyDownShortcuts(context, key, key_modifier, native_dp_ratio, priority);
 }
 
-bool processKeyDownShortcuts(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) {
-    if (!context)
-        return true;
-	if (!isInputAllowedForContext(context))
-		return false;
-
-    // Result should return true to allow the event to propagate to the next handler.
-    bool result = false;
-
-    // This function is intended to be called twice by the backend, before and after submitting the key event to the context. This way we can
-    // intercept shortcuts that should take priority over the context, and then handle any shortcuts of lower priority if the context did not
-    // intercept it.
-    if (priority)
-    {
-        // Priority shortcuts are handled before submitting the key to the context.
-
-        // Toggle debugger and set dp-ratio using Ctrl +/-/0 keys.
-        if (key == Rml::Input::KI_F8)
-        {
-			//if (!Rml::Debugger::IsVisible())
-			std::cout << (Rml::Debugger::IsVisible() ? "Hiding debugger" : "Showing debugger")
-				<< std::endl;
-            Rml::Debugger::SetVisible(!Rml::Debugger::IsVisible());
-        }
-        else if (key == Rml::Input::KI_0 && key_modifier & Rml::Input::KM_CTRL)
-        {
-            context->SetDensityIndependentPixelRatio(native_dp_ratio);
-        }
-        else if (key == Rml::Input::KI_1 && key_modifier & Rml::Input::KM_CTRL)
-        {
-            context->SetDensityIndependentPixelRatio(1.f);
-        }
-        else if ((key == Rml::Input::KI_OEM_MINUS || key == Rml::Input::KI_SUBTRACT) && key_modifier & Rml::Input::KM_CTRL)
-        {
-            const float new_dp_ratio = Rml::Math::Max(context->GetDensityIndependentPixelRatio() / 1.2f, 0.5f);
-            context->SetDensityIndependentPixelRatio(new_dp_ratio);
-        }
-        else if ((key == Rml::Input::KI_OEM_PLUS || key == Rml::Input::KI_ADD) && key_modifier & Rml::Input::KM_CTRL)
-        {
-            const float new_dp_ratio = Rml::Math::Min(context->GetDensityIndependentPixelRatio() * 1.2f, 2.5f);
-            context->SetDensityIndependentPixelRatio(new_dp_ratio);
-        }
-        else
-        {
-            // Propagate the key down event to the context.
-            result = true;
-        }
-    }
-    else
-    {
-        // We arrive here when no priority keys are detected and the key was not consumed by the context. Check for shortcuts of lower priority.
-        if (key == Rml::Input::KI_R && key_modifier & Rml::Input::KM_CTRL)
-        {
-            std::cout << "RML reloading candidate: ";
-            for (int i = 0; i < context->GetNumDocuments(); i++) {
-                Rml::ElementDocument* document = context->GetDocument(i);
-                const Rml::String& src = document->GetSourceURL();
-                std::cout << src << ' ';
-                if (src.size() > 4 && src.substr(src.size() - 4) == ".rml")
-                    std::cout << " -- YES";
-                else
-                    std::cout << " -- NO";
-                std::cout << std::endl;
-            }
-            std::cout << std::endl;
-
-            for (int i = 0; i < context->GetNumDocuments(); i++)
-            {
-                Rml::ElementDocument* document = context->GetDocument(i);
-                const Rml::String& src = document->GetSourceURL();
-                if (src.size() > 4 && src.substr(src.size() - 4) == ".rml")
-                {
-                    std::println("Reloading: {}", src);
-                    document->ReloadStyleSheet();
-                }
-            }
-            if (onReloadTriggered)
-                onReloadTriggered(*context);
-			auto uiWin = context2Win.at(context);
-			uiWin->reload();
-        }
-        else
-        {
-            result = true;
-        }
-    }
-
-    return result;
-}
-
-/**
- * The non-RAII resource handles for UiWin.
- */
 struct UiWin::RmlCStyleData
 {
 	gsl::not_null<GLFWwindow *> _win;
 	gsl::not_null<Rml::Context *> _context;
 	gsl::not_null<Rml::ElementDocument *> _document;
-	//gsl::not_null<SystemInterface_GLFW *> _systemInterface;
 };
 
 struct UiWin::SelfData
@@ -139,63 +42,57 @@ struct UiWin::SelfData
 	bool _isMainWin;
 	bool _isTransparent;
 	std::function<void()> _updateCb;
-	std::function<void()> _reloadCb;
+	std::function<void()> _documentChangedCb;
 };
 
-void UiWin::EventListener::ProcessEvent(Rml::Event& event) {
-    //std::cout << "Event received: " << event.GetType().c_str() << std::endl;
-    
+void UiWin::EventListener::ProcessEvent(Rml::Event &event) {
 }
 
 UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain, bool isTransparent)
 	: _data{ Data {
 		._rmlCStyleData = { [&]() {
-			auto &win = [&] -> auto & {
-				// 根據是否為主窗口來獲取或創建窗口
+			auto &win = [&]() -> auto & {
 				if (isMain) {
 					auto winptr = Backend::GetMainWindow();
-					if (!winptr)
+					if (!winptr) {
 						throw std::runtime_error("Failed to get main window for: "s + name);
-					return *winptr;
-				} else {
-					auto winptr = Backend::CreateWindow(name.c_str(), size.x, size.y, true);
-					if (!winptr)
-						throw std::runtime_error("Failed to create window: "s + name);
+					}
 					return *winptr;
 				}
+
+				auto winptr = Backend::CreateWindow(name.c_str(), size.x, size.y, true);
+				if (!winptr) {
+					throw std::runtime_error("Failed to create window: "s + name);
+				}
+				return *winptr;
 			}();
 
-            // 根据显示器缩放缩放 size
-            auto scale = Backend::GetMonitorContentScale();
-            size.x *= static_cast<int>(scale.x);
-            size.y *= static_cast<int>(scale.y);
+			auto scale = Backend::GetMonitorContentScale();
+			size.x *= static_cast<int>(scale.x);
+			size.y *= static_cast<int>(scale.y);
 
-			// 如果是主窗口，读取窗口大小
-			// if (isMain)
-			 	//size = Backend::GetWindowSize(&win);
-			if (isMain)
+			if (isMain) {
 				Backend::SetWindowSize(&win, size);
+			}
 
-			// 創建 RmlUi context
 			auto contextptr = Rml::CreateContext(name, size);
-			if (!contextptr)
+			if (!contextptr) {
 				throw std::runtime_error("Failed to create context for window: "s + name);
-
+			}
 
 			auto documentptr = contextptr->LoadDocument(documentPath.string());
-			if (!documentptr)
+			if (!documentptr) {
 				throw std::runtime_error("Failed to load document for window: "s + name);
+			}
 
-			return newBox(RmlCStyleData {
+			return newBox(RmlCStyleData{
 				._win = &win,
 				._context = contextptr,
 				._document = documentptr,
-				//._systemInterface = dynamic_cast<SystemInterface_GLFW *>(Rml::GetSystemInterface())
 			});
-
-		}()},
-		._selfData = newBox(SelfData {
-			._eventListener = EventListener{ },
+		}() },
+		._selfData = newBox(SelfData{
+			._eventListener = EventListener{},
 			._name = std::move(name),
 			._size = size,
 			._documentPath = std::move(documentPath),
@@ -203,219 +100,291 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 			._isTransparent = isTransparent,
 		})
 	} } {
-
-    // 將 context 關聯到窗口并显示
-    Backend::AttachContext(_data->_rmlCStyleData->_win, _data->_rmlCStyleData->_context, &processKeyDownShortcuts);
-	_data->_rmlCStyleData->_document->AddEventListener("click", &_data->_selfData->_eventListener);
-	_data->_rmlCStyleData->_document->Show();
-
+	Backend::AttachContext(_data->_rmlCStyleData->_win, _data->_rmlCStyleData->_context, &processKeyDownShortcutsBridge);
+	attachDocument(*_data->_rmlCStyleData->_document);
 	Rml::Debugger::Initialise(_data->_rmlCStyleData->_context);
-	context2Win.emplace(_data->_rmlCStyleData->_context, this);
-    std::println("Created window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
-}
-
-UiWin &UiWin::operator=(UiWin &&other) noexcept {
-    std::println("Moving window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
-	_data = std::move(other._data);
-	return *this;
+	std::println("Created window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
 }
 
 UiWin::~UiWin() {
-    destroy();
-    context2Win.erase(_data->_rmlCStyleData->_context);
+	destroy();
 }
 
 void UiWin::destroy() {
-	if (!_data)
+	if (!_data) {
 		return;
+	}
 
-    std::println("Destroying window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
+	std::println("Destroying window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
 
-	_data->_rmlCStyleData->_context->RemoveEventListener("click", &_data->_selfData->_eventListener);
+	detachDocument();
+	if (_winManager) {
+		_winManager->unregisterWindow(*this);
+	}
+
 	Rml::RemoveContext(_data->_selfData->_name.c_str());
 
 	if (!_data->_selfData->_isMainWin && _data->_rmlCStyleData->_win) {
 		Backend::DestroyWindow(_data->_rmlCStyleData->_win);
 	}
-    
 }
 
-[[nodiscard]] gsl::not_null<GLFWwindow*> UiWin::getNativeWin() const LIFETIMEBOUND { 
-    return _data->_rmlCStyleData->_win; 
+[[nodiscard]] gsl::not_null<GLFWwindow *> UiWin::getNativeWin() const LIFETIMEBOUND {
+	return _data->_rmlCStyleData->_win;
 }
 
-[[nodiscard]] Rml::Context &UiWin::getContext() const LIFETIMEBOUND { 
-    return *_data->_rmlCStyleData->_context;
+[[nodiscard]] Rml::Context &UiWin::getContext() const LIFETIMEBOUND {
+	return *_data->_rmlCStyleData->_context;
 }
 
-[[nodiscard]] Rml::ElementDocument &UiWin::getDocument() const LIFETIMEBOUND { 
-    return *_data->_rmlCStyleData->_document;
+[[nodiscard]] Rml::ElementDocument &UiWin::getDocument() const LIFETIMEBOUND {
+	return *_data->_rmlCStyleData->_document;
 }
 
 void UiWin::update() const {
-    if (_data->_rmlCStyleData->_context)
+	if (_data->_rmlCStyleData->_context) {
 		_data->_rmlCStyleData->_context->Update();
-	if (_data->_selfData->_updateCb)
+	}
+	if (_data->_selfData->_updateCb) {
 		try {
 			_data->_selfData->_updateCb();
 		} catch (const std::exception &e) {
 			std::println("UI Runtime error: {}", e.what());
 		}
+	}
 }
 
 void UiWin::render() const {
-    if (_data->_rmlCStyleData->_context)
+	if (_data->_rmlCStyleData->_context) {
 		_data->_rmlCStyleData->_context->Render();
+	}
 }
 
-void UiWin::reload() const {
+void UiWin::reload() {
+	detachDocument();
 	_data->_rmlCStyleData->_document->Close();
+
 	auto documentptr = _data->_rmlCStyleData->_context->LoadDocument(_data->_selfData->_documentPath.string());
-	if (!documentptr)
+	if (!documentptr) {
 		throw std::runtime_error("Failed to load document for window: "s + _data->_selfData->_name);
+	}
 
-	//documentptr->SetInnerRML(readFile(_data->_selfData->_documentPath.string()));
-	
 	_data->_rmlCStyleData->_document = documentptr;
-	//_data->_rmlCStyleData->_document->AddEventListener("click", &_data->_selfData->_eventListener);
-	_data->_rmlCStyleData->_document->Show();
-
-    if (_data->_selfData->_reloadCb)
-		try {
-			_data->_selfData->_reloadCb();
-		} catch (const std::exception &e) {
-			std::println("UI Runtime error: {}", e.what());
-		}
+	attachDocument(*documentptr);
 }
-
-
 
 void UiWin::setUpdateCb(std::function<void()> cb) {
-	_data->_selfData->_updateCb = cb;
+	_data->_selfData->_updateCb = std::move(cb);
 }
 
-void UiWin::setReloadCb(std::function<void()> cb) {
-	_data->_selfData->_reloadCb = cb;
+void UiWin::setDocumentChangedCb(std::function<void()> cb) {
+	_data->_selfData->_documentChangedCb = std::move(cb);
+	notifyDocumentChanged();
 }
 
-[[nodiscard]] const std::string_view UiWin::getName() const { 
-    return _data->_selfData->_name;
+[[nodiscard]] std::string_view UiWin::getName() const {
+	return _data->_selfData->_name;
 }
 
-[[nodiscard]] bool UiWin::isMainWin() const { 
-    return _data->_selfData->_isMainWin;
+[[nodiscard]] bool UiWin::isMainWin() const {
+	return _data->_selfData->_isMainWin;
 }
 
 [[nodiscard]] Rml::Vector2i UiWin::getMousePos() const {
-	//return _data->_rmlCStyleData->_systemInterface->GetMousePosition();
-	//return UNWRAP(dynamic_cast<SystemInterface_GLFW *>(Rml::GetSystemInterface())).GetMousePosition();
 	return UNWRAP(SystemInterface_GLFW::instance).GetMousePosition();
 }
 
 [[nodiscard]] Rml::Vector2i UiWin::getWinPos() const {
-    return Backend::GetWindowPos(_data->_rmlCStyleData->_win);
+	return Backend::GetWindowPos(_data->_rmlCStyleData->_win);
 }
 
-[[nodiscard]] UiWin *WinManager::getWinOfElement(const Rml::Element &element) const {
-    auto it = std::ranges::find_if(
-        wins_,
-        [&](const auto& win) { return &win->getContext() == element.GetContext(); }
-    );
-    return it != wins_.end() ? it->get() : nullptr;
-}
-
-[[nodiscard]] UiWin *WinManager::getWinOfContext(const Rml::Context& context) const {
-    auto it = std::ranges::find_if(
-        wins_,
-        [&](const auto& win) { return &win->getContext() == &context; }
-    );
-    return it != wins_.end() ? it->get() : nullptr;
-}
-
-[[nodiscard]] Rml::Element &UiWin::getRootElement() const LIFETIMEBOUND { 
-    return UNWRAP(_data->_rmlCStyleData->_context->GetRootElement());
+[[nodiscard]] Rml::Element &UiWin::getRootElement() const LIFETIMEBOUND {
+	return UNWRAP(_data->_rmlCStyleData->_context->GetRootElement());
 }
 
 void UiWin::setWinPos(const Rml::Vector2i pos) {
-    Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
+	Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
 }
 
 void UiWin::setShouldClose() {
 	Backend::SetShouldClose(_data->_rmlCStyleData->_win);
-	
 }
-// void UiWin::showModal() {
-// 	// TODO
-// }
 
+void UiWin::attachDocument(Rml::ElementDocument &document) {
+	document.AddEventListener("click", &_data->_selfData->_eventListener);
+	document.Show();
+	notifyDocumentChanged();
+}
 
-// Ensure subclasses of UiWin are default-moveable
-class Test1 : public UiWin
-{
-public:
-	using UiWin::UiWin;
-	Test1(Test1 &&) = default;
-};
+void UiWin::detachDocument() const {
+	if (_data && _data->_rmlCStyleData->_document) {
+		_data->_rmlCStyleData->_document->RemoveEventListener("click", &_data->_selfData->_eventListener);
+	}
+}
 
-
-
-// WinManager 实现
+void UiWin::notifyDocumentChanged() const {
+	if (_data->_selfData->_documentChangedCb) {
+		try {
+			_data->_selfData->_documentChangedCb();
+		} catch (const std::exception &e) {
+			std::println("UI Runtime error: {}", e.what());
+		}
+	}
+}
 
 WinManager::WinManager() {
+	activeWinManager = this;
 	Backend::SetContextInputFilter([](Rml::Context *context) {
-		return isInputAllowedForContext(context);
+		return activeWinManager ? activeWinManager->isInputAllowedForContext(context) : true;
 	});
 }
 
-UiWin &WinManager::transferWin(std::unique_ptr<UiWin>&& window) LIFETIMEBOUND {
-    wins_.push_back(std::move(window));
+WinManager::~WinManager() {
+	wins_.clear();
+	Backend::SetContextInputFilter(nullptr);
+	if (activeWinManager == this) {
+		activeWinManager = nullptr;
+	}
+}
+
+UiWin &WinManager::transferWin(std::unique_ptr<UiWin> &&window) LIFETIMEBOUND {
+	window->_winManager = this;
+	registerWindow(*window);
+	wins_.push_back(std::move(window));
 	return *wins_.back();
 }
 
 void WinManager::updateAll() {
-    for (auto& window : wins_) {
-        window->update();
-    }
+	for (auto &window : wins_) {
+		window->update();
+	}
 }
 
 void WinManager::renderAll() {
-    for (auto& window : wins_)
-    {
-        auto glfwWin = window->getNativeWin();
-        Backend::BeginFrame(glfwWin);
-        window->render();
-        Backend::PresentFrame(glfwWin);
-    }
+	for (auto &window : wins_) {
+		auto glfwWin = window->getNativeWin();
+		Backend::BeginFrame(glfwWin);
+		window->render();
+		Backend::PresentFrame(glfwWin);
+	}
 }
 
 void WinManager::cleanupClosedWindows() {
-    std::erase_if(wins_,
-        [](const auto& win) {
-            return Backend::ShouldWindowClose(win->getNativeWin());
-    });
+	std::erase_if(wins_, [](const auto &win) {
+		return Backend::ShouldWindowClose(win->getNativeWin());
+	});
+}
+
+void WinManager::requestCloseAllWindows() {
+	for (auto &window : wins_) {
+		window->setShouldClose();
+	}
 }
 
 [[nodiscard]] bool WinManager::hasOpenWins() const {
-    return !wins_.empty();
+	return !wins_.empty();
 }
 
 [[nodiscard]] UiWin &WinManager::getMainWin() const {
-    auto mainWinIt = std::ranges::find_if(
-        wins_,
-        [](const auto& win) { return win->isMainWin(); }
-    );
+	auto mainWinIt = std::ranges::find_if(wins_, [](const auto &win) {
+		return win->isMainWin();
+	});
 
-    assert(mainWinIt != wins_.end());
-    return **mainWinIt;
+	assert(mainWinIt != wins_.end());
+	return **mainWinIt;
 }
 
-void setModalWin(UiWin *window) {
-	modalWin = window;
+[[nodiscard]] UiWin *WinManager::getWinOfElement(const Rml::Element &element) const {
+	if (!element.GetContext()) {
+		return nullptr;
+	}
+
+	return getWinOfContext(*element.GetContext());
 }
 
-[[nodiscard]] UiWin *getModalWin() {
-	return modalWin;
+[[nodiscard]] UiWin *WinManager::getWinOfContext(const Rml::Context &context) const {
+	auto it = context2Win_.find(const_cast<Rml::Context *>(&context));
+	return it != context2Win_.end() ? it->second.get() : nullptr;
 }
 
+void WinManager::reloadWindow(UiWin &window) {
+	window.reload();
+}
+
+void WinManager::setModalWin(UiWin *window) {
+	modalWin_ = window;
+}
+
+[[nodiscard]] UiWin *WinManager::getModalWin() const {
+	return modalWin_;
+}
+
+void WinManager::registerWindow(UiWin &window) {
+	context2Win_.emplace(&window.getContext(), &window);
+}
+
+void WinManager::unregisterWindow(const UiWin &window) {
+	context2Win_.erase(const_cast<Rml::Context *>(&window.getContext()));
+	if (modalWin_ == &window) {
+		modalWin_ = nullptr;
+	}
+}
+
+[[nodiscard]] bool WinManager::isInputAllowedForContext(const Rml::Context *context) const {
+	if (!modalWin_) {
+		return true;
+	}
+
+	return &modalWin_->getContext() == context;
+}
+
+bool WinManager::processKeyDownShortcuts(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority) {
+	if (!context) {
+		return true;
+	}
+	if (!isInputAllowedForContext(context)) {
+		return false;
+	}
+
+	bool result = false;
+
+	if (priority) {
+		if (key == Rml::Input::KI_F8) {
+			std::cout << (Rml::Debugger::IsVisible() ? "Hiding debugger" : "Showing debugger") << std::endl;
+			Rml::Debugger::SetVisible(!Rml::Debugger::IsVisible());
+		} else if (key == Rml::Input::KI_0 && key_modifier & Rml::Input::KM_CTRL) {
+			context->SetDensityIndependentPixelRatio(native_dp_ratio);
+		} else if (key == Rml::Input::KI_1 && key_modifier & Rml::Input::KM_CTRL) {
+			context->SetDensityIndependentPixelRatio(1.f);
+		} else if ((key == Rml::Input::KI_OEM_MINUS || key == Rml::Input::KI_SUBTRACT) && key_modifier & Rml::Input::KM_CTRL) {
+			const float new_dp_ratio = Rml::Math::Max(context->GetDensityIndependentPixelRatio() / 1.2f, 0.5f);
+			context->SetDensityIndependentPixelRatio(new_dp_ratio);
+		} else if ((key == Rml::Input::KI_OEM_PLUS || key == Rml::Input::KI_ADD) && key_modifier & Rml::Input::KM_CTRL) {
+			const float new_dp_ratio = Rml::Math::Min(context->GetDensityIndependentPixelRatio() * 1.2f, 2.5f);
+			context->SetDensityIndependentPixelRatio(new_dp_ratio);
+		} else {
+			result = true;
+		}
+	} else {
+		if (key == Rml::Input::KI_R && key_modifier & Rml::Input::KM_CTRL) {
+			for (int i = 0; i < context->GetNumDocuments(); i++) {
+				Rml::ElementDocument *document = context->GetDocument(i);
+				const Rml::String &src = document->GetSourceURL();
+				if (src.size() > 4 && src.substr(src.size() - 4) == ".rml") {
+					std::println("Reloading: {}", src);
+					document->ReloadStyleSheet();
+				}
+			}
+
+			if (auto *uiWin = getWinOfContext(*context)) {
+				reloadWindow(*uiWin);
+			}
+		} else {
+			result = true;
+		}
+	}
+
+	return result;
+}
 
 }

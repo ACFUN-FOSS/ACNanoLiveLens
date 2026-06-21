@@ -15,9 +15,7 @@ WinFrame::WinFrame(const std::string_view tag)
 	: RmlUIElement{ tag, true } {
 	std::println("CONSTRUCT: WindFrame: {}", ptrToHex(this));
 
-	SetInnerRML(readFile(getAssetsDir() / "winframe.rml"));
-
-	bindEventHandlers();
+	SetInnerRML(Rml::String{ readTextAssetCached(getAssetsDir() / "winframe.rml") });
 	//throw std::runtime_error{ "Test excption" };
 }
 
@@ -29,13 +27,12 @@ void WinFrame::reg(RmlUISystem &rmlui) {
     rmlui.regElement("winframe", newBox(SafeElementInstancer<WinFrame>{}));
 }
 
+void WinFrame::onMounted() {
+	initAfterConstruct();
+	bindEventHandlers();
+}
 
 void WinFrame::onUpdate() {
-	if (!firstInited) {
-		initAfterConstruct();
-		firstInited = true;
-	}
-
 	if (isDragging_) {
 		auto &win = UNWRAP(getAppState().winManager->getWinOfElement(*this));
 		
@@ -63,11 +60,12 @@ void WinFrame::reload() {
 	auto &contentEle = UNWRAP(findChildOrSelfById(this, "content"));
 	auto childOwner = this->RemoveChild(&contentEle);
 
-	SetInnerRML(readFile(getAssetsDir() / "winframe.rml"));
+	SetInnerRML(Rml::String{ readTextAssetCached(getAssetsDir() / "winframe.rml") });
 
 	// Mount content element after set inner RML
 	this->AppendChild(std::move(childOwner));
 
+	initAfterConstruct();
 	bindEventHandlers();
 }
 

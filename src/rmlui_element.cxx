@@ -14,6 +14,7 @@ RmlUIElement::RmlUIElement(const std::string_view tag, bool isWindowElement)
 
 void RmlUIElement::OnUpdate() {
     try {
+		ensureMounted();
         onUpdate();
     } catch (std::exception &e) {
         std::println("RmlUIElement::OnUpdate caught exception: {}", e.what());
@@ -53,11 +54,27 @@ void RmlUIElement::processDefaultAction(Rml::Event &event) {
     Element::ProcessDefaultAction(event);
 }
 
+void RmlUIElement::onMounted() {
+}
+
 void RmlUIElement::reload() {
 }
 
 bool RmlUIElement::getIsWindowElement() const {
     return isWindowElement;
+}
+
+void RmlUIElement::ensureMounted() {
+	if (mounted_) {
+		return;
+	}
+
+	if (!GetOwnerDocument() || !GetParentNode()) {
+		return;
+	}
+
+	onMounted();
+	mounted_ = true;
 }
 
 void registerCustomElements(RmlUISystem &rmlui) {

@@ -12,8 +12,7 @@ using namespace Essentials::Misc;
 DanmakuItem::DanmakuItem(const std::string_view tag)
 	: RmlUIElement{ tag, false } {
 	std::println("CONSTRUCT: DanmakuItem: {}", ptrToHex(this));
-	SetInnerRML(readFile(getAssetsDir() / "danmaku_item.rml"));
-	bindEventHandlers();
+	SetInnerRML(Rml::String{ readTextAssetCached(getAssetsDir() / "danmaku_item.rml") });
 }
 
 DanmakuItem::~DanmakuItem() {
@@ -24,11 +23,12 @@ void DanmakuItem::reg(RmlUISystem &rmlui) {
 	rmlui.regElement("danmaku-item", newBox(SafeElementInstancer<DanmakuItem>{}));
 }
 
+void DanmakuItem::onMounted() {
+	initAfterConstruct();
+	bindEventHandlers();
+}
+
 void DanmakuItem::onUpdate() {
-	if (!firstInited) {
-		initAfterConstruct();
-		firstInited = true;
-	}
 }
 
 void DanmakuItem::processDefaultAction(Rml::Event &event) {
@@ -44,7 +44,8 @@ void DanmakuItem::bindEventHandlers() {
 
 void DanmakuItem::reload() {
 	dbgLog("RELOAD: DanmakuItem");
-	SetInnerRML(readFile(getAssetsDir() / "danmaku_item.rml"));
+	SetInnerRML(Rml::String{ readTextAssetCached(getAssetsDir() / "danmaku_item.rml") });
+	initAfterConstruct();
 	bindEventHandlers();
 	if (currentDanmakuInfo_) {
 		setDanmakuInfo(*currentDanmakuInfo_);

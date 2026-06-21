@@ -1,6 +1,7 @@
 #include "login_win.hxx"
 #include "appstate.hxx"
 #include "assets.hxx"
+#include "msg_box.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "utils.hxx"
@@ -63,9 +64,6 @@ public:
 		// 登入成功
 		ws.on("10", [&](const WsData& data) {
 		});
-		
-		ws.connect();
-		ws.send({ {"type", 7} });
 
 		// uiState_.mainWin_->setUpdateCb([this]{
 		// 	// static bool first = true;
@@ -93,16 +91,34 @@ private:
 	{
 		gsl::not_null<UiWin *> mainWin_;
 		SimpleEventListenerManager mainWinRootEleEventMan_;
+		int frameCount = 0;
 	};
 
 	void bindEventHandlers() {
-		uiState_.mainWin_->setReloadCb([this] {
+		uiState_.mainWin_->setDocumentChangedCb([this] {
 			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_->getRootElement());
 			
 		});
 
 		uiState_.mainWin_->setUpdateCb([this]{
 			ws.execCb();
+
+			uiState_.frameCount++;
+			if (uiState_.frameCount > 2) {
+				return;
+			}
+
+			try {
+				//
+				if (uiState_.frameCount == 2) {
+					ws.connect();
+					ws.send({ {"type", 7} });
+				}
+			} catch (const std::exception &e) {
+				//std::println("[错误] 登录窗口更新时出错: {}", e.what());
+				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
+				uiState_.mainWin_->setShouldClose();
+			}
 		});
 
 		uiState_.mainWinRootEleEventMan_.clear();

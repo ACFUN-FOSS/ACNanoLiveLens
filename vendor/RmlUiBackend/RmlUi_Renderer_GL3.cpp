@@ -679,8 +679,10 @@ static bool CreateFramebuffer(FramebufferData& out_fb, int width, int height, in
 			// Create new depth/stencil buffer
 			glGenRenderbuffers(1, &depth_stencil_buffer);
 			glBindRenderbuffer(GL_RENDERBUFFER, depth_stencil_buffer);
-
-			glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+			if (samples > 0)
+				glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, GL_DEPTH24_STENCIL8, width, height);
+			else
+				glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 		}
 
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth_stencil_buffer);
@@ -690,6 +692,17 @@ static bool CreateFramebuffer(FramebufferData& out_fb, int width, int height, in
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE)
 	{
 		Rml::Log::Message(Rml::Log::LT_ERROR, "OpenGL framebuffer could not be generated. Error code %x.", framebuffer_status);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+		if (framebuffer)
+			glDeleteFramebuffers(1, &framebuffer);
+		if (color_tex_buffer)
+			glDeleteTextures(1, &color_tex_buffer);
+		if (color_render_buffer)
+			glDeleteRenderbuffers(1, &color_render_buffer);
+		if (!shared_depth_stencil_buffer && depth_stencil_buffer)
+			glDeleteRenderbuffers(1, &depth_stencil_buffer);
 		return false;
 	}
 
@@ -709,6 +722,44 @@ static bool CreateFramebuffer(FramebufferData& out_fb, int width, int height, in
 	out_fb.owns_depth_stencil_buffer = !shared_depth_stencil_buffer;
 
 	return true;
+}
+
+static bool CreateFramebufferWithFallback(FramebufferData& out_fb, int width, int height, int requested_samples,
+	FramebufferAttachment attachment, GLuint shared_depth_stencil_buffer)
+{
+	GLint max_samples = 0;
+	glGetIntegerv(GL_MAX_SAMPLES, &max_samples);
+
+	const int clamped_requested_samples = Rml::Math::Min(requested_samples, (int)max_samples);
+	const int fallback_samples[] = {clamped_requested_samples, 8, 4, 2, 0};
+
+	int last_attempted_samples = -1;
+	for (int samples : fallback_samples)
+	{
+		samples = Rml::Math::Min(samples, clamped_requested_samples);
+		if (samples == last_attempted_samples)
+			continue;
+		last_attempted_samples = samples;
+
+		if (CreateFramebuffer(out_fb, width, height, samples, attachment, shared_depth_stencil_buffer))
+		{
+			if (samples != requested_samples)
+			{
+				Rml::Log::Message(Rml::Log::LT_WARNING,
+					"Falling back to %d x MSAA for framebuffer creation (requested %d).", samples, requested_samples);
+			}
+			return true;
+		}
+
+		if (shared_depth_stencil_buffer)
+		{
+			// Shared depth/stencil buffer may have been created with a higher sample count.
+			// Once we start falling back, it is safer to recreate without sharing.
+			shared_depth_stencil_buffer = 0;
+		}
+	}
+
+	return false;
 }
 
 static void DestroyFramebuffer(FramebufferData& fb)
@@ -2161,8 +2212,14 @@ Rml::LayerHandle RenderInterface_GL3::RenderLayerStack::PushLayer()
 		GLuint shared_depth_stencil = (fb_layers.empty() ? 0 : fb_layers.front().depth_stencil_buffer);
 
 		fb_layers.push_back(Gfx::FramebufferData{});
-		Gfx::CreateFramebuffer(fb_layers.back(), width, height, RMLUI_NUM_MSAA_SAMPLES, Gfx::FramebufferAttachment::DepthStencil,
-			shared_depth_stencil);
+		const bool created = Gfx::CreateFramebufferWithFallback(
+			fb_layers.back(), width, height, RMLUI_NUM_MSAA_SAMPLES, Gfx::FramebufferAttachment::DepthStencil, shared_depth_stencil);
+		if (!created)
+		{
+			Rml::Log::Message(Rml::Log::LT_ERROR, "Failed to create render layer framebuffer after all MSAA fallbacks.");
+			fb_layers.pop_back();
+			return {};
+		}
 	}
 
 	layers_size += 1;
@@ -2236,7 +2293,10 @@ const Gfx::FramebufferData& RenderInterface_GL3::RenderLayerStack::EnsureFramebu
 	RMLUI_ASSERT(index < (int)fb_postprocess.size())
 	Gfx::FramebufferData& fb = fb_postprocess[index];
 	if (!fb.framebuffer)
-		Gfx::CreateFramebuffer(fb, width, height, 0, Gfx::FramebufferAttachment::None, 0);
+	{
+		const bool created = Gfx::CreateFramebufferWithFallback(fb, width, height, 0, Gfx::FramebufferAttachment::None, 0);
+		RMLUI_ASSERTMSG(created, "Failed to create postprocess framebuffer.");
+	}
 	return fb;
 }
 

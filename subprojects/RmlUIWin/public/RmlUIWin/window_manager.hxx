@@ -7,13 +7,14 @@
 #include <memory>
 #include <vector>
 #include <filesystem>
+#include <unordered_map>
 #include <EatiEssentials/memory.hxx>
 #include <EatiEssentials/memsafety.hxx>
 #include <RmlUi_Platform_GLFW.h>
 
 namespace RmlUIWin {
 
-extern std::function<void(Rml::Context &)> onReloadTriggered;
+class WinManager;
 
 class UiWin
 {
@@ -25,97 +26,91 @@ public:
     };
 
     UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false);
-    
+
     UiWin(const UiWin &) = delete;
     UiWin& operator=(const UiWin &) = delete;
-    UiWin(UiWin &&other) noexcept = default;
-    UiWin& operator=(UiWin &&other) noexcept;
-    
+    UiWin(UiWin &&other) noexcept = delete;
+    UiWin& operator=(UiWin &&other) noexcept = delete;
+
     ~UiWin();
 
     [[nodiscard]] gsl::not_null<GLFWwindow *> getNativeWin() const LIFETIMEBOUND;
     [[nodiscard]] Rml::Context &getContext() const LIFETIMEBOUND;
-	[[nodiscard]] Rml::ElementDocument &getDocument() const LIFETIMEBOUND;
-    
+    [[nodiscard]] Rml::ElementDocument &getDocument() const LIFETIMEBOUND;
+
     void update() const;
     void render() const;
-    void reload() const;
+    void reload();
 
-	void setUpdateCb(std::function<void()> cb);
-	void setReloadCb(std::function<void()> cb);
-	
-    [[nodiscard]] const std::string_view getName() const;
+    void setUpdateCb(std::function<void()> cb);
+    void setDocumentChangedCb(std::function<void()> cb);
+
+    [[nodiscard]] std::string_view getName() const;
     [[nodiscard]] bool isMainWin() const;
-	[[nodiscard]] Rml::Vector2i getMousePos() const;
-	[[nodiscard]] Rml::Vector2i getWinPos() const;
-	[[nodiscard]] Rml::Element &getRootElement() const;
+    [[nodiscard]] Rml::Vector2i getMousePos() const;
+    [[nodiscard]] Rml::Vector2i getWinPos() const;
+    [[nodiscard]] Rml::Element &getRootElement() const;
     void setWinPos(const Rml::Vector2i pos);
-	void setShouldClose();
+    void setShouldClose();
 
 private:
     void destroy();
-	
-	struct RmlCStyleData;
-	struct SelfData;
+    void attachDocument(Rml::ElementDocument &document);
+    void detachDocument() const;
+    void notifyDocumentChanged() const;
 
-	struct Data
-	{
-		ESSM::Box<RmlCStyleData> _rmlCStyleData;
-		ESSM::Box<SelfData> _selfData;
-	};
-	
-	std::optional<Data> _data;
-	
+    struct RmlCStyleData;
+    struct SelfData;
 
-    class WinManager;
+    struct Data
+    {
+        ESSM::Box<RmlCStyleData> _rmlCStyleData;
+        ESSM::Box<SelfData> _selfData;
+    };
+
+    std::optional<Data> _data;
+
     WinManager *_winManager = nullptr;
-	
+
+    friend class WinManager;
 };
 
-
-// 窗口管理器类
 class WinManager {
 public:
     WinManager();
-    ~WinManager() = default;
+    ~WinManager();
 
-    // 禁止拷贝，允许移动
     WinManager(const WinManager&) = delete;
     WinManager& operator=(const WinManager&) = delete;
-    WinManager(WinManager&&) = default;
-    WinManager& operator=(WinManager&&) = default;
+    WinManager(WinManager&&) = delete;
+    WinManager& operator=(WinManager&&) = delete;
 
-    // 添加窗口
     UiWin &transferWin(std::unique_ptr<UiWin>&& window) LIFETIMEBOUND;
-    
-    // 更新所有窗口
     void updateAll();
-    
-    // 渲染所有窗口
     void renderAll();
-    
-    // 清理关闭的窗口
     void cleanupClosedWindows();
-    
-    // 检查是否还有窗口打开
+    void requestCloseAllWindows();
+
     [[nodiscard]] bool hasOpenWins() const;
-    
-    // 获取主窗口
     [[nodiscard]] UiWin &getMainWin() const;
-
     [[nodiscard]] UiWin *getWinOfElement(const Rml::Element &element) const;
-
     [[nodiscard]] UiWin *getWinOfContext(const Rml::Context& context) const;
 
-	//std::vector<std::function<void()>> reloadCbs;
-    //std::function<void(UiWin &)> onUIWinReload;
-
+    void reloadWindow(UiWin &window);
+    void setModalWin(UiWin *window);
+    [[nodiscard]] UiWin *getModalWin() const;
+    bool processKeyDownShortcuts(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority);
 
 private:
+    friend class UiWin;
+
+    void registerWindow(UiWin &window);
+    void unregisterWindow(const UiWin &window);
+    [[nodiscard]] bool isInputAllowedForContext(const Rml::Context *context) const;
+
     std::vector<std::unique_ptr<UiWin>> wins_;
+    std::unordered_map<gsl::not_null<Rml::Context *>, gsl::not_null<UiWin *>> context2Win_;
+    UiWin *modalWin_ = nullptr;
 };
 
-void setModalWin(UiWin *window);
-[[nodiscard]] UiWin *getModalWin();
-
-} // namespace rmlui_wrapper
+} // namespace RmlUIWin

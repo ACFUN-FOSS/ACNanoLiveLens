@@ -26,6 +26,7 @@ public:
 	void setDanmakuInfo(const DanmakuInfo &info);
 
 protected:
+	void onMounted() override;
 	void onUpdate() override;
 	void processDefaultAction(Rml::Event &event) override;
 	void reload() override;
@@ -33,8 +34,6 @@ protected:
 private:
 	void initAfterConstruct();
 	void bindEventHandlers();
-
-	bool firstInited = false;
 
 	SimpleEventListenerManager eventListenerMan_{ *this };
 

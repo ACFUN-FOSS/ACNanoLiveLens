@@ -3,6 +3,7 @@
 #include "assets.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
+#include "platform/window_activation_optimization.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -37,12 +38,15 @@ public:
 		auto &winManager = *getAppState().winManager;
 		auto oldModalWin = winManager.getModalWin();
 		winManager.setModalWin(uiState_.mainWin_);
+		MsgBoxWindowActivationGuard activationGuard{ uiState_.mainWin_->getNativeWin() };
 
 		while (true) {
 			auto shouldContinue = Backend::ProcessEvents(false);
 			if (!shouldContinue) {
 				requestClose();
 			}
+
+			activationGuard.update();
 
 			uiState_.mainWin_->update();
 

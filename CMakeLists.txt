@@ -140,6 +140,7 @@ target_precompile_headers(nanolivelens PRIVATE src/stdafx.h)
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND MSVC)
     target_sources(nanolivelens PRIVATE
         src/platform/crash_handler_impl_win_msvc.cxx
+        src/platform/window_activation_optimization_win.cxx
     )
     target_link_libraries(nanolivelens
         PRIVATE
@@ -152,6 +153,7 @@ else()
     message(WARNING Implement your system's crash handler. Dummy implementation is used.)
     target_sources(nanolivelens PRIVATE
         src/platform/crash_handler_impl_dummy.cxx
+        src/platform/window_activation_optimization_dummy.cxx
     )
 endif()
 

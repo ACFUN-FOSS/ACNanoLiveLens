@@ -20,6 +20,7 @@ public:
 	static void reg(RmlUISystem &rmlui);
 	
 protected:
+	void onMounted() override;
 	void onUpdate() override;
 	void processDefaultAction(Rml::Event &event) override;
 	void reload() override;
@@ -27,8 +28,6 @@ protected:
 private:
 	void initAfterConstruct();
 	void bindEventHandlers();
-
-	bool firstInited = false;
 
 	// Dragging
 	bool isDragging_ = false;

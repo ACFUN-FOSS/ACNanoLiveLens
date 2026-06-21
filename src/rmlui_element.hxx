@@ -21,10 +21,16 @@ protected:
     void OnUpdate() override;
     void ProcessDefaultAction(Rml::Event &event) override;
 
+    virtual void onMounted();
     virtual void onUpdate();
     virtual void processDefaultAction(Rml::Event &event);
 
 	bool isWindowElement = false;
+
+private:
+	void ensureMounted();
+
+	bool mounted_ = false;
 };
 
 void registerCustomElements(RmlUISystem &rmlui);

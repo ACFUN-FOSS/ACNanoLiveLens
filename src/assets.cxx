@@ -1,5 +1,19 @@
 #include "assets.hxx"
 
+using namespace Essentials::IO;
+
+std::string_view readTextAssetCached(const stdf::path &path) {
+	static std::mutex mutex;
+	static std::unordered_map<stdf::path, std::string> cache;
+
+	std::lock_guard lock{ mutex };
+	if (auto it = cache.find(path); it != cache.end()) {
+		return std::string_view{ it->second };
+	}
+
+	return std::string_view{ cache.emplace(path, readFile(path)).first->second };
+}
+
 stdf::path getAssetsDir() {
 #ifdef NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH
 	// 使用编译时定义的路径作为 assets 文件夹

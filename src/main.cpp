@@ -38,28 +38,6 @@ static void rmluiMain() {
         // 使用窗口管理器管理所有窗口
 		RmlUIWin::WinManager winMan;
 
-        RmlUIWin::onReloadTriggered = [](Rml::Context &context) {
-            playSound(Sound::RELOAD);
-            auto children = getAllChildrenRecursively(UNWRAP(context.GetRootElement()));
-
-            auto windowEles = [&]() {
-                std::vector<Refw<RmlUIElement>> windowEles;
-                for (auto &child : children) {
-                    if (auto ele = dynamic_cast<RmlUIElement *>(&child.get())) {
-                        if (ele->getIsWindowElement())
-                            windowEles.emplace_back(UNWRAP(ele));
-                    }
-                }
-                return windowEles;
-            }();
-
-            for (auto &child : windowEles) {
-				child.get().reload();
-            }
-
-			//winMan.requestReloadToAllWins();
-        };
-
 		//qjs::Runtime rt;
 		//qjs::Context ctx(rt);
 
@@ -92,6 +70,11 @@ static void rmluiMain() {
             // 清理已關閉的窗口
             winMan.cleanupClosedWindows();
         }
+
+		if (ctrlCPressed) {
+			winMan.requestCloseAllWindows();
+			winMan.cleanupClosedWindows();
+		}
 
 		//JSBindings::shutdown();
     }
@@ -130,4 +113,3 @@ int crashHandlerProtectedMain() {
 int main() {
     runProtectedMain();
 }
-

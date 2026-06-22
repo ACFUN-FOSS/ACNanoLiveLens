@@ -17,4 +17,6 @@ documentation for details.
 
    coding_style_and_patterns
    eati_essentials_overview
+   user_interface
+   window_system
    js_binding/js_binding

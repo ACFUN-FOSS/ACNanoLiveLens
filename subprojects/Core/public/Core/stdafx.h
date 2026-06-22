@@ -16,9 +16,10 @@
 #include <utility>
 #include <condition_variable>
 #include <stop_token>
+#include <future>
 
 // EATI Essentials 头文件
-#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memory/memory.hxx>
 
 // 第三方库头文件
 #include <cppcodec/base64_rfc4648.hpp>

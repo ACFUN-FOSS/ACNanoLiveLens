@@ -16,7 +16,7 @@
 #include <utility>
 
 // EATI Essentials 头文件
-#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memory/memory.hxx>
 
 // Core 头文件
 #include <Core/stdafx.h>

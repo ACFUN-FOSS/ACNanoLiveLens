@@ -8,7 +8,7 @@
 #include <vector>
 #include <filesystem>
 #include <unordered_map>
-#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memory/memory.hxx>
 #include <EatiEssentials/memsafety.hxx>
 #include <RmlUi_Platform_GLFW.h>
 
@@ -19,6 +19,24 @@ class WinManager;
 class UiWin
 {
 public:
+    class AsyncOpScope
+    {
+    public:
+        AsyncOpScope() = default;
+        explicit AsyncOpScope(UiWin *owner) noexcept;
+        ~AsyncOpScope();
+
+        AsyncOpScope(const AsyncOpScope &) = delete;
+        AsyncOpScope &operator=(const AsyncOpScope &) = delete;
+        AsyncOpScope(AsyncOpScope &&other) noexcept;
+        AsyncOpScope &operator=(AsyncOpScope &&other) noexcept;
+
+    private:
+        void release() noexcept;
+
+        UiWin *owner_ = nullptr;
+    };
+
     class EventListener : public Rml::EventListener
     {
     public:
@@ -50,10 +68,19 @@ public:
     [[nodiscard]] Rml::Vector2i getMousePos() const;
     [[nodiscard]] Rml::Vector2i getWinPos() const;
     [[nodiscard]] Rml::Element &getRootElement() const;
+    [[nodiscard]] AsyncOpScope startAsyncOp() noexcept;
     void setWinPos(const Rml::Vector2i pos);
     void setShouldClose();
 
 private:
+    void acquireAsyncOp() noexcept;
+    void releaseAsyncOp() noexcept;
+    void applyCloseRequestState();
+    void refreshClosingVisualState();
+    void requestCloseFromNativeEvent();
+    [[nodiscard]] bool shouldDestroyNow() const noexcept;
+    [[nodiscard]] bool shouldShowClosingVisualState() const noexcept;
+    [[nodiscard]] bool canCloseNow() const noexcept;
     void destroy();
     void attachDocument(Rml::ElementDocument &document);
     void detachDocument() const;

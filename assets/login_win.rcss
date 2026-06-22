@@ -15,6 +15,7 @@
 .qr-code-container
 {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     width: 100%;
@@ -22,10 +23,17 @@
     margin: 0 0 5dp 0;
 }
 
+.qr-code-placeholder
+{
+    color: #666666;
+    font-size: 18dp;
+}
+
 .qr-code
 {
     width: 250dp;
     height: 250dp;
+    display: none;
 }
 
 .refresh-btn

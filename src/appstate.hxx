@@ -7,6 +7,9 @@ struct AppState
 {
 	gsl::not_null<RmlUISystem *const> rmluiSys;
     gsl::not_null<RmlUIWin::WinManager *const> winManager;
+
+	gsl::not_null<coro::runtime *const> coroRuntime;
+	ESSM::Rc<coro::executor> mainThreadExecutor;
 };
 
 void initAppState(AppState &&appState);

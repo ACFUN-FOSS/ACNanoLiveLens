@@ -184,12 +184,12 @@ target_link_libraries(nanolivelens
 	metapp::metapp
     #${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
 )
-gen_metapp_reflection(nanolivelens
-	HEADERS 
-	src/danmaku_monitor_win.hxx
-	AUTO_INCLUDE
-	src/stdafx.h
-)
+# gen_metapp_reflection(nanolivelens
+# 	HEADERS 
+# 	src/danmaku_monitor_win.hxx
+# 	AUTO_INCLUDE
+# 	src/stdafx.h
+# )
 
 set_target_properties(nanolivelens PROPERTIES
 	VS_GLOBAL_EnableCppCoreCheck true

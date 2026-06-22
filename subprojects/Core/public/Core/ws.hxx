@@ -26,6 +26,7 @@ public:
 	Ws& operator=(const Ws&) = delete;
 
 	void connect();
+	accoro::result<void> connectAsync(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor);
 	void disconnect();
 
 	void on(std::string_view event, Callback cb);

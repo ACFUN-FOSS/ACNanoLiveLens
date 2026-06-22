@@ -34,6 +34,10 @@ static void rmluiMain() {
 
     //Essentials::Special::callNullptr();
 
+	coro::runtime coroRuntime;
+	auto mainThreadExecutor = coroRuntime.make_manual_executor();
+
+
     {
         // 使用窗口管理器管理所有窗口
 		RmlUIWin::WinManager winMan;
@@ -43,7 +47,12 @@ static void rmluiMain() {
 
 		//initJs(rt, ctx);
 		
-		initAppState({ &rmlui, &winMan });
+		initAppState({
+			 &rmlui,
+			 &winMan,
+			 &coroRuntime,
+			 mainThreadExecutor
+		});
 
 		//loadJsScript();
 
@@ -60,6 +69,9 @@ static void rmluiMain() {
         while (!ctrlCPressed && !shouldExit && winMan.hasOpenWins()) {
             // 处理输入和窗口事件
             shouldExit = !Backend::ProcessEvents(false);
+
+			// coro
+			mainThreadExecutor->loop_once();
 
             // 更新所有窗口
             winMan.updateAll();

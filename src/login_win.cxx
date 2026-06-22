@@ -10,6 +10,7 @@ using namespace std::chrono_literals;
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
 using namespace Essentials::IO;
+using namespace Essentials::Misc;
 
 static void saveQrCodeImage(std::string_view base64Data, stdf::path filepath) {
 	auto imageData = cppcodec::base64_rfc4648::decode(std::string(base64Data));
@@ -38,6 +39,7 @@ public:
 			return { &win, std::move(mainWinRootEleEventMan) };
 		}() } {
 		bindEventHandlers();
+		refreshQrCodeUi(false);
 		//centerToMainWin();
 		
 		// 二维码已生成
@@ -47,10 +49,9 @@ public:
 			std::string imageData = respData["imageData"];
 			saveQrCodeImage(imageData, getAssetsDir() / "runtime" / "qrcode.png");
 
-			UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"))
-				.SetAttribute("src", (getAssetsDir() / "runtime" / "qrcode.png").string());
-			// UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"))
-			// 	.SetAttribute("src", R"(E:\CPP_PROJ\acfun_foss\ACNanoLiveLens\assets\runtime\qrcode.png)");
+			auto &qrCodeEle = UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"));
+			qrCodeEle.SetAttribute("src", (getAssetsDir() / "runtime" / "qrcode.png").string());
+			refreshQrCodeUi(true);
 
 		});
 		// 二维码已扫描
@@ -65,16 +66,21 @@ public:
 		ws.on("10", [&](const WsData& data) {
 		});
 
-		// uiState_.mainWin_->setUpdateCb([this]{
-		// 	// static bool first = true;
-		// 	// if (!first)
-		// 	// 	return;
-		// 	// UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"))
-		// 	// 	.SetAttribute("src", R"(assets\runtime\qrcode.tga)");
-		// 	// first = false;
-		// });
 
-		
+		[](Impl *that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
+			auto keepAsyncOpAlive = std::move(asyncOpScope);
+			try {
+				//std::println("Connect started on thread {}", std::this_thread::get_id());
+				//std::println("impl: {}", ptrToHex(that));
+				co_await that->ws.connectAsync(*getAppState().coroRuntime, getAppState().mainThreadExecutor);
+			} catch (const std::exception& e) {
+				//std::println("Connect catch on thread {}", std::this_thread::get_id());
+				//std::println("impl: {}", ptrToHex(that));
+
+				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
+				that->uiState_.mainWin_->setShouldClose();
+			}
+		}(this, uiState_.mainWin_->startAsyncOp());
 
 	}
 
@@ -103,22 +109,22 @@ private:
 		uiState_.mainWin_->setUpdateCb([this]{
 			ws.execCb();
 
-			uiState_.frameCount++;
-			if (uiState_.frameCount > 2) {
-				return;
-			}
+			// uiState_.frameCount++;
+			// if (uiState_.frameCount > 2) {
+			// 	return;
+			// }
 
-			try {
-				//
-				if (uiState_.frameCount == 2) {
-					ws.connect();
-					ws.send({ {"type", 7} });
-				}
-			} catch (const std::exception &e) {
-				//std::println("[错误] 登录窗口更新时出错: {}", e.what());
-				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
-				uiState_.mainWin_->setShouldClose();
-			}
+			// try {
+			// 	//
+			// 	if (uiState_.frameCount == 2) {
+			// 		ws.connect();
+			// 		ws.send({ {"type", 7} });
+			// 	}
+			// } catch (const std::exception &e) {
+			// 	//std::println("[错误] 登录窗口更新时出错: {}", e.what());
+			// 	MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
+			// 	uiState_.mainWin_->setShouldClose();
+			// }
 		});
 
 		uiState_.mainWinRootEleEventMan_.clear();
@@ -129,6 +135,15 @@ private:
 	}
 
 	void refreshQrCode() {
+	}
+
+	void refreshQrCodeUi(bool hasQrCode) {
+		auto &rootElement = uiState_.mainWin_->getRootElement();
+		auto &qrCodeEle = UNWRAP(findChildOrSelfById(&rootElement, "qr-code"));
+		auto &placeholderEle = UNWRAP(findChildOrSelfById(&rootElement, "qr-code-placeholder"));
+
+		qrCodeEle.SetProperty("display", hasQrCode ? "block" : "none");
+		placeholderEle.SetProperty("display", hasQrCode ? "none" : "block");
 	}
 
 	void centerToMainWin() {
@@ -159,6 +174,8 @@ private:
             };
         }
     };
+
+	
 };
 
 LoginWin::LoginWin()

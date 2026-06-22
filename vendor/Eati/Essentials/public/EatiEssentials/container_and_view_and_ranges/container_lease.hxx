@@ -4,7 +4,7 @@
 #ifndef NANOLIVELENS_CONTAINER_LEASE_HXX
 #define NANOLIVELENS_CONTAINER_LEASE_HXX
 #include "EatiEssentials/container_and_view_and_ranges/addandremoveable_container_ref.hxx"
-#include "EatiEssentials/memory.hxx"
+#include "EatiEssentials/memory/memory.hxx"
 
 namespace Essentials::ContainerAndView
 {

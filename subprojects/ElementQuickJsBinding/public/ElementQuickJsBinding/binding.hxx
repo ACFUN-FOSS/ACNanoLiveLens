@@ -4,15 +4,15 @@
 #include <metapp/allmetatypes.h>
 #include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
-#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memory/memory.hxx>
 #include <EatiEssentials/memsafety.hxx>
+#include <EatiEssentials/memory/lifetime_informant.hxx>
 #include <pimpl.hpp>
 #include <any>
 #include <functional>
 #include <optional>
 #include <vector>
 
-#include "ElementQuickJsBinding/lifetime_informant.hxx"
 #include "metapp/metatype.h"
 #include "metapp/utilities/utility.h"
 

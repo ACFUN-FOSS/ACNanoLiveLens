@@ -26,6 +26,24 @@ static bool processKeyDownShortcutsBridge(Rml::Context *context, Rml::Input::Key
 	return activeWinManager->processKeyDownShortcuts(context, key, key_modifier, native_dp_ratio, priority);
 }
 
+static Rml::Element *findChildOrSelfByIdRecursive(Rml::Element *parent, std::string_view id) {
+	if (!parent) {
+		return nullptr;
+	}
+
+	if (parent->GetId() == id) {
+		return parent;
+	}
+
+	for (int i = 0; i < parent->GetNumChildren(); i++) {
+		if (auto *result = findChildOrSelfByIdRecursive(parent->GetChild(i), id)) {
+			return result;
+		}
+	}
+
+	return nullptr;
+}
+
 struct UiWin::RmlCStyleData
 {
 	gsl::not_null<GLFWwindow *> _win;
@@ -41,9 +59,45 @@ struct UiWin::SelfData
 	std::filesystem::path _documentPath;
 	bool _isMainWin;
 	bool _isTransparent;
+	bool _shouldClose = false;
+	std::size_t _runningAsyncOpCount = 0;
 	std::function<void()> _updateCb;
 	std::function<void()> _documentChangedCb;
 };
+
+UiWin::AsyncOpScope::AsyncOpScope(UiWin *owner) noexcept
+	: owner_{ owner } {
+	if (owner_) {
+		owner_->acquireAsyncOp();
+	}
+}
+
+UiWin::AsyncOpScope::~AsyncOpScope() {
+	release();
+}
+
+UiWin::AsyncOpScope::AsyncOpScope(AsyncOpScope &&other) noexcept
+	: owner_{ std::exchange(other.owner_, nullptr) } {
+}
+
+UiWin::AsyncOpScope &UiWin::AsyncOpScope::operator=(AsyncOpScope &&other) noexcept {
+	if (this == &other) {
+		return *this;
+	}
+
+	release();
+	owner_ = std::exchange(other.owner_, nullptr);
+	return *this;
+}
+
+void UiWin::AsyncOpScope::release() noexcept {
+	if (!owner_) {
+		return;
+	}
+
+	owner_->releaseAsyncOp();
+	owner_ = nullptr;
+}
 
 void UiWin::EventListener::ProcessEvent(Rml::Event &event) {
 }
@@ -118,11 +172,11 @@ void UiWin::destroy() {
 	std::println("Destroying window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
 
 	detachDocument();
+	Rml::RemoveContext(_data->_selfData->_name.c_str());
+
 	if (_winManager) {
 		_winManager->unregisterWindow(*this);
 	}
-
-	Rml::RemoveContext(_data->_selfData->_name.c_str());
 
 	if (!_data->_selfData->_isMainWin && _data->_rmlCStyleData->_win) {
 		Backend::DestroyWindow(_data->_rmlCStyleData->_win);
@@ -202,12 +256,96 @@ void UiWin::setDocumentChangedCb(std::function<void()> cb) {
 	return UNWRAP(_data->_rmlCStyleData->_context->GetRootElement());
 }
 
+[[nodiscard]] UiWin::AsyncOpScope UiWin::startAsyncOp() noexcept {
+	return AsyncOpScope{ this };
+}
+
 void UiWin::setWinPos(const Rml::Vector2i pos) {
 	Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
 }
 
 void UiWin::setShouldClose() {
-	Backend::SetShouldClose(_data->_rmlCStyleData->_win);
+	_data->_selfData->_shouldClose = true;
+	refreshClosingVisualState();
+	applyCloseRequestState();
+}
+
+void UiWin::acquireAsyncOp() noexcept {
+	if (!_data) {
+		return;
+	}
+
+	++_data->_selfData->_runningAsyncOpCount;
+}
+
+void UiWin::releaseAsyncOp() noexcept {
+	if (!_data) {
+		return;
+	}
+
+	assert(_data->_selfData->_runningAsyncOpCount > 0);
+	--_data->_selfData->_runningAsyncOpCount;
+	refreshClosingVisualState();
+	applyCloseRequestState();
+}
+
+void UiWin::applyCloseRequestState() {
+	if (!_data || !_data->_selfData->_shouldClose) {
+		return;
+	}
+
+	if (canCloseNow()) {
+		Backend::SetShouldClose(_data->_rmlCStyleData->_win);
+	}
+}
+
+void UiWin::refreshClosingVisualState() {
+	if (!_data) {
+		return;
+	}
+
+	auto *rootElement = _data->_rmlCStyleData->_context->GetRootElement();
+	if (!rootElement) {
+		return;
+	}
+
+	auto *winframeElement = findChildOrSelfByIdRecursive(rootElement, "winframe");
+	if (!winframeElement) {
+		return;
+	}
+
+	const auto shouldShow = shouldShowClosingVisualState();
+	winframeElement->SetClass("closing", shouldShow);
+
+	auto *titleTextElement = findChildOrSelfByIdRecursive(winframeElement, "title-text");
+	if (!titleTextElement) {
+		return;
+	}
+
+	const auto title = winframeElement->GetAttribute<std::string>("title", "");
+	titleTextElement->SetInnerRML(
+		shouldShow ? title + " [正在结束未完成的工作]" : title);
+}
+
+void UiWin::requestCloseFromNativeEvent() {
+	if (!_data) {
+		return;
+	}
+
+	_data->_selfData->_shouldClose = true;
+	refreshClosingVisualState();
+}
+
+[[nodiscard]] bool UiWin::shouldDestroyNow() const noexcept {
+	return _data && _data->_selfData->_shouldClose && canCloseNow();
+}
+
+[[nodiscard]] bool UiWin::shouldShowClosingVisualState() const noexcept {
+	return _data && _data->_selfData->_shouldClose && !canCloseNow();
+}
+
+[[nodiscard]] bool UiWin::canCloseNow() const noexcept {
+	return _data && _data->_selfData->_runningAsyncOpCount == 0;
 }
 
 void UiWin::attachDocument(Rml::ElementDocument &document) {
@@ -271,7 +409,10 @@ void WinManager::renderAll() {
 
 void WinManager::cleanupClosedWindows() {
 	std::erase_if(wins_, [](const auto &win) {
-		return Backend::ShouldWindowClose(win->getNativeWin());
+		if (Backend::ShouldWindowClose(win->getNativeWin())) {
+			win->requestCloseFromNativeEvent();
+		}
+		return win->shouldDestroyNow();
 	});
 }
 

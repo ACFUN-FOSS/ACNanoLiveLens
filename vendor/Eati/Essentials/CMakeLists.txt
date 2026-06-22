@@ -19,7 +19,8 @@ find_package(Microsoft.GSL CONFIG REQUIRED)
 # == Targets =====================
 add_library(EatiEssentials
     private/dummy.cxx
-	private/memory.cxx
+	private/memory/memory.cxx
+	private/memory/lifetime_informant.cxx
 	private/memsafety.cxx
 	private/special.cxx
 	private/io.cxx
@@ -32,7 +33,8 @@ target_sources(EatiEssentials PUBLIC
     FILE_SET HEADERS
     BASE_DIRS public/
     FILES
-        public/EatiEssentials/memory.hxx
+        public/EatiEssentials/memory/memory.hxx
+		public/EatiEssentials/memory/lifetime_informant.hxx
 		public/EatiEssentials/memsafety.hxx
 		public/EatiEssentials/special.hxx
 		public/EatiEssentials/io.hxx

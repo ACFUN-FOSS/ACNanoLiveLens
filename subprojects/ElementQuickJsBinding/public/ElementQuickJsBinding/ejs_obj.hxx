@@ -2,13 +2,12 @@
 #define _H_KYCQ5
 
 #include <gsl/gsl>
-#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memory/memory.hxx>
+#include <EatiEssentials/memory/lifetime_informant.hxx>
 #include <metapp/allmetatypes.h>
 #include <quickjs/quickjs.h>
 #include <optional>
 #include <string>
-
-#include "lifetime_informant.hxx"
 
 namespace ElementEngine::QJSBinding
 {

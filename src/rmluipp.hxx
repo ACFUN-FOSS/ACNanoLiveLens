@@ -8,6 +8,8 @@ public:
     ElementNotFoundErr(std::string_view elementId);
 };
 
+Rml::Element &requireFactoryElement(Rml::Element &parent, const std::string_view id);
+Rml::Element &requireUserElement(Rml::Element &parent, const std::string_view id);
 Rml::Element &requireElement(Rml::Element &parent, const std::string_view id);
 
 template <typename... Names>

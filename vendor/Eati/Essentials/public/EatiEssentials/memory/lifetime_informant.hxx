@@ -1,14 +1,18 @@
-#ifndef _H_7QIVK
-#define _H_7QIVK
+/*
+ * Copyright (c) 2026 nimshab etWeopd glog aFiRiKaj woiutsu inHLangANo (EATI)
+ */
+
+#ifndef ESS_LIFETIME_INFORMANT_HXX
+#define ESS_LIFETIME_INFORMANT_HXX
 
 #include <chrono>
 #include <concepts>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
-#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memory/memory.hxx>
 
-namespace ElementEngine::QJSBinding
+namespace Essentials::Memory
 {
 
 class LifetimeInformant
@@ -29,7 +33,7 @@ public:
 	LifetimeInformant(LifetimeInformant &&) noexcept;
 	LifetimeInformant &operator=(const LifetimeInformant &);
 	LifetimeInformant &operator=(LifetimeInformant &&) noexcept;
-		
+
 	ESSM::Rc<LifetimeInfo> shareLifetimeInfo();
 
 private:

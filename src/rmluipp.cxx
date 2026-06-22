@@ -7,13 +7,23 @@ ElementNotFoundErr::ElementNotFoundErr(std::string_view elementId)
         std::format("Required element `{}' not found!", elementId)
     } { }
 
-Rml::Element &requireElement(Rml::Element &parent, const std::string_view id) {
+Rml::Element &requireFactoryElement(Rml::Element &parent, const std::string_view id) {
+    auto *result = parent.GetElementById(std::string{ id });
+    assert(result && "Required factory element not found.");
+    return *result;
+}
+
+Rml::Element &requireUserElement(Rml::Element &parent, const std::string_view id) {
     const auto result = parent.GetElementById(std::string{ id });
     if (!result) {
         throw ElementNotFoundErr{ id };
     }
 
     return *result;
+}
+
+Rml::Element &requireElement(Rml::Element &parent, const std::string_view id) {
+    return requireUserElement(parent, id);
 }
 
 InvalidElementDynRefErr::InvalidElementDynRefErr(std::string_view elementQuery)
@@ -208,4 +218,3 @@ void TestListener::ProcessEvent(Rml::Event &event) {
 		std::cout << "TestListener. element clicked. addr = " << element << std::endl;
 	}
 }
-

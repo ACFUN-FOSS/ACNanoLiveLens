@@ -368,6 +368,7 @@ void Backend::SetShouldClose(GLFWwindow *glfw_win) {
 	);
 	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
 
+	winIt->get()->shouldClose = true;
 	glfwSetWindowShouldClose(glfw_win, GLFW_TRUE);
 }
 
@@ -534,15 +535,7 @@ bool Backend::ProcessEvents(bool power_save)
 	else
 		glfwPollEvents();
 
-	// 3. Handling window close
-	for (auto& win : data->windows)
-	{
-		if (glfwWindowShouldClose(win->glfw_win))
-			win->shouldClose = true;
-	}
-
-	
-	// 4. Handling application exit
+	// 3. Handling application exit
 	// false = applicaction should exit
 	// No main window, the application should exit
 	if (data->windows.empty())

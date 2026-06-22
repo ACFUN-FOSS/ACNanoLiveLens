@@ -12,6 +12,7 @@
             	<p id="login-hint">请使用 AcFun 手机应用程序扫描二维码以登入</p>
 			</div>
             <div class="qr-code-container" id="qr-code-container">
+                <p class="qr-code-placeholder" id="qr-code-placeholder">正在启动 AcFun 通用直播后端……</p>
                 <img class="qr-code" id="qr-code"/>
             </div>
             <button class="refresh-btn" id="refresh-btn">刷新二维码</button>

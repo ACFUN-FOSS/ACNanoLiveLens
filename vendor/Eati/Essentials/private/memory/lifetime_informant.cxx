@@ -1,9 +1,9 @@
-#include "ElementQuickJsBinding/lifetime_informant.hxx"
+#include "EatiEssentials/memory/lifetime_informant.hxx"
 #include <format>
 
 using namespace Essentials::Memory;
 
-namespace ElementEngine::QJSBinding
+namespace Essentials::Memory
 {
 
 LifetimeInformant::LifetimeInformant()
@@ -14,7 +14,7 @@ LifetimeInformant::~LifetimeInformant() {
 	info->isAlive = false;
 	info->deathTime = std::chrono::steady_clock::now();
 }
-	
+
 LifetimeInformant::LifetimeInformant(const LifetimeInformant &other)
 	: LifetimeInformant{ } {
 }

@@ -23,7 +23,8 @@
 
 
 // EATI Essentials 头文件（EATI C++ 支持）
-#include <EatiEssentials/memory.hxx>
+#include <EatiEssentials/memory/lifetime_informant.hxx>
+#include <EatiEssentials/memory/memory.hxx>
 #include <EatiEssentials/memsafety.hxx>
 #include <EatiEssentials/special.hxx>
 #include <EatiEssentials/io.hxx>
@@ -49,6 +50,7 @@
 #include "Core/ws.hxx"
 
 namespace stdf = std::filesystem;
+namespace coro = concurrencpp;
 
 #if defined(__clang__)
 #define METAPP_REFLECT __attribute__((annotate("metapp_reflect")))

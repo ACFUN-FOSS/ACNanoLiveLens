@@ -1,5 +1,6 @@
 #include "Core/ws.hxx"
 
+using namespace Essentials::Memory;
 
 
 struct Ws::State
@@ -84,6 +85,27 @@ void Ws::connect() {
 	}
 }
 
+accoro::result<void> Ws::connectAsync(accoro::runtime &corort, Rc<accoro::executor> mainThreadExecutor) {
+	auto te = corort.thread_executor();
+
+
+	co_await accoro::resume_on(te);
+
+	std::exception_ptr excp;
+
+	try{
+		this->connect();
+	} catch(const std::exception &e) {
+		excp = std::current_exception();
+	}
+
+	co_await accoro::resume_on(mainThreadExecutor);
+
+	if (excp)
+		std::rethrow_exception(excp);
+
+	co_return;
+}
 void Ws::disconnect() {
 	if (!m_state || !m_state->isConnected) {
 		return;

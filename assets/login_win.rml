@@ -7,7 +7,6 @@
 <body>
     <winframe id="winframe" title="Login">
         <div class="content login-content" id="content">
-		
 			<div class="login-hint-container">
             	<p id="login-hint">请使用 AcFun 手机应用程序扫描二维码以登入</p>
 			</div>

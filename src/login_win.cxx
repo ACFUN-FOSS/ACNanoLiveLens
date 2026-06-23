@@ -33,7 +33,7 @@ class LoginWin::Impl
 public:
 	Impl()
 		: uiState_{ []() -> UIState {
-			auto &win = getAppState().winManager->createWindow("login", { 660, 660 }, getAssetsDir() / "login_win.rml", true);
+			auto &win = getAppState().winManager->createWindow("login", { 460, 460 }, getAssetsDir() / "login_win.rml", true);
 			SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
 			return { &win, std::move(mainWinRootEleEventMan) };
 		}() } {

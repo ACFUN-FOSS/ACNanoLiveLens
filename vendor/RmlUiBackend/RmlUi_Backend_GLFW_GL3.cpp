@@ -34,6 +34,7 @@
 #include <RmlUi/Core/Input.h>
 #include <RmlUi/Core/Profiling.h>
 #include <GLFW/glfw3.h>
+#include <print>
 #include <stb_image.h>
 #include <algorithm>
 #include <ranges>
@@ -506,6 +507,8 @@ bool Backend::ProcessEvents(bool power_save)
 			float dp_ratio = 1.f;
 			glfwGetFramebufferSize(win->glfw_win, &window_size.x, &window_size.y);
 			glfwGetWindowContentScale(win->glfw_win, &dp_ratio, nullptr);
+
+			std::println("dpi_ratio: {}", dp_ratio);
 
 			win->context->SetDimensions(window_size);
 			win->context->SetDensityIndependentPixelRatio(dp_ratio);

@@ -15,6 +15,10 @@ std::string toDbgString(const Rml::Event &event) {
 	);
 }
 
+std::string toDbgString(Rml::Vector2i pos) {
+	return std::format("pos: {{x={}, y={}}}", pos.x, pos.y);
+}
+
 int randomInt(int min, int max) {
 	static std::random_device r;
 	static std::mt19937 mt{ r() };

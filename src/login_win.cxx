@@ -67,7 +67,6 @@ public:
 
 
 		[](Impl *that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
-			auto keepAsyncOpAlive = std::move(asyncOpScope);
 			try {
 				//std::println("Connect started on thread {}", std::this_thread::get_id());
 				//std::println("impl: {}", ptrToHex(that));

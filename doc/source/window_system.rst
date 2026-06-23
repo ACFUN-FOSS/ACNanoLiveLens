@@ -106,6 +106,12 @@ WinManager 的职责
 - 业务代码主动调用 `UiWin::setShouldClose()`
 - 原生窗口已经被标记为关闭，`WinManager::cleanupClosedWindows()` 观察到 `Backend::ShouldWindowClose(...)`
 
+应用级退出请求也遵循同一原则：
+
+- 例如主循环收到 `Ctrl-C` 或 backend 请求退出时，应先转成“请求关闭所有窗口”
+- 在所有窗口真正销毁前，主循环仍要继续驱动事件处理、协程 executor、窗口更新与清理
+- 不能在仍有未完成异步操作时直接停止驱动主循环并析构 `WinManager`
+
 `UiWin::setShouldClose()` 的行为不是立刻销毁窗口，而是：
 
 - 将内部 `_shouldClose` 设为 `true`

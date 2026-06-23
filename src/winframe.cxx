@@ -37,6 +37,7 @@ void WinFrame::onUpdate() {
 		auto &win = UNWRAP(getAppState().winManager->getWinOfElement(*this));
 		
 		auto deltaMousePos = win.getMousePos() - mousePosWhenBeginDrag_;
+		//dbgLog("Drag delta pos: ", deltaMousePos);
 		win.setWinPos(win.getWinPos() + deltaMousePos);
 	}
 }
@@ -88,6 +89,7 @@ void WinFrame::bindEventHandlers() {
 		auto &win = UNWRAP(getAppState().winManager->getWinOfElement(*this));
 		isDragging_ = true;
 		mousePosWhenBeginDrag_ = win.getMousePos();
+		//dbgLog("Drag begin pos: ", mousePosWhenBeginDrag_);
 	});
 	eventListenerMan_.on("title-bar", "mouseup", [this](Event &event) {
 		dbgLog("Drag end");

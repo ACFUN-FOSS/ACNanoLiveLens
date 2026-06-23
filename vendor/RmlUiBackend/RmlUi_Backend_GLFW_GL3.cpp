@@ -246,6 +246,7 @@ static GLFWwindow* CreateWindowInternal(const char* name, int width, int height,
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 	glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+	//glfwWindowHint(GLFW_TITLEBAR, GLFW_FALSE);
 
 	GLFWwindow* window = glfwCreateWindow(width, height, name, nullptr, shared);
 	if (!window)

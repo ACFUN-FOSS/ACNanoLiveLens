@@ -32,14 +32,13 @@ add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:W0>")
 
 # == Dependencies ==========================
 find_package(Boost REQUIRED COMPONENTS dll stacktrace_from_exception)
-find_package(glfw3 CONFIG REQUIRED)
+#find_package(glfw3 CONFIG REQUIRED)
 find_package(Microsoft.GSL CONFIG REQUIRED)
 find_package(RmlUi CONFIG REQUIRED)
 find_package(portaudio CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(concurrencpp CONFIG REQUIRED)
 find_package(reflectcpp CONFIG REQUIRED)
-find_package(duktape CONFIG REQUIRED)
 find_package(Stb REQUIRED)
 fetch_header_only_library(https://raw.githubusercontent.com/yhirose/cpp-httplib/refs/heads/master/httplib.h httplib)
 fetch_header_only_library(https://raw.githubusercontent.com/mguludag/cpp-pimpl-helper/refs/heads/main/pimpl.hpp cpp_pimpl_helper)
@@ -67,6 +66,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(metapp)
 unset(CMAKE_POLICY_VERSION_MINIMUM)
+
+# glfw (TheCherno fork)
+FetchContent_Declare(
+  glfw
+  GIT_REPOSITORY https://github.com/TheCherno/glfw.git
+  GIT_TAG        origin/master
+)
+FetchContent_MakeAvailable(glfw)
 
 # Import EatiEssentials via FetchContent in order to allow other dependencies
 # require EatiEssentials with `find_package(EatiEssentials)` (if there are)

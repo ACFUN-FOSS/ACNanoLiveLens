@@ -125,9 +125,11 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 			size.x *= static_cast<int>(scale.x);
 			size.y *= static_cast<int>(scale.y);
 
-			if (isMain) {
+			//std::println("size: {}, {}", size.x, size.y);
+
+			//if (isMain) {
 				Backend::SetWindowSize(&win, size);
-			}
+			//}
 
 			auto contextptr = Rml::CreateContext(name, size);
 			if (!contextptr) {

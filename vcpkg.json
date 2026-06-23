@@ -4,6 +4,7 @@
     "boost-process",
     "boost-stacktrace",
     "concurrencpp",
+    "glfw3",
     "cppcodec",
     "cxxopts",
     "glad",

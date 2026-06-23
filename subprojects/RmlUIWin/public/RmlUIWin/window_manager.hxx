@@ -43,8 +43,6 @@ public:
         void ProcessEvent(Rml::Event& event) override;
     };
 
-    UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false);
-
     UiWin(const UiWin &) = delete;
     UiWin& operator=(const UiWin &) = delete;
     UiWin(UiWin &&other) noexcept = delete;
@@ -73,6 +71,8 @@ public:
     void setShouldClose();
 
 private:
+    UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false);
+
     void acquireAsyncOp() noexcept;
     void releaseAsyncOp() noexcept;
     void applyCloseRequestState();
@@ -112,7 +112,7 @@ public:
     WinManager(WinManager&&) = delete;
     WinManager& operator=(WinManager&&) = delete;
 
-    UiWin &transferWin(std::unique_ptr<UiWin>&& window) LIFETIMEBOUND;
+    UiWin &createWindow(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false) LIFETIMEBOUND;
     void updateAll();
     void renderAll();
     void cleanupClosedWindows();
@@ -135,7 +135,7 @@ private:
     void unregisterWindow(const UiWin &window);
     [[nodiscard]] bool isInputAllowedForContext(const Rml::Context *context) const;
 
-    std::vector<std::unique_ptr<UiWin>> wins_;
+    std::vector<ESSM::Box<UiWin>> wins_;
     std::unordered_map<gsl::not_null<Rml::Context *>, gsl::not_null<UiWin *>> context2Win_;
     UiWin *modalWin_ = nullptr;
 };

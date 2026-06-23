@@ -385,7 +385,14 @@ WinManager::~WinManager() {
 	}
 }
 
-UiWin &WinManager::transferWin(std::unique_ptr<UiWin> &&window) LIFETIMEBOUND {
+UiWin &WinManager::createWindow(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain, bool isTransparent) LIFETIMEBOUND {
+	if (isMain) {
+		assert(std::ranges::none_of(wins_, [](const auto &win) {
+			return win->isMainWin();
+		}));
+	}
+
+	auto window = newBox(UiWin{std::move(name), size, std::move(documentPath), isMain, isTransparent});
 	window->_winManager = this;
 	registerWindow(*window);
 	wins_.push_back(std::move(window));
@@ -461,7 +468,8 @@ void WinManager::setModalWin(UiWin *window) {
 }
 
 void WinManager::registerWindow(UiWin &window) {
-	context2Win_.emplace(&window.getContext(), &window);
+	const auto [_, inserted] = context2Win_.emplace(&window.getContext(), &window);
+	assert(inserted);
 }
 
 void WinManager::unregisterWindow(const UiWin &window) {

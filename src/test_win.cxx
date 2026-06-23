@@ -15,10 +15,9 @@ class TestWin::Impl
 public:
 	Impl()
 		: uiState_{ [] -> UIState {
-			auto mainWin = newBox(UiWin{ "main", {}, getAssetsDir() / "test_win.rml", true });
-			auto &mainWinRootEle = mainWin->getRootElement();
+			auto &win = getAppState().winManager->createWindow("main", {}, getAssetsDir() / "test_win.rml", true);
+			auto &mainWinRootEle = win.getRootElement();
 			SimpleEventListenerManager mainWinRootEleEventMan{ mainWinRootEle };
-			auto &win = getAppState().winManager->transferWin(std::move(mainWin));
 			return { &win, std::move(mainWinRootEleEventMan) };
 		}() } {
 		

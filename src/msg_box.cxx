@@ -17,9 +17,8 @@ public:
 		: type_{ type }
 		, text_{ text }
 		, uiState_{ []() -> UIState {
-			auto mainWin = newBox(UiWin{ "msg_box", { 360, 190 }, getAssetsDir() / "msg_box.rml", false });
-			SimpleEventListenerManager mainWinRootEleEventMan{ mainWin->getRootElement() };
-			auto &win = getAppState().winManager->transferWin(std::move(mainWin));
+			auto &win = getAppState().winManager->createWindow("msg_box", { 360, 190 }, getAssetsDir() / "msg_box.rml", false);
+			SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
 			return { &win, std::move(mainWinRootEleEventMan) };
 		}() } {
 		bindEventHandlers();

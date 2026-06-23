@@ -5,6 +5,7 @@
 std::string toDbgString(const std::string_view str);
 //std::string toDbgString(const bool b);
 std::string toDbgString(const Rml::Event &event);
+std::string toDbgString(Rml::Vector2i pos);
 
 
 template <typename T>

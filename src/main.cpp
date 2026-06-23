@@ -19,8 +19,40 @@ using namespace Essentials::IO;
 
 static bool ctrlCPressed = false;
 
+static void runUiFrame(WinManager &winMan, coro::manual_executor &mainThreadExecutor) {
+	mainThreadExecutor.loop_once();
+	winMan.updateAll();
+	winMan.renderAll();
+	winMan.cleanupClosedWindows();
+}
 
+static void drainUiShutdown(WinManager &winMan, coro::manual_executor &mainThreadExecutor) {
+	winMan.requestCloseAllWindows();
 
+	while (winMan.hasOpenWins()) {
+		// Keep pumping events and the coroutine executor until every window
+		// has finished its async work and can be destroyed safely.
+		Backend::ProcessEvents(false);
+		runUiFrame(winMan, mainThreadExecutor);
+	}
+}
+
+static void runUiMainLoop(WinManager &winMan, coro::manual_executor &mainThreadExecutor) {
+	while (winMan.hasOpenWins()) {
+		if (ctrlCPressed) {
+			drainUiShutdown(winMan, mainThreadExecutor);
+			return;
+		}
+
+		const bool shouldContinue = Backend::ProcessEvents(false);
+		if (!shouldContinue) {
+			drainUiShutdown(winMan, mainThreadExecutor);
+			return;
+		}
+
+		runUiFrame(winMan, mainThreadExecutor);
+	}
+}
 
 static void rmluiMain() {
 
@@ -64,29 +96,7 @@ static void rmluiMain() {
 
 		//JSBindings::init(rmlui, danmakuMonitorWin);
 
-		bool shouldExit = false;
-
-        while (!ctrlCPressed && !shouldExit && winMan.hasOpenWins()) {
-            // 处理输入和窗口事件
-            shouldExit = !Backend::ProcessEvents(false);
-
-			// coro
-			mainThreadExecutor->loop_once();
-
-            // 更新所有窗口
-            winMan.updateAll();
-
-            // 渲染所有窗口
-            winMan.renderAll();
-
-            // 清理已關閉的窗口
-            winMan.cleanupClosedWindows();
-        }
-
-		if (ctrlCPressed) {
-			winMan.requestCloseAllWindows();
-			winMan.cleanupClosedWindows();
-		}
+		runUiMainLoop(winMan, *mainThreadExecutor);
 
 		//JSBindings::shutdown();
     }
@@ -101,8 +111,10 @@ int crashHandlerProtectedMain() {
 #endif
 
 	CtrlCLibrary::SetCtrlCHandler([](enum CtrlCLibrary::CtrlSignal signal) {
-		if (signal == CtrlCLibrary::kCtrlCSignal)
+		if (signal == CtrlCLibrary::kCtrlCSignal) {
 			ctrlCPressed = true;
+			std::println("Ctrl+C pressed");
+		}
 		return true;
 	});
 

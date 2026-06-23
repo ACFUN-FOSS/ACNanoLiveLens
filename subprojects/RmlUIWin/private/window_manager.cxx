@@ -378,6 +378,7 @@ WinManager::WinManager() {
 }
 
 WinManager::~WinManager() {
+	assert(!hasOpenWins() && "Should be no open wins after shutdown");
 	wins_.clear();
 	Backend::SetContextInputFilter(nullptr);
 	if (activeWinManager == this) {

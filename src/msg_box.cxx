@@ -4,6 +4,7 @@
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "platform/window_activation_optimization.hxx"
+#include "sound/sound.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -39,6 +40,20 @@ public:
 		auto oldModalWin = winManager.getModalWin();
 		winManager.setModalWin(uiState_.mainWin_);
 		MsgBoxWindowActivationGuard activationGuard{ uiState_.mainWin_->getNativeWin() };
+
+		switch (type_) {
+			case Type::EERR:
+				playSound(Sound::ERRR);
+				break;
+			case Type::EWARN:
+				playSound(Sound::WARNN);
+				break;
+			case Type::EINFO:
+				playSound(Sound::INFO);
+				break;
+			default:
+				break;
+		}
 
 		while (true) {
 			auto shouldContinue = Backend::ProcessEvents(false);

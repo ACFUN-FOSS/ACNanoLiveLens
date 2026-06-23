@@ -30,8 +30,8 @@ static void playOgg(std::string_view oggName) {
 
 void playSound(const Sound sound) {
     switch (sound) {
-        case Sound::FATAL:
-            playOgg("fatal.ogg");
+        case Sound::ERRR:
+            playOgg("information_2.ogg");
             break;
         case Sound::RELOAD:
             playOgg("hot_reload.ogg");

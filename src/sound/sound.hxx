@@ -6,9 +6,9 @@ enum class Sound
     CLICK,
     LOGIN,
     LOGOUT,
+	INFO,
     WARNN,
     ERRR,
-    FATAL,
     RELOAD
 };
 

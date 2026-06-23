@@ -22,9 +22,8 @@ class DanmakuMonitorWin::Impl
 public:
     Impl()
         : uiState_{ [] -> UIState {
-            auto mainWin = newBox(UiWin{ "danmaku_monitor", {466, 666}, getAssetsDir() / "danmaku_monitor.rml", true });
-            SimpleEventListenerManager mainWinRootEleEventMan{ mainWin->getRootElement() };
-            auto &win = getAppState().winManager->transferWin(std::move(mainWin));
+            auto &win = getAppState().winManager->createWindow("danmaku_monitor", {466, 666}, getAssetsDir() / "danmaku_monitor.rml", true);
+            SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
             return { &win, std::move(mainWinRootEleEventMan) };
         }() }
 		, danmakuList_{

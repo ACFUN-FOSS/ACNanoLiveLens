@@ -25,6 +25,12 @@
 - `UiWin` 表示一个具体窗口实例
 - `WinManager` 负责管理当前所有 `UiWin`
 
+当前实现还额外要求：
+
+- `UiWin` 只能由 `WinManager` 创建
+- 业务层只能持有 `UiWin*` / `UiWin&` 这类非拥有引用
+- 不允许业务层先自行构造 `UiWin`，再把所有权移交给 `WinManager`
+
 
 主循环中的角色
 --------------
@@ -69,6 +75,11 @@ WinManager 的职责
 - `wins_`：所有窗口
 - `context2Win_`：`Rml::Context* -> UiWin*`
 - `modalWin_`：当前模态窗口
+
+并且负责：
+
+- 创建 `UiWin` 并立即纳入 `wins_`
+- 在窗口销毁时统一撤销 `context -> UiWin` 映射
 
 其中 `context2Win_` 很关键，因为很多 UI 元素需要通过：
 

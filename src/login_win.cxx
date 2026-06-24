@@ -40,41 +40,16 @@ public:
 		bindEventHandlers();
 		refreshQrCodeUi(false);
 		//centerToMainWin();
-		
-		// 二维码已生成
-		ws.on("7", [&](const WsData &data) {
-			dbgLog("收到二维码");
-			auto respData = nlohmann::json::parse(data.payload)["data"];
-			std::string imageData = respData["imageData"];
-			saveQrCodeImage(imageData, getAssetsDir() / "runtime" / "qrcode.png");
-
-			auto &qrCodeEle = UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"));
-			qrCodeEle.SetAttribute("src", (getAssetsDir() / "runtime" / "qrcode.png").string());
-			refreshQrCodeUi(true);
-
-		});
-		// 二维码已扫描
-		ws.on("8", [&](const WsData&) {
-			UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
-				.SetInnerRML("请确认登入");
-		});
-		// 二维码过期
-		ws.on("9", [&](const WsData&) {
-		});
-		// 登入成功
-		ws.on("10", [&](const WsData& data) {
+		client_.onResp([this](const AnyResp &resp) {
+			handleResp(resp);
 		});
 
 
 		[](Impl *that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
 			try {
-				//std::println("Connect started on thread {}", std::this_thread::get_id());
-				//std::println("impl: {}", ptrToHex(that));
-				co_await that->ws.connectAsync(*getAppState().coroRuntime, getAppState().mainThreadExecutor);
+				co_await that->client_.connectAsync(*getAppState().coroRuntime, getAppState().mainThreadExecutor);
+				that->client_.requestQrCodeLogin();
 			} catch (const std::exception& e) {
-				//std::println("Connect catch on thread {}", std::this_thread::get_id());
-				//std::println("impl: {}", ptrToHex(that));
-
 				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
 				that->uiState_.mainWin_->setShouldClose();
 			}
@@ -105,34 +80,23 @@ private:
 		});
 
 		uiState_.mainWin_->setUpdateCb([this]{
-			ws.execCb();
-
-			// uiState_.frameCount++;
-			// if (uiState_.frameCount > 2) {
-			// 	return;
-			// }
-
-			// try {
-			// 	//
-			// 	if (uiState_.frameCount == 2) {
-			// 		ws.connect();
-			// 		ws.send({ {"type", 7} });
-			// 	}
-			// } catch (const std::exception &e) {
-			// 	//std::println("[错误] 登录窗口更新时出错: {}", e.what());
-			// 	MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
-			// 	uiState_.mainWin_->setShouldClose();
-			// }
+			try {
+				client_.exec();
+			} catch (const AcliveBackendError &e) {
+				std::println("[错误] 后端响应错误: {}", e.what());
+				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, e.meta().error.value_or("后端返回错误"));
+				uiState_.mainWin_->setShouldClose();
+			} catch (const std::exception &e) {
+				std::println("[错误] 处理后端响应时出错: {}", e.what());
+				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "后端响应格式无效");
+				uiState_.mainWin_->setShouldClose();
+			}
 		});
 
 		uiState_.mainWinRootEleEventMan_.clear();
 		uiState_.mainWinRootEleEventMan_.on("refresh-btn", "click", [this](Rml::Event &event) {
-			refreshQrCode();
-			//event.StopPropagation();
+			client_.requestQrCodeLogin();
 		});
-	}
-
-	void refreshQrCode() {
 	}
 
 	void refreshQrCodeUi(bool hasQrCode) {
@@ -142,6 +106,35 @@ private:
 
 		qrCodeEle.SetProperty("display", hasQrCode ? "block" : "none");
 		placeholderEle.SetProperty("display", hasQrCode ? "none" : "block");
+	}
+
+	void handleResp(const AnyResp &resp) {
+		std::visit(overloaded{
+			[this](const QrCodeLoginResp &qrResp) {
+				dbgLog("收到二维码");
+				saveQrCodeImage(qrResp.data.imageData, getAssetsDir() / "runtime" / "qrcode.png");
+
+				auto &qrCodeEle = UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"));
+				qrCodeEle.SetAttribute("src", (getAssetsDir() / "runtime" / "qrcode.png").string());
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+					.SetInnerRML("请使用 AcFun App 扫码登录");
+				refreshQrCodeUi(true);
+			},
+			[this](const QrCodeScannedResp &) {
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+					.SetInnerRML("请确认登入");
+			},
+			[this](const QrCodeLoginTerminatedResp &) {
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+					.SetInnerRML("二维码已过期或已取消，请刷新");
+				refreshQrCodeUi(false);
+			},
+			[this](const QrCodeLoginSuccessResp &) {
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+					.SetInnerRML("登入成功");
+				uiState_.mainWin_->setShouldClose();
+			}
+		}, resp);
 	}
 
 	void centerToMainWin() {
@@ -162,16 +155,9 @@ private:
 	UIState uiState_;
 	bool closePrepared_ = false;
 
-	Ws ws{
-        "ws://localhost:15368/",
-        "type",
-        3s,
-        []() -> nlohmann::json {
-            return {
-                {"type", 1}
-            };
-        }
-    };
+	AcliveBackendClient client_{
+		"ws://localhost:15368/"
+	};
 
 	
 };

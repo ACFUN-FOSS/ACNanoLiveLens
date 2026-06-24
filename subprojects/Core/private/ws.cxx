@@ -144,6 +144,10 @@ void Ws::disconnect() {
 	m_state->ws.reset();
 }
 
+[[nodiscard]] bool Ws::isConnected() const noexcept {
+	return m_state && m_state->isConnected;
+}
+
 void Ws::on(std::string_view event, Callback cb) {
 	m_state->eventCallbacks[std::string(event)] = std::move(cb);
 }
@@ -155,6 +159,12 @@ void Ws::once(std::string_view event, Callback cb) {
 void Ws::send(nlohmann::json data) {
 	if (m_state->isConnected && m_state->ws && m_state->ws->is_open()) {
 		m_state->ws->send(data.dump());
+	}
+}
+
+void Ws::sendText(std::string_view data) {
+	if (m_state->isConnected && m_state->ws && m_state->ws->is_open()) {
+		m_state->ws->send(std::string{ data });
 	}
 }
 

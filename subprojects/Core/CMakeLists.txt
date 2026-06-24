@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(nanolivelens_core
     private/stdafx.cpp
+    private/aclive_backend_client.cxx
     private/ws.cxx
 )
 

@@ -6,7 +6,6 @@
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "msg_box.hxx"
-#include "rfl_custom_type.hxx"
 
 #include "utils.hxx"
 

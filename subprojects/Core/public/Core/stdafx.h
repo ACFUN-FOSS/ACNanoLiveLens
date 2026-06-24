@@ -15,8 +15,13 @@
 #include <unordered_map>
 #include <utility>
 #include <condition_variable>
+#include <cstdint>
 #include <stop_token>
 #include <future>
+#include <vector>
+#include <variant>
+#include <chrono>
+#include <format>
 
 // EATI Essentials 头文件
 #include <EatiEssentials/memory/memory.hxx>
@@ -25,6 +30,10 @@
 #include <cppcodec/base64_rfc4648.hpp>
 #include <nlohmann/json.hpp>
 #include <concurrencpp/concurrencpp.h>
+#include <rfl.hpp>
+#include <rfl/json.hpp>
+
+#include "Core/rfl_custom_type.hxx"
 
 namespace accoro = concurrencpp;
 

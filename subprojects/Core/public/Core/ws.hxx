@@ -28,10 +28,12 @@ public:
 	void connect();
 	accoro::result<void> connectAsync(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor);
 	void disconnect();
+	[[nodiscard]] bool isConnected() const noexcept;
 
 	void on(std::string_view event, Callback cb);
 	void once(std::string_view event, Callback cb);
 	void send(nlohmann::json data);
+	void sendText(std::string_view data);
 
 	void execCb();
 

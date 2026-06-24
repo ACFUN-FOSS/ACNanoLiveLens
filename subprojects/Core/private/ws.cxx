@@ -23,10 +23,15 @@ struct Ws::State
 	std::jthread receiveThread;
 	std::jthread heartbeatThread;
 	std::atomic<bool> isConnected{false};
+	std::atomic<std::int64_t> lastHeartbeatSentAtMs{0};
+	std::atomic<std::int64_t> lastMessageReceivedAtMs{0};
+	std::atomic<int> disconnectReason{ static_cast<int>(Ws::DisconnectReason::None) };
+	std::atomic<std::int64_t> disconnectedAtMs{0};
 
 	void receiveLoop();
 	void heartbeatLoop(std::stop_token stopToken);
 	void enqueueMessage(std::string_view message);
+	void markDisconnected(Ws::DisconnectReason reason);
 };
 
 Ws::Ws(
@@ -61,6 +66,9 @@ void Ws::connect() {
 	if (m_state->isConnected) {
 		return;
 	}
+
+	m_state->disconnectReason.store(static_cast<int>(DisconnectReason::None));
+	m_state->disconnectedAtMs.store(0);
 
 	m_state->ws = std::make_unique<httplib::ws::WebSocketClient>(m_state->url);
 
@@ -108,10 +116,13 @@ accoro::result<void> Ws::connectAsync(accoro::runtime &corort, Rc<accoro::execut
 }
 void Ws::disconnect() {
 	if (!m_state || !m_state->isConnected) {
+		if (m_state) {
+			m_state->markDisconnected(DisconnectReason::Requested);
+		}
 		return;
 	}
 
-	m_state->isConnected = false;
+	m_state->markDisconnected(DisconnectReason::Requested);
 	m_state->heartbeatCv.notify_all();
 
 	// if (m_state->ws && m_state->ws->is_open()) {
@@ -146,6 +157,53 @@ void Ws::disconnect() {
 
 [[nodiscard]] bool Ws::isConnected() const noexcept {
 	return m_state && m_state->isConnected;
+}
+
+[[nodiscard]] std::chrono::system_clock::time_point Ws::getLastHeartbeatSentAt() const noexcept {
+	if (!m_state) {
+		return {};
+	}
+
+	return std::chrono::system_clock::time_point{
+		std::chrono::milliseconds{ m_state->lastHeartbeatSentAtMs.load() }
+	};
+}
+
+[[nodiscard]] std::chrono::system_clock::time_point Ws::getLastMessageReceivedAt() const noexcept {
+	if (!m_state) {
+		return {};
+	}
+
+	return std::chrono::system_clock::time_point{
+		std::chrono::milliseconds{ m_state->lastMessageReceivedAtMs.load() }
+	};
+}
+
+[[nodiscard]] Ws::DisconnectReason Ws::getDisconnectReason() const noexcept {
+	if (!m_state) {
+		return DisconnectReason::None;
+	}
+
+	return static_cast<DisconnectReason>(m_state->disconnectReason.load());
+}
+
+[[nodiscard]] std::chrono::system_clock::time_point Ws::getDisconnectedAt() const noexcept {
+	if (!m_state) {
+		return {};
+	}
+
+	return std::chrono::system_clock::time_point{
+		std::chrono::milliseconds{ m_state->disconnectedAtMs.load() }
+	};
+}
+
+void Ws::clearDisconnectState() noexcept {
+	if (!m_state) {
+		return;
+	}
+
+	m_state->disconnectReason.store(static_cast<int>(DisconnectReason::None));
+	m_state->disconnectedAtMs.store(0);
 }
 
 void Ws::on(std::string_view event, Callback cb) {
@@ -195,14 +253,29 @@ void Ws::State::receiveLoop() {
 	while (isConnected && ws) {
 		auto result = ws->read(message);
 		if (result == httplib::ws::ReadResult::Fail) {
-			isConnected = false;
+			markDisconnected(Ws::DisconnectReason::Unexpected);
 			heartbeatCv.notify_all();
 			break;
 		}
 		else if (result == httplib::ws::ReadResult::Text) {
+			lastMessageReceivedAtMs.store(
+				std::chrono::duration_cast<std::chrono::milliseconds>(
+					std::chrono::system_clock::now().time_since_epoch()
+				).count()
+			);
 			enqueueMessage(message);
 		}
 	}
+}
+
+void Ws::State::markDisconnected(Ws::DisconnectReason reason) {
+	isConnected = false;
+	disconnectReason.store(static_cast<int>(reason));
+	disconnectedAtMs.store(
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch()
+		).count()
+	);
 }
 
 void Ws::State::heartbeatLoop(std::stop_token stopToken) {
@@ -217,6 +290,11 @@ void Ws::State::heartbeatLoop(std::stop_token stopToken) {
 
 		lock.unlock();
 		auto packet = heartbeatGen();
+		lastHeartbeatSentAtMs.store(
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				std::chrono::system_clock::now().time_since_epoch()
+			).count()
+		);
 		ws->send(packet.dump());
 		lock.lock();
 	}

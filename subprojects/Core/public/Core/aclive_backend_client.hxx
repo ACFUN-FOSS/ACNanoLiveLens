@@ -19,6 +19,7 @@ class AcliveBackendClient
 {
 public:
 	using RespHandler = std::function<void(const AnyResp &)>;
+	using ReconnectHandler = std::function<void(std::chrono::system_clock::time_point disconnectAt, std::size_t attemptCount)>;
 
 	AcliveBackendClient(
 		std::string_view url,
@@ -40,6 +41,7 @@ public:
 	void exec();
 
 	void onResp(RespHandler handler);
+	void onReconnectAttempt(ReconnectHandler handler);
 	void requestQrCodeLogin(std::string_view requestID = {});
 
 private:

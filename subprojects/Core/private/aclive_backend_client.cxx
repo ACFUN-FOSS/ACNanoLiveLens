@@ -127,6 +127,10 @@ struct AcliveBackendClient::State
 {
 	Ws ws;
 	std::vector<RespHandler> respHandlers;
+	std::vector<ReconnectHandler> reconnectHandlers;
+	std::optional<std::chrono::system_clock::time_point> disconnectAt;
+	std::size_t reconnectAttemptCount = 0;
+	std::optional<std::string> pendingQrCodeLoginRequestID;
 
 	explicit State(std::string_view url, std::chrono::seconds heartbeatInterval)
 		: ws{
@@ -156,6 +160,26 @@ struct AcliveBackendClient::State
 			handler(resp);
 		}
 	}
+
+	void notifyReconnectAttempt() const {
+		if (!disconnectAt) {
+			std::println("[AcliveBackendClient] notifyReconnectAttempt skipped: disconnectAt is not set.");
+			return;
+		}
+
+		std::println(
+			"[AcliveBackendClient] notifyReconnectAttempt: disconnectAtMs={}, attemptCount={}, handlerCount={}",
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				disconnectAt->time_since_epoch()
+			).count(),
+			reconnectAttemptCount,
+			reconnectHandlers.size()
+		);
+
+		for (const auto &handler : reconnectHandlers) {
+			handler(*disconnectAt, reconnectAttemptCount);
+		}
+	}
 };
 
 AcliveBackendError::AcliveBackendError(AcliveBackendRespMeta meta, std::string message)
@@ -179,10 +203,16 @@ AcliveBackendClient &AcliveBackendClient::operator=(AcliveBackendClient &&other)
 
 void AcliveBackendClient::connect() {
 	state_->ws.connect();
+	state_->ws.clearDisconnectState();
+	state_->disconnectAt.reset();
+	state_->reconnectAttemptCount = 0;
 }
 
 accoro::result<void> AcliveBackendClient::connectAsync(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor) {
 	co_await state_->ws.connectAsync(corort, std::move(mainThreadExecutor));
+	state_->ws.clearDisconnectState();
+	state_->disconnectAt.reset();
+	state_->reconnectAttemptCount = 0;
 }
 
 void AcliveBackendClient::disconnect() {
@@ -195,10 +225,138 @@ void AcliveBackendClient::disconnect() {
 
 void AcliveBackendClient::exec() {
 	state_->ws.execCb();
+
+	if (!state_->ws.isConnected()) {
+		const auto reason = state_->ws.getDisconnectReason();
+		const auto disconnectedAt = state_->ws.getDisconnectedAt();
+		std::println(
+			"[AcliveBackendClient] exec: ws is not connected, reason={}, disconnectedAtMs={}.",
+			static_cast<int>(reason),
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				disconnectedAt.time_since_epoch()
+			).count()
+		);
+
+		if (reason != Ws::DisconnectReason::Unexpected) {
+			std::println("[AcliveBackendClient] exec: disconnect is not unexpected, skipping reconnect.");
+			return;
+		}
+
+		if (!state_->disconnectAt) {
+			state_->disconnectAt = disconnectedAt;
+			state_->reconnectAttemptCount = 0;
+			std::println(
+				"[AcliveBackendClient] exec: unexpected disconnect detected, disconnectAtMs={}.",
+				std::chrono::duration_cast<std::chrono::milliseconds>(
+					state_->disconnectAt->time_since_epoch()
+				).count()
+			);
+		}
+
+		++state_->reconnectAttemptCount;
+		state_->notifyReconnectAttempt();
+
+		std::println(
+			"[AcliveBackendClient] exec: starting reconnect attempt {} after unexpected disconnect.",
+			state_->reconnectAttemptCount
+		);
+		state_->ws.connect();
+		state_->ws.clearDisconnectState();
+		std::println(
+			"[AcliveBackendClient] exec: reconnect attempt {} succeeded.",
+			state_->reconnectAttemptCount
+		);
+
+		if (state_->pendingQrCodeLoginRequestID) {
+			std::println(
+				"[AcliveBackendClient] exec: re-sending pending qr code login request, requestID={}.",
+				*state_->pendingQrCodeLoginRequestID
+			);
+			requestQrCodeLogin(*state_->pendingQrCodeLoginRequestID);
+		}
+		return;
+	}
+
+	const auto lastHeartbeatSentAt = state_->ws.getLastHeartbeatSentAt();
+	if (lastHeartbeatSentAt == std::chrono::system_clock::time_point{}) {
+		std::println("[AcliveBackendClient] exec: no heartbeat has been sent yet.");
+		return;
+	}
+
+	const auto lastMessageReceivedAt = state_->ws.getLastMessageReceivedAt();
+	std::println(
+		"[AcliveBackendClient] exec: heartbeatSentAtMs={}, lastMessageReceivedAtMs={}",
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			lastHeartbeatSentAt.time_since_epoch()
+		).count(),
+		std::chrono::duration_cast<std::chrono::milliseconds>(
+			lastMessageReceivedAt.time_since_epoch()
+		).count()
+	);
+	if (lastMessageReceivedAt >= lastHeartbeatSentAt) {
+		if (state_->disconnectAt || state_->reconnectAttemptCount != 0) {
+			std::println("[AcliveBackendClient] exec: connection looks healthy again, clearing reconnect state.");
+		}
+		state_->ws.clearDisconnectState();
+		state_->disconnectAt.reset();
+		state_->reconnectAttemptCount = 0;
+		return;
+	}
+
+	const auto now = std::chrono::system_clock::now();
+	if (now - lastHeartbeatSentAt <= 3s) {
+		std::println(
+			"[AcliveBackendClient] exec: heartbeat timeout has not been reached yet, elapsedMs={}",
+			std::chrono::duration_cast<std::chrono::milliseconds>(now - lastHeartbeatSentAt).count()
+		);
+		return;
+	}
+
+	if (!state_->disconnectAt) {
+		state_->disconnectAt = now;
+		state_->reconnectAttemptCount = 0;
+		std::println(
+			"[AcliveBackendClient] exec: heartbeat timeout detected, disconnectAtMs={}",
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				state_->disconnectAt->time_since_epoch()
+			).count()
+		);
+	}
+
+	std::println("[AcliveBackendClient] exec: disconnecting ws before reconnect attempt.");
+	state_->ws.disconnect();
+	++state_->reconnectAttemptCount;
+	state_->notifyReconnectAttempt();
+
+	std::println(
+		"[AcliveBackendClient] exec: starting reconnect attempt {}.",
+		state_->reconnectAttemptCount
+	);
+	state_->ws.connect();
+	std::println(
+		"[AcliveBackendClient] exec: reconnect attempt {} succeeded.",
+		state_->reconnectAttemptCount
+	);
+
+	if (state_->pendingQrCodeLoginRequestID) {
+		std::println(
+			"[AcliveBackendClient] exec: re-sending pending qr code login request, requestID={}.",
+			*state_->pendingQrCodeLoginRequestID
+		);
+		requestQrCodeLogin(*state_->pendingQrCodeLoginRequestID);
+	}
 }
 
 void AcliveBackendClient::onResp(RespHandler handler) {
 	state_->respHandlers.push_back(std::move(handler));
+}
+
+void AcliveBackendClient::onReconnectAttempt(ReconnectHandler handler) {
+	state_->reconnectHandlers.push_back(std::move(handler));
+	std::println(
+		"[AcliveBackendClient] onReconnectAttempt: registered handler, handlerCount={}.",
+		state_->reconnectHandlers.size()
+	);
 }
 
 void AcliveBackendClient::requestQrCodeLogin(std::string_view requestID) {
@@ -207,6 +365,7 @@ void AcliveBackendClient::requestQrCodeLogin(std::string_view requestID) {
 	}
 
 	const auto actualRequestID = requestID.empty() ? makeRequestID() : std::string{ requestID };
+	state_->pendingQrCodeLoginRequestID = actualRequestID;
 	state_->ws.sendText(rfl::json::write(QrCodeLoginReqWire{
 		.type = QrCodeLoginResp::type,
 		.requestID = actualRequestID,

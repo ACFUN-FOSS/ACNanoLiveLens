@@ -135,11 +135,14 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 
 			auto contextptr = Rml::CreateContext(name, size);
 			if (!contextptr) {
+				Backend::DestroyWindow(&win);
 				throw std::runtime_error("Failed to create context for window: "s + name);
 			}
 
 			auto documentptr = contextptr->LoadDocument(documentPath.string());
 			if (!documentptr) {
+				Rml::RemoveContext(contextptr->GetName());
+				Backend::DestroyWindow(&win);
 				throw std::runtime_error("Failed to load document for window: "s + name);
 			}
 

@@ -121,11 +121,13 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 				return *winptr;
 			}();
 
-			auto scale = Backend::GetMonitorContentScale();
-			size.x *= static_cast<int>(scale.x);
-			size.y *= static_cast<int>(scale.y);
+			std::println("raw size: {}, {}", size.x, size.y);
 
-			//std::println("size: {}, {}", size.x, size.y);
+			auto scale = Backend::GetMonitorContentScale();
+
+			size.x = static_cast<int>(size.x * scale.x);
+			size.y = static_cast<int>(size.y * scale.y);
+			std::println("scale: {}, {}, size: {}, {}", scale.x, scale.y, size.x, size.y);
 
 			//if (isMain) {
 				Backend::SetWindowSize(&win, size);

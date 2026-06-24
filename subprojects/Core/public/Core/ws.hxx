@@ -8,6 +8,12 @@ struct WsData {
 
 class Ws {
 public:
+	enum class DisconnectReason {
+		None,
+		Requested,
+		Unexpected,
+	};
+
 	using Callback = std::function<void(const WsData&)>;
 	using HeartbeatGenerator = std::function<nlohmann::json()>;
 
@@ -29,6 +35,11 @@ public:
 	accoro::result<void> connectAsync(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor);
 	void disconnect();
 	[[nodiscard]] bool isConnected() const noexcept;
+	[[nodiscard]] std::chrono::system_clock::time_point getLastHeartbeatSentAt() const noexcept;
+	[[nodiscard]] std::chrono::system_clock::time_point getLastMessageReceivedAt() const noexcept;
+	[[nodiscard]] DisconnectReason getDisconnectReason() const noexcept;
+	[[nodiscard]] std::chrono::system_clock::time_point getDisconnectedAt() const noexcept;
+	void clearDisconnectState() noexcept;
 
 	void on(std::string_view event, Callback cb);
 	void once(std::string_view event, Callback cb);

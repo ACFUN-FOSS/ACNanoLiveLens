@@ -43,6 +43,9 @@ public:
 		client_.onResp([this](const AnyResp &resp) {
 			handleResp(resp);
 		});
+		client_.onReconnectAttempt([this](std::chrono::system_clock::time_point disconnectAt, std::size_t attemptCount) {
+			std::println("[重连] 尝试次数: {}", attemptCount);
+		});
 
 
 		[](Impl *that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
@@ -68,7 +71,7 @@ public:
 private:
 	struct UIState
 	{
-		gsl::not_null<UiWin *> mainWin_;
+		gsl::not_null<UiWin *> mainWin_ LIFETIMEBOUND;
 		SimpleEventListenerManager mainWinRootEleEventMan_;
 		int frameCount = 0;
 	};

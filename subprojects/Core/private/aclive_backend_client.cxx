@@ -131,6 +131,7 @@ struct AcliveBackendClient::State
 	std::optional<std::chrono::system_clock::time_point> disconnectAt;
 	std::size_t reconnectAttemptCount = 0;
 	std::optional<std::string> pendingQrCodeLoginRequestID;
+	std::chrono::system_clock::time_point nextReconnectAttemptAt{};
 
 	explicit State(std::string_view url, std::chrono::seconds heartbeatInterval)
 		: ws{
@@ -203,16 +204,16 @@ AcliveBackendClient &AcliveBackendClient::operator=(AcliveBackendClient &&other)
 
 void AcliveBackendClient::connect() {
 	state_->ws.connect();
-	state_->ws.clearDisconnectState();
 	state_->disconnectAt.reset();
 	state_->reconnectAttemptCount = 0;
+	state_->nextReconnectAttemptAt = {};
 }
 
 accoro::result<void> AcliveBackendClient::connectAsync(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor) {
 	co_await state_->ws.connectAsync(corort, std::move(mainThreadExecutor));
-	state_->ws.clearDisconnectState();
 	state_->disconnectAt.reset();
 	state_->reconnectAttemptCount = 0;
+	state_->nextReconnectAttemptAt = {};
 }
 
 void AcliveBackendClient::disconnect() {
@@ -245,12 +246,24 @@ void AcliveBackendClient::exec() {
 		if (!state_->disconnectAt) {
 			state_->disconnectAt = disconnectedAt;
 			state_->reconnectAttemptCount = 0;
+			state_->nextReconnectAttemptAt = disconnectedAt;
 			std::println(
 				"[AcliveBackendClient] exec: unexpected disconnect detected, disconnectAtMs={}.",
 				std::chrono::duration_cast<std::chrono::milliseconds>(
 					state_->disconnectAt->time_since_epoch()
 				).count()
 			);
+		}
+
+		const auto now = std::chrono::system_clock::now();
+		if (now < state_->nextReconnectAttemptAt) {
+			std::println(
+				"[AcliveBackendClient] exec: waiting for next reconnect slot, remainingMs={}.",
+				std::chrono::duration_cast<std::chrono::milliseconds>(
+					state_->nextReconnectAttemptAt - now
+				).count()
+			);
+			return;
 		}
 
 		++state_->reconnectAttemptCount;
@@ -260,12 +273,25 @@ void AcliveBackendClient::exec() {
 			"[AcliveBackendClient] exec: starting reconnect attempt {} after unexpected disconnect.",
 			state_->reconnectAttemptCount
 		);
-		state_->ws.connect();
-		state_->ws.clearDisconnectState();
-		std::println(
-			"[AcliveBackendClient] exec: reconnect attempt {} succeeded.",
-			state_->reconnectAttemptCount
-		);
+		try {
+			state_->ws.connect();
+			state_->nextReconnectAttemptAt = {};
+			std::println(
+				"[AcliveBackendClient] exec: reconnect attempt {} succeeded.",
+				state_->reconnectAttemptCount
+			);
+		} catch (const std::exception &e) {
+			state_->nextReconnectAttemptAt = now + 1s;
+			std::println(
+				"[AcliveBackendClient] exec: reconnect attempt {} failed: {}. nextRetryAtMs={}.",
+				state_->reconnectAttemptCount,
+				e.what(),
+				std::chrono::duration_cast<std::chrono::milliseconds>(
+					state_->nextReconnectAttemptAt.time_since_epoch()
+				).count()
+			);
+			return;
+		}
 
 		if (state_->pendingQrCodeLoginRequestID) {
 			std::println(
@@ -297,9 +323,9 @@ void AcliveBackendClient::exec() {
 		if (state_->disconnectAt || state_->reconnectAttemptCount != 0) {
 			std::println("[AcliveBackendClient] exec: connection looks healthy again, clearing reconnect state.");
 		}
-		state_->ws.clearDisconnectState();
 		state_->disconnectAt.reset();
 		state_->reconnectAttemptCount = 0;
+		state_->nextReconnectAttemptAt = {};
 		return;
 	}
 
@@ -315,6 +341,7 @@ void AcliveBackendClient::exec() {
 	if (!state_->disconnectAt) {
 		state_->disconnectAt = now;
 		state_->reconnectAttemptCount = 0;
+		state_->nextReconnectAttemptAt = now;
 		std::println(
 			"[AcliveBackendClient] exec: heartbeat timeout detected, disconnectAtMs={}",
 			std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -325,6 +352,7 @@ void AcliveBackendClient::exec() {
 
 	std::println("[AcliveBackendClient] exec: disconnecting ws before reconnect attempt.");
 	state_->ws.disconnect();
+	state_->nextReconnectAttemptAt = now;
 	++state_->reconnectAttemptCount;
 	state_->notifyReconnectAttempt();
 
@@ -332,11 +360,25 @@ void AcliveBackendClient::exec() {
 		"[AcliveBackendClient] exec: starting reconnect attempt {}.",
 		state_->reconnectAttemptCount
 	);
-	state_->ws.connect();
-	std::println(
-		"[AcliveBackendClient] exec: reconnect attempt {} succeeded.",
-		state_->reconnectAttemptCount
-	);
+	try {
+		state_->ws.connect();
+		state_->nextReconnectAttemptAt = {};
+		std::println(
+			"[AcliveBackendClient] exec: reconnect attempt {} succeeded.",
+			state_->reconnectAttemptCount
+		);
+	} catch (const std::exception &e) {
+		state_->nextReconnectAttemptAt = now + 1s;
+		std::println(
+			"[AcliveBackendClient] exec: reconnect attempt {} failed: {}. nextRetryAtMs={}.",
+			state_->reconnectAttemptCount,
+			e.what(),
+			std::chrono::duration_cast<std::chrono::milliseconds>(
+				state_->nextReconnectAttemptAt.time_since_epoch()
+			).count()
+		);
+		return;
+	}
 
 	if (state_->pendingQrCodeLoginRequestID) {
 		std::println(

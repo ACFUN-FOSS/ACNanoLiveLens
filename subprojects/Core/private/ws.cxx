@@ -67,9 +67,6 @@ void Ws::connect() {
 		return;
 	}
 
-	m_state->disconnectReason.store(static_cast<int>(DisconnectReason::None));
-	m_state->disconnectedAtMs.store(0);
-
 	m_state->ws = std::make_unique<httplib::ws::WebSocketClient>(m_state->url);
 
 	if (!m_state->ws->is_valid()) {
@@ -81,6 +78,7 @@ void Ws::connect() {
 	}
 
 	m_state->isConnected = true;
+	clearDisconnectState();
 
 	m_state->receiveThread = std::jthread([state = m_state.get()](std::stop_token) {
 		state->receiveLoop();

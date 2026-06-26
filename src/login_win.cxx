@@ -71,7 +71,7 @@ public:
 private:
 	struct UIState
 	{
-		gsl::not_null<UiWin *> mainWin_ LIFETIMEBOUND;
+		gsl::not_null<UiWin *> mainWin_ LIFETIMEBOUND_MEMBER;
 		SimpleEventListenerManager mainWinRootEleEventMan_;
 		int frameCount = 0;
 	};
@@ -91,8 +91,8 @@ private:
 				uiState_.mainWin_->setShouldClose();
 			} catch (const std::exception &e) {
 				std::println("[错误] 处理后端响应时出错: {}", e.what());
-				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "后端响应格式无效");
-				uiState_.mainWin_->setShouldClose();
+				//MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "后端响应格式无效");
+				//uiState_.mainWin_->setShouldClose();
 			}
 		});
 

@@ -34,11 +34,12 @@ public:
 	AcliveBackendClient &operator=(const AcliveBackendClient &) = delete;
 
 	void connect();
-	accoro::result<void> connectAsync(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor);
+	accoro::result<void> connectAsync();
 	void disconnect();
 	[[nodiscard]] bool isConnected() const noexcept;
 
 	void exec();
+	void bindRuntime(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor);
 
 	void onResp(RespHandler handler);
 	void onReconnectAttempt(ReconnectHandler handler);

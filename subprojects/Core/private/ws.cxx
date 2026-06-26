@@ -1,37 +1,81 @@
 #include "Core/ws.hxx"
 
+using namespace std::chrono_literals;
 using namespace Essentials::Memory;
 
 
+namespace {
+
+constexpr auto heartbeatTimeout = std::chrono::seconds{ 3 };
+
+} // namespace
+
 struct Ws::State
 {
+	struct ReconnectState
+	{
+		std::optional<std::chrono::system_clock::time_point> disconnectAt;
+		std::size_t attemptCount = 0;
+		std::chrono::system_clock::time_point nextAttemptAt{};
+		std::optional<accoro::result<void>> result;
+		std::jthread thread;
+		std::mutex resultMutex;
+		std::vector<ReconnectHandler> handlers;
+	};
+
+	// Immutable configuration.
 	std::string url;
 	std::string eventFieldName;
 	std::chrono::seconds heartbeatInterval;
 	HeartbeatGenerator heartbeatGen;
 
-	std::unique_ptr<httplib::ws::WebSocketClient> ws;
-
+	// Control plane: protected by controlMutex.
+	mutable std::mutex controlMutex;
+	ConnectionState connectionState = ConnectionState::Disconnected;
+	std::shared_ptr<httplib::ws::WebSocketClient> ws;
 	std::unordered_map<std::string, Callback> eventCallbacks;
 	std::unordered_map<std::string, Callback> onceCallbacks;
+	std::jthread receiveThread;
+	std::jthread heartbeatThread;
+	DisconnectReason disconnectReason = DisconnectReason::None;
+	std::chrono::system_clock::time_point disconnectedAt{};
+	std::chrono::system_clock::time_point lastHeartbeatSentAt{};
+	std::chrono::system_clock::time_point lastMessageReceivedAt{};
+	accoro::runtime *runtime = nullptr;
+	ESSM::Rc<accoro::executor> mainThreadExecutor;
+	ReconnectState reconnect;
 
+	// Message queue: protected separately because it is consumed on the main thread
+	// and produced by the receive thread.
 	std::deque<WsData> messageQueue;
 	std::mutex messageQueueMutex;
+
+	// Heartbeat thread coordination.
 	std::condition_variable heartbeatCv;
 	std::mutex heartbeatMutex;
 
-	std::jthread receiveThread;
-	std::jthread heartbeatThread;
-	std::atomic<bool> isConnected{false};
-	std::atomic<std::int64_t> lastHeartbeatSentAtMs{0};
-	std::atomic<std::int64_t> lastMessageReceivedAtMs{0};
-	std::atomic<int> disconnectReason{ static_cast<int>(Ws::DisconnectReason::None) };
-	std::atomic<std::int64_t> disconnectedAtMs{0};
+	State(
+		std::string url,
+		std::string eventFieldName,
+		std::chrono::seconds heartbeatInterval,
+		HeartbeatGenerator heartbeatGen
+	)
+		: url{ std::move(url) }
+		, eventFieldName{ std::move(eventFieldName) }
+		, heartbeatInterval{ heartbeatInterval }
+		, heartbeatGen{ std::move(heartbeatGen) } {
+	}
 
-	void receiveLoop();
-	void heartbeatLoop(std::stop_token stopToken);
+	void receiveLoop(std::shared_ptr<httplib::ws::WebSocketClient> ws);
+	void heartbeatLoop(std::stop_token stopToken, std::shared_ptr<httplib::ws::WebSocketClient> ws);
+	void connectBlocking();
+	void clearDisconnectState() noexcept;
 	void enqueueMessage(std::string_view message);
 	void markDisconnected(Ws::DisconnectReason reason);
+	[[nodiscard]] bool isConnectedNoLock() const noexcept;
+	void resetReconnectState();
+	void noteDisconnect(std::chrono::system_clock::time_point disconnectedAt);
+	void notifyReconnectAttempt() const;
 };
 
 Ws::Ws(
@@ -40,12 +84,12 @@ Ws::Ws(
 	std::chrono::seconds heartbeatInterval,
 	HeartbeatGenerator heartbeatGen
 )
-	: m_state{ newBox(State{
+	: m_state{ std::make_shared<State>(
 		std::string{ url },
 		std::string{ eventFieldName },
 		heartbeatInterval,
 		std::move(heartbeatGen)
-	}) } {}
+	) } {}
 
 Ws::~Ws() {
 	disconnect();
@@ -63,64 +107,115 @@ Ws& Ws::operator=(Ws&& other) noexcept {
 }
 
 void Ws::connect() {
-	if (m_state->isConnected) {
+	if (!m_state) {
 		return;
 	}
 
-	m_state->ws = std::make_unique<httplib::ws::WebSocketClient>(m_state->url);
-
-	if (!m_state->ws->is_valid()) {
-		throw std::runtime_error("Invalid WebSocket URL: " + m_state->url);
-	}
-
-	if (!m_state->ws->connect()) {
-		throw std::runtime_error("Failed to connect to WebSocket server: " + m_state->url);
-	}
-
-	m_state->isConnected = true;
-	clearDisconnectState();
-
-	m_state->receiveThread = std::jthread([state = m_state.get()](std::stop_token) {
-		state->receiveLoop();
-	});
-
-	if (m_state->heartbeatInterval.count() > 0 && m_state->heartbeatGen) {
-		m_state->heartbeatThread = std::jthread([state = m_state.get()](std::stop_token stopToken) {
-			state->heartbeatLoop(stopToken);
-		});
-	}
+	m_state->connectBlocking();
 }
 
-accoro::result<void> Ws::connectAsync(accoro::runtime &corort, Rc<accoro::executor> mainThreadExecutor) {
-	auto te = corort.thread_executor();
+accoro::result<void> Ws::connectAsync() {
+	accoro::result_promise<void> promise;
+	auto result = promise.get_result();
+	auto state = m_state;
+	if (!state) {
+		co_return;
+	}
 
 
-	co_await accoro::resume_on(te);
+	state->reconnect.thread = std::jthread(
+		[state, promise = std::move(promise)]() mutable {
+			std::lock_guard resultLock{ state->reconnect.resultMutex };
+			try {
+				state->connectBlocking();
+				state->resetReconnectState();
+				promise.set_result();
+				std::println("Ws::connectAsync: Connected");
+			} catch (...) {
+				std::println("Ws::connectAsync: Exception in connectBlocking");
+				promise.set_exception(std::current_exception());
+				
+			}
+		}
+	);
 
 	std::exception_ptr excp;
 
-	try{
-		this->connect();
-	} catch(const std::exception &e) {
+	auto threadIdBefore = std::this_thread::get_id();
+
+	try {
+		co_await result;
+	} catch (...) {
 		excp = std::current_exception();
 	}
 
+	auto mainThreadExecutor = [&](){
+		std::lock_guard lock{ state->controlMutex };
+		return state->mainThreadExecutor;
+	}();
+	
 	co_await accoro::resume_on(mainThreadExecutor);
 
-	if (excp)
-		std::rethrow_exception(excp);
+	auto threadIdAfter = std::this_thread::get_id();
 
+	assert("Ws::connectAsync: threadIdBefore == threadIdAfter" && threadIdBefore == threadIdAfter);
+	if (excp) {
+		std::rethrow_exception(excp);
+	}
 	co_return;
+
 }
+
 void Ws::disconnect() {
-	if (!m_state || !m_state->isConnected) {
-		if (m_state) {
-			m_state->markDisconnected(DisconnectReason::Requested);
-		}
+	if (!m_state) {
 		return;
 	}
 
-	m_state->markDisconnected(DisconnectReason::Requested);
+	std::shared_ptr<httplib::ws::WebSocketClient> ws;
+	std::jthread receiveThread;
+	std::jthread heartbeatThread;
+	std::jthread reconnectThread;
+	bool shouldFinalize = false;
+
+	{
+		std::lock_guard lock(m_state->controlMutex);
+		if (m_state->connectionState == ConnectionState::Disconnected) {
+			m_state->markDisconnected(DisconnectReason::Requested);
+			receiveThread = std::move(m_state->receiveThread);
+			heartbeatThread = std::move(m_state->heartbeatThread);
+			reconnectThread = std::move(m_state->reconnect.thread);
+			shouldFinalize = true;
+
+		}
+		else if (m_state->connectionState == ConnectionState::Connecting) {
+			m_state->markDisconnected(DisconnectReason::Requested);
+			m_state->connectionState = ConnectionState::Disconnecting;
+			receiveThread = std::move(m_state->receiveThread);
+			heartbeatThread = std::move(m_state->heartbeatThread);
+			reconnectThread = std::move(m_state->reconnect.thread);
+			shouldFinalize = true;
+		}
+		else if (m_state->connectionState == ConnectionState::Disconnecting) {
+			receiveThread = std::move(m_state->receiveThread);
+			heartbeatThread = std::move(m_state->heartbeatThread);
+			reconnectThread = std::move(m_state->reconnect.thread);
+			shouldFinalize = true;
+		}
+		else {
+			m_state->connectionState = ConnectionState::Disconnecting;
+			m_state->markDisconnected(DisconnectReason::Requested);
+			ws = std::move(m_state->ws);
+			receiveThread = std::move(m_state->receiveThread);
+			heartbeatThread = std::move(m_state->heartbeatThread);
+			reconnectThread = std::move(m_state->reconnect.thread);
+			shouldFinalize = true;
+		}
+	}
+
+	if (!shouldFinalize) {
+		return;
+	}
+
 	m_state->heartbeatCv.notify_all();
 
 	// if (m_state->ws && m_state->ws->is_open()) {
@@ -128,33 +223,56 @@ void Ws::disconnect() {
 	// 	m_state->ws->close();
 	// 	std::println("Closing Ws Connection: OK");
 	// }
-
-	//std::println("Joinging heartbeatThread");
-	if (m_state->heartbeatThread.joinable()) {
-		m_state->heartbeatThread.request_stop();
-		m_state->heartbeatThread.join();
+	if (heartbeatThread.joinable()) {
+		heartbeatThread.request_stop();
+		heartbeatThread.join();
 	}
-	//std::println("Joinging receiveThread");
 
-	if (m_state->receiveThread.joinable()) {
-		m_state->receiveThread.request_stop();
-		//m_state->receiveThread.join();
-		std::println("Ws::disconnect: TODO: Gracefully stoping receiveThread has not been implemented. Killing it.");
-		// I'm so sorry that I have no way to let `ws.read` exit
-		// TODO:
+	if (receiveThread.joinable()) {
+		receiveThread.request_stop();
+		// httplib websocket read is a blocking call with no cooperative stop API.
+		// Once the thread is blocked inside that call, the only reliable shutdown path
+		// available here is to terminate the thread at the platform layer.
 		#ifdef WIN32
-		HANDLE hNative = m_state->receiveThread.native_handle();
+		HANDLE hNative = receiveThread.native_handle();
 		TerminateThread(hNative, 1);
 		#endif
-		m_state->receiveThread.detach();
+		receiveThread.detach();
 	}
-	//std::println("Joinging threads: OK");
 
+	if (reconnectThread.joinable()) {
+		reconnectThread.request_stop();
+		// The reconnect thread can be blocked inside httplib's connect path, which also
+		// has no stop_token-aware cancellation hook. We therefore mirror the receive
+		// thread shutdown strategy and force termination during teardown.
+		#ifdef WIN32
+		HANDLE hNative = reconnectThread.native_handle();
+		TerminateThread(hNative, 1);
+		#endif
+		reconnectThread.detach();
+	}
+
+	std::lock_guard lock(m_state->controlMutex);
 	m_state->ws.reset();
+	m_state->connectionState = ConnectionState::Disconnected;
 }
 
 [[nodiscard]] bool Ws::isConnected() const noexcept {
-	return m_state && m_state->isConnected;
+	if (!m_state) {
+		return false;
+	}
+
+	std::lock_guard lock(m_state->controlMutex);
+	return m_state->connectionState == ConnectionState::Connected;
+}
+
+[[nodiscard]] Ws::ConnectionState Ws::getConnectionState() const noexcept {
+	if (!m_state) {
+		return ConnectionState::Disconnected;
+	}
+
+	std::lock_guard lock(m_state->controlMutex);
+	return m_state->connectionState;
 }
 
 [[nodiscard]] std::chrono::system_clock::time_point Ws::getLastHeartbeatSentAt() const noexcept {
@@ -162,9 +280,8 @@ void Ws::disconnect() {
 		return {};
 	}
 
-	return std::chrono::system_clock::time_point{
-		std::chrono::milliseconds{ m_state->lastHeartbeatSentAtMs.load() }
-	};
+	std::lock_guard lock(m_state->controlMutex);
+	return m_state->lastHeartbeatSentAt;
 }
 
 [[nodiscard]] std::chrono::system_clock::time_point Ws::getLastMessageReceivedAt() const noexcept {
@@ -172,9 +289,8 @@ void Ws::disconnect() {
 		return {};
 	}
 
-	return std::chrono::system_clock::time_point{
-		std::chrono::milliseconds{ m_state->lastMessageReceivedAtMs.load() }
-	};
+	std::lock_guard lock(m_state->controlMutex);
+	return m_state->lastMessageReceivedAt;
 }
 
 [[nodiscard]] Ws::DisconnectReason Ws::getDisconnectReason() const noexcept {
@@ -182,7 +298,8 @@ void Ws::disconnect() {
 		return DisconnectReason::None;
 	}
 
-	return static_cast<DisconnectReason>(m_state->disconnectReason.load());
+	std::lock_guard lock(m_state->controlMutex);
+	return m_state->disconnectReason;
 }
 
 [[nodiscard]] std::chrono::system_clock::time_point Ws::getDisconnectedAt() const noexcept {
@@ -190,9 +307,13 @@ void Ws::disconnect() {
 		return {};
 	}
 
-	return std::chrono::system_clock::time_point{
-		std::chrono::milliseconds{ m_state->disconnectedAtMs.load() }
-	};
+	std::lock_guard lock(m_state->controlMutex);
+	return m_state->disconnectedAt;
+}
+
+void Ws::bindRuntime(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor) {
+	m_state->runtime = &corort;
+	m_state->mainThreadExecutor = std::move(mainThreadExecutor);
 }
 
 void Ws::clearDisconnectState() noexcept {
@@ -200,27 +321,50 @@ void Ws::clearDisconnectState() noexcept {
 		return;
 	}
 
-	m_state->disconnectReason.store(static_cast<int>(DisconnectReason::None));
-	m_state->disconnectedAtMs.store(0);
+	m_state->clearDisconnectState();
 }
 
 void Ws::on(std::string_view event, Callback cb) {
+	std::lock_guard lock(m_state->controlMutex);
 	m_state->eventCallbacks[std::string(event)] = std::move(cb);
 }
 
 void Ws::once(std::string_view event, Callback cb) {
+	std::lock_guard lock(m_state->controlMutex);
 	m_state->onceCallbacks[std::string(event)] = std::move(cb);
 }
 
+void Ws::onReconnectAttempt(ReconnectHandler handler) {
+	m_state->reconnect.handlers.push_back(std::move(handler));
+}
+
 void Ws::send(nlohmann::json data) {
-	if (m_state->isConnected && m_state->ws && m_state->ws->is_open()) {
-		m_state->ws->send(data.dump());
+	std::shared_ptr<httplib::ws::WebSocketClient> ws;
+	{
+		std::lock_guard lock(m_state->controlMutex);
+		if (m_state->connectionState != ConnectionState::Connected) {
+			return;
+		}
+		ws = m_state->ws;
+	}
+
+	if (ws && ws->is_open()) {
+		ws->send(data.dump());
 	}
 }
 
 void Ws::sendText(std::string_view data) {
-	if (m_state->isConnected && m_state->ws && m_state->ws->is_open()) {
-		m_state->ws->send(std::string{ data });
+	std::shared_ptr<httplib::ws::WebSocketClient> ws;
+	{
+		std::lock_guard lock(m_state->controlMutex);
+		if (m_state->connectionState != ConnectionState::Connected) {
+			return;
+		}
+		ws = m_state->ws;
+	}
+
+	if (ws && ws->is_open()) {
+		ws->send(std::string{ data });
 	}
 }
 
@@ -233,54 +377,249 @@ void Ws::execCb() {
 	}
 
 	for (const auto& msg : localQueue) {
-		auto onceIt = m_state->onceCallbacks.find(msg.event);
-		if (onceIt != m_state->onceCallbacks.end()) {
-			onceIt->second(msg);
-			m_state->onceCallbacks.erase(onceIt);
+		std::optional<Callback> onceCb;
+		std::optional<Callback> eventCb;
+		{
+			std::lock_guard lock(m_state->controlMutex);
+			auto onceIt = m_state->onceCallbacks.find(msg.event);
+			if (onceIt != m_state->onceCallbacks.end()) {
+				onceCb = onceIt->second;
+				m_state->onceCallbacks.erase(onceIt);
+			}
+
+			auto it = m_state->eventCallbacks.find(msg.event);
+			if (it != m_state->eventCallbacks.end()) {
+				eventCb = it->second;
+			}
 		}
 
-		auto it = m_state->eventCallbacks.find(msg.event);
-		if (it != m_state->eventCallbacks.end()) {
-			it->second(msg);
+		if (onceCb) {
+			(*onceCb)(msg);
+		}
+
+		if (eventCb) {
+			(*eventCb)(msg);
 		}
 	}
+
+	const auto connectionState = getConnectionState();
+	if (connectionState == ConnectionState::Connecting ||
+		connectionState == ConnectionState::Disconnecting) {
+		return;
+	}
+
+	if (connectionState == ConnectionState::Disconnected) {
+		const auto reason = getDisconnectReason();
+		if (reason != DisconnectReason::Unexpected) {
+			return;
+		}
+
+		const auto disconnectedAt = getDisconnectedAt();
+		if (!m_state->reconnect.disconnectAt) {
+			m_state->noteDisconnect(disconnectedAt);
+		}
+
+		const auto now = std::chrono::system_clock::now();
+		if (now < m_state->reconnect.nextAttemptAt) {
+			return;
+		}
+
+		if (m_state->reconnect.result) {
+			switch (m_state->reconnect.result->status()) {
+			case accoro::result_status::idle:
+				return;
+			case accoro::result_status::value:
+				m_state->reconnect.result->get();
+				m_state->reconnect.result.reset();
+				m_state->reconnect.nextAttemptAt = {};
+				return;
+			case accoro::result_status::exception:
+				try {
+					m_state->reconnect.result->get();
+				} catch (...) {
+					m_state->reconnect.nextAttemptAt = now + 1s;
+				}
+				m_state->reconnect.result.reset();
+				return;
+			}
+		}
+
+		if (!m_state->runtime || !m_state->mainThreadExecutor) {
+			m_state->reconnect.nextAttemptAt = now + 1s;
+			return;
+		}
+
+		++m_state->reconnect.attemptCount;
+		m_state->notifyReconnectAttempt();
+		m_state->reconnect.result.emplace(connectAsync());
+		return;
+	}
+
+	if (connectionState != ConnectionState::Connected) {
+		return;
+	}
+
+	const auto lastHeartbeatSentAt = getLastHeartbeatSentAt();
+	if (lastHeartbeatSentAt == std::chrono::system_clock::time_point{}) {
+		return;
+	}
+
+	const auto lastMessageReceivedAt = getLastMessageReceivedAt();
+	if (lastMessageReceivedAt >= lastHeartbeatSentAt) {
+		m_state->resetReconnectState();
+		return;
+	}
+
+	const auto now = std::chrono::system_clock::now();
+	if (now - lastHeartbeatSentAt <= heartbeatTimeout) {
+		return;
+	}
+
+	if (!m_state->reconnect.disconnectAt) {
+		m_state->noteDisconnect(now);
+	}
+
+	disconnect();
+	m_state->reconnect.nextAttemptAt = now;
 }
 
-void Ws::State::receiveLoop() {
+void Ws::State::receiveLoop(std::shared_ptr<httplib::ws::WebSocketClient> ws) {
 	std::string message;
-	while (isConnected && ws) {
+	while (ws && isConnectedNoLock()) {
 		auto result = ws->read(message);
 		if (result == httplib::ws::ReadResult::Fail) {
-			markDisconnected(Ws::DisconnectReason::Unexpected);
+			{
+				std::lock_guard lock(controlMutex);
+				markDisconnected(Ws::DisconnectReason::Unexpected);
+				connectionState = ConnectionState::Disconnected;
+			}
 			heartbeatCv.notify_all();
 			break;
 		}
 		else if (result == httplib::ws::ReadResult::Text) {
-			lastMessageReceivedAtMs.store(
-				std::chrono::duration_cast<std::chrono::milliseconds>(
-					std::chrono::system_clock::now().time_since_epoch()
-				).count()
-			);
+			{
+				std::lock_guard lock(controlMutex);
+				lastMessageReceivedAt = std::chrono::system_clock::now();
+			}
 			enqueueMessage(message);
 		}
 	}
 }
 
-void Ws::State::markDisconnected(Ws::DisconnectReason reason) {
-	isConnected = false;
-	disconnectReason.store(static_cast<int>(reason));
-	disconnectedAtMs.store(
-		std::chrono::duration_cast<std::chrono::milliseconds>(
-			std::chrono::system_clock::now().time_since_epoch()
-		).count()
-	);
+void Ws::State::connectBlocking() {
+	std::shared_ptr<httplib::ws::WebSocketClient> newWs;
+	{
+		std::lock_guard lock(controlMutex);
+		if (connectionState != ConnectionState::Disconnected) {
+			return;
+		}
+		disconnectReason = DisconnectReason::None;
+		disconnectedAt = {};
+		connectionState = ConnectionState::Connecting;
+	}
+
+	newWs = std::make_shared<httplib::ws::WebSocketClient>(url);
+
+	if (!newWs->is_valid()) {
+		std::lock_guard lock(controlMutex);
+		markDisconnected(DisconnectReason::Unexpected);
+		connectionState = ConnectionState::Disconnected;
+		throw std::runtime_error("Invalid WebSocket URL: " + url);
+	}
+
+	if (!newWs->connect()) {
+		std::lock_guard lock(controlMutex);
+		markDisconnected(DisconnectReason::Unexpected);
+		connectionState = ConnectionState::Disconnected;
+		throw std::runtime_error("Failed to connect to WebSocket server: " + url);
+	}
+
+	{
+		std::lock_guard lock(controlMutex);
+		if (connectionState != ConnectionState::Connecting ||
+			disconnectReason == DisconnectReason::Requested) {
+			connectionState = ConnectionState::Disconnected;
+			return;
+		}
+
+		ws = newWs;
+		clearDisconnectState();
+	}
+
+	std::jthread newReceiveThread{ [state = this, newWs](std::stop_token) {
+		state->receiveLoop(newWs);
+	} };
+
+	std::optional<std::jthread> newHeartbeatThread;
+	if (heartbeatInterval.count() > 0 && heartbeatGen) {
+		newHeartbeatThread.emplace([state = this, newWs](std::stop_token stopToken) {
+			state->heartbeatLoop(stopToken, newWs);
+		});
+	}
+
+	{
+		std::lock_guard lock(controlMutex);
+		if (connectionState != ConnectionState::Connecting ||
+			disconnectReason == DisconnectReason::Requested) {
+			connectionState = ConnectionState::Disconnected;
+			return;
+		}
+
+		receiveThread = std::move(newReceiveThread);
+		if (newHeartbeatThread) {
+			heartbeatThread = std::move(*newHeartbeatThread);
+		}
+		connectionState = ConnectionState::Connected;
+	}
 }
 
-void Ws::State::heartbeatLoop(std::stop_token stopToken) {
+void Ws::State::markDisconnected(Ws::DisconnectReason reason) {
+	disconnectReason = reason;
+	disconnectedAt = std::chrono::system_clock::now();
+}
+
+void Ws::State::clearDisconnectState() noexcept {
+	disconnectReason = DisconnectReason::None;
+	disconnectedAt = {};
+}
+
+[[nodiscard]] bool Ws::State::isConnectedNoLock() const noexcept {
+	std::lock_guard lock(controlMutex);
+	return connectionState == ConnectionState::Connected;
+}
+
+void Ws::State::resetReconnectState() {
+	reconnect.disconnectAt.reset();
+	reconnect.attemptCount = 0;
+	reconnect.nextAttemptAt = {};
+	reconnect.result.reset();
+}
+
+void Ws::State::noteDisconnect(std::chrono::system_clock::time_point disconnectedAt) {
+	if (reconnect.disconnectAt) {
+		return;
+	}
+
+	reconnect.disconnectAt = disconnectedAt;
+	reconnect.attemptCount = 0;
+	reconnect.nextAttemptAt = disconnectedAt;
+}
+
+void Ws::State::notifyReconnectAttempt() const {
+	if (!reconnect.disconnectAt) {
+		return;
+	}
+
+	for (const auto &handler : reconnect.handlers) {
+		handler(*reconnect.disconnectAt, reconnect.attemptCount);
+	}
+}
+
+void Ws::State::heartbeatLoop(std::stop_token stopToken, std::shared_ptr<httplib::ws::WebSocketClient> ws) {
 	std::unique_lock lock(heartbeatMutex);
-	while (isConnected) {
+	while (isConnectedNoLock()) {
 		const bool shouldStop = heartbeatCv.wait_for(lock, heartbeatInterval, [this, stopToken] {
-			return stopToken.stop_requested() || !isConnected.load();
+			return stopToken.stop_requested() || !isConnectedNoLock();
 		});
 		if (shouldStop || !ws || !ws->is_open()) {
 			break;
@@ -288,11 +627,10 @@ void Ws::State::heartbeatLoop(std::stop_token stopToken) {
 
 		lock.unlock();
 		auto packet = heartbeatGen();
-		lastHeartbeatSentAtMs.store(
-			std::chrono::duration_cast<std::chrono::milliseconds>(
-				std::chrono::system_clock::now().time_since_epoch()
-			).count()
-		);
+		{
+			std::lock_guard controlLock(controlMutex);
+			lastHeartbeatSentAt = std::chrono::system_clock::now();
+		}
 		ws->send(packet.dump());
 		lock.lock();
 	}

@@ -40,6 +40,7 @@ public:
 		bindEventHandlers();
 		refreshQrCodeUi(false);
 		//centerToMainWin();
+		client_.bindRuntime(*getAppState().coroRuntime, getAppState().mainThreadExecutor);
 		client_.onResp([this](const AnyResp &resp) {
 			handleResp(resp);
 		});
@@ -47,16 +48,20 @@ public:
 			std::println("[重连] 尝试次数: {}", attemptCount);
 		});
 
-
-		[](Impl *that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
+		// TODO：進一步封裝 `This &that, LiveKeepGuard liveKeepGuard` 的組合。
+		// 組合成一個參數，如 `CoroRefKeeper<This> that` 類似的
+		[](Impl &that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
 			try {
-				co_await that->client_.connectAsync(*getAppState().coroRuntime, getAppState().mainThreadExecutor);
-				that->client_.requestQrCodeLogin();
+				co_await that.client_.connectAsync();
+				that.client_.requestQrCodeLogin();
 			} catch (const std::exception& e) {
+				std::println("[错误] 连接后端时出错: {}", e.what());
 				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
-				that->uiState_.mainWin_->setShouldClose();
+				that.uiState_.mainWin_->setShouldClose();
 			}
-		}(this, uiState_.mainWin_->startAsyncOp());
+
+			co_return;
+		}(*this, uiState_.mainWin_->startAsyncOp());
 
 	}
 

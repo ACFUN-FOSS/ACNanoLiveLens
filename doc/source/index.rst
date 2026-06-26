@@ -15,6 +15,7 @@ documentation for details.
    :maxdepth: 2
    :caption: Contents:
 
+   coding_rules
    coding_style_and_patterns
    eati_essentials_overview
    user_interface

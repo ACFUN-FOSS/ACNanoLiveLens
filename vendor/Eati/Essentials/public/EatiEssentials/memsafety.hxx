@@ -9,12 +9,16 @@
 namespace Essentials::Memory
 {
 
+#define LIFETIMEBOUND_MEMBER
+
 // Lifetimebound attribute
 #if defined(_MSC_VER) // MSVC
 #ifndef __clang__   // Ignore for clang-based tools
 #define LIFETIMEBOUND [[msvc::lifetimebound]]
 #include <CppCoreCheck/Warnings.h>
 #pragma warning(default: CPPCORECHECK_LIFETIME_WARNINGS) // Enable lifetimebound warnings
+#else	// clang-based tools
+#define LIFETIMEBOUND [[clang::lifetimebound]]
 #endif  // __clang__
 
 #elif defined(__GNUC__) // GCC

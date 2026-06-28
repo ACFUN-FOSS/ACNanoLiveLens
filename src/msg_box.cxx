@@ -16,21 +16,24 @@ public:
 	Impl(Type type, std::string_view text)
 		: type_{ type }
 		, text_{ text }
-		, uiState_{ []() -> UIState {
-			auto &winManager = *getAppState().winManager;
-			const bool shouldUseMainWin = !winManager.hasMainWin();
+		, selfShouldBeMainWin_{ []() -> bool {
+			auto &winManager = UNWRAP(getAppState().winManager);
+			return !winManager.hasMainWin();
+		}() }
+		, uiState_{ [this]() -> UIState {
+			auto &winManager = UNWRAP(getAppState().winManager);
 			auto &win = winManager.createWindow(
 				"msg_box",
 				{ 560, 250 },
 				getAssetsDir() / "msg_box.rml",
-				shouldUseMainWin
+				selfShouldBeMainWin_
 			);
 			SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
 			return { &win, std::move(mainWinRootEleEventMan) };
 		}() } {
 		bindEventHandlers();
 		refreshUi();
-		centerToMainWin();
+		centerToMainWinOrPrimaryMonitor();
 	}
 
 	~Impl() {
@@ -122,14 +125,15 @@ private:
 		setElementText(document, textEle, text_);
 	}
 
-	void centerToMainWin() {
-		if (!getAppState().winManager->hasMainWin()) {
+	void centerToMainWinOrPrimaryMonitor() {
+		if (selfShouldBeMainWin_) {
+			uiState_.mainWin_->centerToPrimaryMonitor();
 			return;
 		}
 		auto &mainWin = getAppState().winManager->getMainWin();
 		auto mainWinPos = mainWin.getWinPos();
-		auto mainWinSize = Backend::GetWindowSize(mainWin.getNativeWin());
-		auto msgBoxSize = Backend::GetWindowSize(uiState_.mainWin_->getNativeWin());
+		auto mainWinSize = mainWin.getWinSize();
+		auto msgBoxSize = uiState_.mainWin_->getWinSize();
 
 		uiState_.mainWin_->setWinPos(
 			mainWinPos + Rml::Vector2i{
@@ -173,8 +177,10 @@ private:
 
 	Type type_;
 	std::string text_;
-	UIState uiState_;
+	bool selfShouldBeMainWin_ = false;
 	bool closePrepared_ = false;
+	UIState uiState_;
+	
 };
 
 MsgBox::MsgBox(Type type, std::string_view text)

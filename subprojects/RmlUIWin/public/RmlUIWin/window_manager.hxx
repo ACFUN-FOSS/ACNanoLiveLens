@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <EatiEssentials/memory/memory.hxx>
 #include <EatiEssentials/memsafety.hxx>
+#include <RmlUi_Backend.h>
 #include <RmlUi_Platform_GLFW.h>
 
 namespace RmlUIWin {
@@ -64,10 +65,13 @@ public:
     [[nodiscard]] std::string_view getName() const;
     [[nodiscard]] bool isMainWin() const;
     [[nodiscard]] Rml::Vector2i getMousePos() const;
+    [[nodiscard]] Rml::Vector2i getWinSize() const;
     [[nodiscard]] Rml::Vector2i getWinPos() const;
     [[nodiscard]] Rml::Element &getRootElement() const;
     [[nodiscard]] AsyncOpScope startAsyncOp() noexcept;
     void setWinPos(const Rml::Vector2i pos);
+    void centerToPrimaryMonitor();
+    void setPosInMonitor(const MonitorArea &monitorArea, const Rml::Vector2i relativePos);
     void setShouldClose();
 
 private:
@@ -121,6 +125,8 @@ public:
     [[nodiscard]] bool hasOpenWins() const;
     [[nodiscard]] UiWin &getMainWin() const;
     [[nodiscard]] bool hasMainWin() const;
+    [[nodiscard]] MonitorArea getPrimaryMonitorArea() const;
+    [[nodiscard]] Rml::Vector<MonitorArea> getMonitorAreas() const;
     [[nodiscard]] UiWin *getWinOfElement(const Rml::Element &element) const;
     [[nodiscard]] UiWin *getWinOfContext(const Rml::Context& context) const;
 

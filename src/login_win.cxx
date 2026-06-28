@@ -148,8 +148,8 @@ private:
 	void centerToMainWin() {
 		auto &mainWin = getAppState().winManager->getMainWin();
 		auto mainWinPos = mainWin.getWinPos();
-		auto mainWinSize = Backend::GetWindowSize(mainWin.getNativeWin());
-		auto loginWinSize = Backend::GetWindowSize(uiState_.mainWin_->getNativeWin());
+		auto mainWinSize = mainWin.getWinSize();
+		auto loginWinSize = uiState_.mainWin_->getWinSize();
 
 		uiState_.mainWin_->setWinPos(
 			mainWinPos + Rml::Vector2i{

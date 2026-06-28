@@ -36,6 +36,11 @@
 
 struct GLFWwindow;
 
+struct MonitorArea {
+	Rml::Vector2i pos;
+	Rml::Vector2i size;
+};
+
 using KeyDownCallback = bool (*)(Rml::Context* context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority);
 using ContextInputFilter = bool (*)(Rml::Context* context);
 
@@ -70,6 +75,8 @@ Rml::Vector2i GetWindowPos(GLFWwindow *window);
 void SetWindowSize(GLFWwindow *window, Rml::Vector2i size);
 void SetWindowPos(GLFWwindow *window, Rml::Vector2i pos);
 Rml::Vector2f GetMonitorContentScale();
+MonitorArea GetPrimaryMonitorArea();
+Rml::Vector<MonitorArea> GetMonitorAreas();
 
 // Closes windows and release all resources owned by the backend, including the system and render interfaces.
 void Shutdown();

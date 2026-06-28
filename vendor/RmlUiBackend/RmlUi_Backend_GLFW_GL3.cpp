@@ -490,6 +490,37 @@ Rml::Vector2f Backend::GetMonitorContentScale() {
 	return scale;
 }
 
+MonitorArea Backend::GetPrimaryMonitorArea() {
+	auto monitorAreas = GetMonitorAreas();
+	RMLUI_ASSERTMSG(!monitorAreas.empty(), "No monitor found.");
+	return monitorAreas.front();
+}
+
+Rml::Vector<MonitorArea> Backend::GetMonitorAreas() {
+	int monitorCount = 0;
+	GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
+	RMLUI_ASSERTMSG(monitors && monitorCount > 0, "Failed to enumerate monitors.");
+
+	Rml::Vector<MonitorArea> result;
+	result.reserve(static_cast<Rml::Vector<MonitorArea>::size_type>(monitorCount));
+
+	for (int i = 0; i < monitorCount; ++i) {
+		int monitorPosX = 0;
+		int monitorPosY = 0;
+		glfwGetMonitorPos(monitors[i], &monitorPosX, &monitorPosY);
+
+		const GLFWvidmode *videoMode = glfwGetVideoMode(monitors[i]);
+		RMLUI_ASSERTMSG(videoMode, "Failed to query monitor video mode.");
+
+		result.push_back(MonitorArea{
+			.pos = { monitorPosX, monitorPosY },
+			.size = { videoMode->width, videoMode->height },
+		});
+	}
+
+	return result;
+}
+
 bool Backend::ProcessEvents(bool power_save)
 {
 	RMLUI_ASSERT(data);

@@ -1,4 +1,4 @@
-#include "assets.hxx"
+#include "Core/assets.hxx"
 #include "appstate.hxx"
 #include "js_binding.hxx"
 #include "platform/crash_handler.hxx"
@@ -87,23 +87,28 @@ static void rmluiMain() {
 			 mainThreadExecutor
 		});
 
-		AcliveBackendDaemon acliveBackendDaemon{ mainThreadExecutor };
-		acliveBackendDaemon.onCrashLimitExceeded([] {
-			MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "後端崩潰已超過三次");
-		});
+		try {
 
-		//loadJsScript();
+			AcliveBackendDaemon acliveBackendDaemon{ mainThreadExecutor };
+			acliveBackendDaemon.onCrashLimitExceeded([] {
+				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "後端崩潰已超過三次");
+			});
 
-        //TestWin testWin;
-		//DanmakuMonitorWin danmakuMonitorWin;
-		LoginWin loginWin;
+			//loadJsScript();
 
-        //assert(false);
+        	//TestWin testWin;
+			//DanmakuMonitorWin danmakuMonitorWin;
+			LoginWin loginWin;
 
-		//JSBindings::init(rmlui, danmakuMonitorWin);
+        	//assert(false);
 
-		runUiMainLoop(winMan, *mainThreadExecutor);
+			//JSBindings::init(rmlui, danmakuMonitorWin);
 
+			runUiMainLoop(winMan, *mainThreadExecutor);
+		} catch (const std::exception &e) {
+			std::println("Exception: {}", e.what());
+			MsgBox::popupOKMsgBox(MsgBox::Type::EERR, e.what());
+		}
 		//JSBindings::shutdown();
     }
 }

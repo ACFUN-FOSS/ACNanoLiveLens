@@ -31,6 +31,69 @@ add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:anglebrackets>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:W0>")
 #add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/fsanitize=address>")
 
+# == Platform macros ==================
+set(NLLENS_PLATFORM_COMPILE_DEFINITIONS)
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" SYSTEM_PROCESSOR_LOWER)
+if(SYSTEM_PROCESSOR_LOWER STREQUAL "amd64"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "x86_64"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "x64")
+    set(NLLENS_PLATFORM_ARCH "amd64")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_ARCH_AMD64)
+elseif(SYSTEM_PROCESSOR_LOWER STREQUAL "i386"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "ix86"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "x86"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "i686"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "i86pc")
+    set(NLLENS_PLATFORM_ARCH "x86")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_ARCH_X86)
+elseif(SYSTEM_PROCESSOR_LOWER STREQUAL "loongarch64"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "loong64")
+    set(NLLENS_PLATFORM_ARCH "loongarch64")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_ARCH_LOONGARCH64)
+elseif(SYSTEM_PROCESSOR_LOWER STREQUAL "aarch64"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "arm64")
+    set(NLLENS_PLATFORM_ARCH "arm64")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_ARCH_AARCH64)
+elseif(SYSTEM_PROCESSOR_LOWER STREQUAL "powerpc"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "ppc"
+        OR SYSTEM_PROCESSOR_LOWER STREQUAL "ppc64")
+    set(NLLENS_PLATFORM_ARCH "powerpc")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_ARCH_POWERPC)
+else()
+    message(FATAL_ERROR "Unsupported processor architecture: ${SYSTEM_PROCESSOR_LOWER}")
+endif()
+
+list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_ARCH="${NLLENS_PLATFORM_ARCH}")
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(NLLENS_PLATFORM_OS "win32")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_OS_WIN32)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(NLLENS_PLATFORM_OS "anylinux")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_OS_ANYLINUX)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set(NLLENS_PLATFORM_OS "macos")
+    list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_OS_MACOS)
+endif()
+
+list(APPEND NLLENS_PLATFORM_COMPILE_DEFINITIONS NLLENS_PLATFORM_OS="${NLLENS_PLATFORM_OS}")
+
+message(STATUS "Platform compile definitions: ${NLLENS_PLATFORM_COMPILE_DEFINITIONS}")
+add_compile_definitions(${NLLENS_PLATFORM_COMPILE_DEFINITIONS})
+
+if(NLLENS_ASSETS_DIR_OVERRIDE)
+    if(NLLENS_ASSETS_DIR_OVERRIDE_IS_ABS_PATH)
+        add_compile_definitions(NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH="${NLLENS_ASSETS_DIR_OVERRIDE}")
+    else()
+        add_compile_definitions(NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH="${CMAKE_SOURCE_DIR}/${NLLENS_ASSETS_DIR_OVERRIDE}")
+    endif()
+endif()
+
+if(NLLENS_DEVELOPMENT)
+    add_compile_definitions(NLLENS_DEVELOPMENT)
+endif()
+
+
 # == Dependencies ==========================
 find_package(Boost REQUIRED COMPONENTS dll stacktrace_from_exception)
 find_package(glfw3 CONFIG REQUIRED)
@@ -119,7 +182,6 @@ add_executable(nanolivelens
     src/platform/crash_handler.cxx
     src/platform/tools.cxx
     src/sound/sound.cxx
-    src/assets.cxx
 	src/utils.cxx
     src/appstate.cxx
     src/safe_element_instancer.cxx
@@ -204,18 +266,5 @@ set_target_properties(nanolivelens PROPERTIES
 	VS_GLOBAL_CodeAnalysisRuleSet CppCoreCheckRules.ruleset
 	VS_GLOBAL_RunCodeAnalysis true
 )
-
-
-if(NLLENS_ASSETS_DIR_OVERRIDE)
-    if(NLLENS_ASSETS_DIR_OVERRIDE_IS_ABS_PATH)
-        target_compile_definitions(nanolivelens PRIVATE NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH="${NLLENS_ASSETS_DIR_OVERRIDE}")
-    else()
-        target_compile_definitions(nanolivelens PRIVATE NLLENS_ASSETS_DIR_OVERRIDE_FULL_PATH="${CMAKE_SOURCE_DIR}/${NLLENS_ASSETS_DIR_OVERRIDE}")
-    endif()
-endif()
-
-if(NLLENS_DEVELOPMENT)
-    target_compile_definitions(nanolivelens PRIVATE NLLENS_DEVELOPMENT)
-endif()
 
 add_dependencies(nanolivelens nanolivelens::emergui)

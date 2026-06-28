@@ -1,6 +1,6 @@
 #include "msg_box.hxx"
 #include "appstate.hxx"
-#include "assets.hxx"
+#include "Core/assets.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "platform/window_activation_optimization.hxx"
@@ -17,7 +17,14 @@ public:
 		: type_{ type }
 		, text_{ text }
 		, uiState_{ []() -> UIState {
-			auto &win = getAppState().winManager->createWindow("msg_box", { 360, 190 }, getAssetsDir() / "msg_box.rml", false);
+			auto &winManager = *getAppState().winManager;
+			const bool shouldUseMainWin = !winManager.hasMainWin();
+			auto &win = winManager.createWindow(
+				"msg_box",
+				{ 560, 250 },
+				getAssetsDir() / "msg_box.rml",
+				shouldUseMainWin
+			);
 			SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
 			return { &win, std::move(mainWinRootEleEventMan) };
 		}() } {
@@ -116,6 +123,9 @@ private:
 	}
 
 	void centerToMainWin() {
+		if (!getAppState().winManager->hasMainWin()) {
+			return;
+		}
 		auto &mainWin = getAppState().winManager->getMainWin();
 		auto mainWinPos = mainWin.getWinPos();
 		auto mainWinSize = Backend::GetWindowSize(mainWin.getNativeWin());

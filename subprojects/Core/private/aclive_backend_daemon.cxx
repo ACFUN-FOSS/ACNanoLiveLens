@@ -1,25 +1,60 @@
 #include "Core/aclive_backend_daemon.hxx"
-
-#include <boost/dll.hpp>
-#include <boost/process/v1.hpp>
+#include "Core/assets.hxx"
 
 using namespace Essentials::Memory;
+using namespace Essentials::ContainerAndView;
+using namespace std::literals;
 namespace bp = boost::process::v1;
 
 namespace {
 
 constexpr std::size_t kCrashLimit = 3;
 
-[[nodiscard]] stdf::path getBackendExecutablePath() {
-	const auto execDir = stdf::path{ boost::dll::program_location().parent_path().string() };
-#ifdef WIN32
-	return execDir / "acbackend-win-x64.exe";
+stdf::path getBackendExecutablePath() {
+	auto acliveBackendOsPostfix = []() {
+#if defined(NLLENS_PLATFORM_OS_WIN32)
+		return "win";
+#elif defined(NLLENS_PLATFORM_OS_ANYLINUX)
+		return "linux";
+#elif defined(NLLENS_PLATFORM_OS_MACOS)
+		return "mac";
 #else
-	return execDir / "acbackend";
+#error "Unsupported platform."
 #endif
+	}();
+
+	auto acliveBackendArchPostfix = []() {
+#if defined(NLLENS_PLATFORM_ARCH_AMD64)
+		return "x64";
+#elif defined(NLLENS_PLATFORM_ARCH_X86)
+		return "x86";
+#elif defined(NLLENS_PLATFORM_ARCH_LOONGARCH64)
+		return "loongarch64";
+#elif defined(NLLENS_PLATFORM_ARCH_ARM64)
+		return "arm64";
+#elif defined(NLLENS_PLATFORM_ARCH_POWERPC)
+		return "powerpc";
+#endif
+	}();
+
+	return getAssetsDir() / "blob" /
+		("acbackensd-"s + acliveBackendOsPostfix + "-" + acliveBackendArchPostfix + ".exe");
+
 }
 
 } // namespace
+
+AcliveBackendDaemon::CannotFindBackendExe::CannotFindBackendExe(std::string_view exePath)
+	: std::runtime_error{
+		 std::format(
+			"無法找到當前平臺合適的 AcFun 直播通用後端。其可能遺失或未安装。\n"
+			"后端路径：{}；\n操作系统：{}；硬件架构：{}",
+			exePath,
+			NLLENS_PLATFORM_OS,
+			NLLENS_PLATFORM_ARCH
+		)
+	} { }
+
 
 struct AcliveBackendDaemon::State
 {
@@ -123,10 +158,7 @@ struct AcliveBackendDaemon::State
 	void startChild() {
 		const auto backendExePath = getBackendExecutablePath();
 		if (!stdf::exists(backendExePath)) {
-			throw std::runtime_error(std::format(
-				"Aclive backend executable not found: {}",
-				backendExePath.string()
-			));
+			throw CannotFindBackendExe{ backendExePath.string() };
 		}
 
 		auto newChild = bp::child{ backendExePath.string() };

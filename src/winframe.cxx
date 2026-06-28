@@ -1,5 +1,5 @@
 #include "utils.hxx"
-#include "assets.hxx"
+#include "Core/assets.hxx"
 #include "safe_element_instancer.hxx"
 #include "winframe.hxx"
 #include <appstate.hxx>

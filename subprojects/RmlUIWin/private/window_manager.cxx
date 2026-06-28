@@ -399,6 +399,9 @@ UiWin &WinManager::createWindow(std::string name, Rml::Vector2i size, std::files
 			return win->isMainWin();
 		}));
 	}
+	assert((isMain || hasMainWin()) &&
+		"Cannot create a non-main UiWin before the backend main window has been adopted. "
+		"Create a main window first, or explicitly adopt the backend main window for early-startup UI.");
 
 	auto window = newBox(UiWin{std::move(name), size, std::move(documentPath), isMain, isTransparent});
 	window->_winManager = this;
@@ -449,6 +452,14 @@ void WinManager::requestCloseAllWindows() {
 	assert(mainWinIt != wins_.end());
 	return **mainWinIt;
 }
+
+[[nodiscard]] bool WinManager::hasMainWin() const {
+	return std::ranges::any_of(wins_, [](const auto &win) {
+		return win->isMainWin();
+	});
+}
+
+
 
 [[nodiscard]] UiWin *WinManager::getWinOfElement(const Rml::Element &element) const {
 	if (!element.GetContext()) {

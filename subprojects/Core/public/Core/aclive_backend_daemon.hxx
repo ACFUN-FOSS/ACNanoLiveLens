@@ -4,6 +4,11 @@
 class AcliveBackendDaemon
 {
 public:
+	struct CannotFindBackendExe : public std::runtime_error
+	{
+		CannotFindBackendExe(std::string_view exePath);
+	};
+
 	using CrashLimitExceededHandler = std::function<void()>;
 
 	explicit AcliveBackendDaemon(

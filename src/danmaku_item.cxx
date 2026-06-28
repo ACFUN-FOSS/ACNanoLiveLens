@@ -1,6 +1,6 @@
 #include "danmaku_item.hxx"
 #include "danmaku_monitor_win.hxx"
-#include "assets.hxx"
+#include "Core/assets.hxx"
 #include "safe_element_instancer.hxx"
 #include "utils.hxx"
 

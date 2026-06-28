@@ -120,6 +120,7 @@ public:
 
     [[nodiscard]] bool hasOpenWins() const;
     [[nodiscard]] UiWin &getMainWin() const;
+    [[nodiscard]] bool hasMainWin() const;
     [[nodiscard]] UiWin *getWinOfElement(const Rml::Element &element) const;
     [[nodiscard]] UiWin *getWinOfContext(const Rml::Context& context) const;
 

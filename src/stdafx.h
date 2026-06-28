@@ -51,6 +51,7 @@
 #include "Core/aclive_backend_client.hxx"
 #include "Core/aclive_backend_msg.hxx"
 #include "Core/ws.hxx"
+#include "Core/assets.hxx"
 
 namespace stdf = std::filesystem;
 namespace coro = concurrencpp;

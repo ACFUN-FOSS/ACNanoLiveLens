@@ -10,6 +10,7 @@ find_package(Boost REQUIRED COMPONENTS dll process)
 
 add_library(nanolivelens_core
     private/stdafx.cpp
+    private/assets.cxx
     private/aclive_backend_daemon.cxx
     private/aclive_backend_client.cxx
     private/ws.cxx

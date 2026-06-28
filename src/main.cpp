@@ -11,6 +11,7 @@
 #include "danmaku_monitor_win.hxx"
 #include "test_win.hxx"
 #include "login_win.hxx"
+#include "msg_box.hxx"
 //#include "js_bindings.hxx"
 
 using namespace RmlUIWin;
@@ -70,7 +71,7 @@ static void rmluiMain() {
 	auto mainThreadExecutor = coroRuntime.make_manual_executor();
 
 
-    {
+	{
         // 使用窗口管理器管理所有窗口
 		RmlUIWin::WinManager winMan;
 
@@ -84,6 +85,11 @@ static void rmluiMain() {
 			 &winMan,
 			 &coroRuntime,
 			 mainThreadExecutor
+		});
+
+		AcliveBackendDaemon acliveBackendDaemon{ mainThreadExecutor };
+		acliveBackendDaemon.onCrashLimitExceeded([] {
+			MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "後端崩潰已超過三次");
 		});
 
 		//loadJsScript();

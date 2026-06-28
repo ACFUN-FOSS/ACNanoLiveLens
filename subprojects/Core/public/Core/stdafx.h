@@ -16,6 +16,7 @@
 #include <utility>
 #include <condition_variable>
 #include <cstdint>
+#include <filesystem>
 #include <stop_token>
 #include <future>
 #include <vector>
@@ -36,6 +37,7 @@
 #include "Core/rfl_custom_type.hxx"
 
 namespace accoro = concurrencpp;
+namespace stdf = std::filesystem;
 
 // Private dependencies
 #ifdef NANOLIVELENS_CORE_BUILDING

@@ -47,6 +47,7 @@
 
 // 子项目
 #include "Core/stdafx.h"
+#include "Core/aclive_backend_daemon.hxx"
 #include "Core/aclive_backend_client.hxx"
 #include "Core/aclive_backend_msg.hxx"
 #include "Core/ws.hxx"

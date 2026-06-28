@@ -131,7 +131,8 @@ LONG WINAPI CrashHandlerException(EXCEPTION_POINTERS* ep) {
 
 
 	default: 
-		crashInfo << "未知异常" << "\n";
+		//std::cout << std::hex <<  ep->ExceptionRecord->ExceptionCode << std::endl;
+		crashInfo << "未知异常"  << "\n";
 	}
 
 	// Load the symbols:
@@ -283,5 +284,21 @@ void runProtectedMain() {
 	SetUnhandledExceptionFilter(CrashHandlerException);
 	_CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
 
+#ifndef NLLENS_DEVELOPMENT
+	try {
+#endif
 	crashHandlerProtectedMain();
+#ifndef NLLENS_DEVELOPMENT
+	} catch(const std::exception& e) {
+		boost::stacktrace::stacktrace stacktrace;
+		std::stringstream ss;
+		ss << "未处理异常：" << e.what() << "\n";
+		ss << stacktrace;
+		spawnCrashDlg({
+			.crashReason = CrashReason::UNHANDLED_EXCP,
+			.msg = ss.str()
+		});
+	}
+#endif
+
 }

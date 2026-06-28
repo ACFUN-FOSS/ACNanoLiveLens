@@ -6,8 +6,11 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+find_package(Boost REQUIRED COMPONENTS dll process)
+
 add_library(nanolivelens_core
     private/stdafx.cpp
+    private/aclive_backend_daemon.cxx
     private/aclive_backend_client.cxx
     private/ws.cxx
 )
@@ -27,6 +30,8 @@ target_link_libraries(nanolivelens_core
     nlohmann_json::nlohmann_json
 	concurrencpp::concurrencpp
     PRIVATE
+    Boost::dll
+    Boost::process
     httplib
     cppcodec
 )

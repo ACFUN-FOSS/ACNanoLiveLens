@@ -11,6 +11,7 @@ find_package(Boost REQUIRED COMPONENTS dll process)
 add_library(nanolivelens_core
     private/stdafx.cpp
     private/assets.cxx
+	private/sound.cxx
     private/aclive_backend_daemon.cxx
     private/aclive_backend_client.cxx
     private/ws.cxx
@@ -35,6 +36,9 @@ target_link_libraries(nanolivelens_core
     Boost::process
     httplib
     cppcodec
+	corrected_targets::Miniaudio
+	Hs::Soloudpp
+	
 )
 
 target_compile_definitions(nanolivelens_core PRIVATE

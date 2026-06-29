@@ -181,7 +181,6 @@ add_executable(nanolivelens
     src/rmluipp.cxx
     src/platform/crash_handler.cxx
     src/platform/tools.cxx
-    src/sound/sound.cxx
 	src/utils.cxx
     src/appstate.cxx
     src/safe_element_instancer.cxx
@@ -239,8 +238,6 @@ target_link_libraries(nanolivelens
     Boost::stacktrace_from_exception
     Boost::dll
     EatiEssentials
-    corrected_targets::Miniaudio
-    Hs::Soloudpp
 	nanolivelens::emergui_api
     nlohmann_json::nlohmann_json
     concurrencpp::concurrencpp

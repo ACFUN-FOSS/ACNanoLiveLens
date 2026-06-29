@@ -1,7 +1,7 @@
 body
 {
     font-family: "Nokia Sans";
-	font-size: 18dp;
+	font-size: 17dp;
 	width: 100vw;
     height: 100vh;
 }
@@ -16,14 +16,28 @@ body
 	border-radius: 6dp;
 }
 
+button
+{
+	display: block;
+	height: 24dp;
+	width: 300dp;
+	margin: 0 auto;
+	padding: 3dp 0;
+	border-radius: 16dp;
+	text-align: center;
+    font-size: 16dp;
+	background-color: red;
+	color: white;
+}
+
 winframe
 {
     display: block;
 	border-radius: 8dp;
 	border: 1px rgba(100, 100, 100, 100);
 	background-color: rgb(42, 42, 42);
-	width: 99%;
-	height: 99%;
+	width: calc(100% - 4pt);
+	height: calc(100% - 4pt);
 	z-index: -1;
 }
 

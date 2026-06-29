@@ -37,7 +37,6 @@
 #include <pimpl.hpp>
 #include <RmlUI/Core.h>
 #include <RmlUi_Backend.h>
-#include <Soloudpp/Soloud.hxx>
 #include <concurrencpp/concurrencpp.h>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
@@ -52,6 +51,7 @@
 #include "Core/aclive_backend_msg.hxx"
 #include "Core/ws.hxx"
 #include "Core/assets.hxx"
+#include "Core/sound.hxx"
 
 namespace stdf = std::filesystem;
 namespace coro = concurrencpp;

@@ -36,16 +36,3 @@
     display: none;
 }
 
-.refresh-btn
-{
-    display: block;
-    width: 120dp;
-    height: 22dp;
-    margin: 0 auto;
-	padding: 3dp 0;
-    background-color: rgb(76, 120, 210);
-    border-radius: 6dp;
-    text-align: center;
-    font-size: 16dp;
-    color: white;
-}

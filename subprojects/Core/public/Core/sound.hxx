@@ -1,5 +1,5 @@
-#ifndef NANOLIVELENS_SOUND_HXX
-#define NANOLIVELENS_SOUND_HXX
+#ifndef NANOLIVELENS_CORE_SOUND_HXX
+#define NANOLIVELENS_CORE_SOUND_HXX
 
 enum class Sound
 {
@@ -7,8 +7,8 @@ enum class Sound
     LOGIN,
     LOGOUT,
 	INFO,
-    WARNN,
     ERRR,
+	EXTERNAL_SERVICE_CRASH,
     RELOAD
 };
 
@@ -18,4 +18,4 @@ void deInitSound();
 void playTestSound();
 void playSound(const Sound sound);
 
-#endif //NANOLIVELENS_SOUND_HXX
+#endif //NANOLIVELENS_CORE_SOUND_HXX

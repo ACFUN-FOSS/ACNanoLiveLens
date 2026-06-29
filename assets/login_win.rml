@@ -14,7 +14,7 @@
                 <p class="qr-code-placeholder" id="qr-code-placeholder">正在启动 AcFun 通用直播后端……</p>
                 <img class="qr-code" id="qr-code"/>
             </div>
-            <button class="refresh-btn" id="refresh-btn">刷新二维码</button>
+            <button id="refresh-btn">刷新二维码</button>
         </div>
     </winframe>
 </body>

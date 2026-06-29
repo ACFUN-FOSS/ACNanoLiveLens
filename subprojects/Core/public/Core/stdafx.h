@@ -41,10 +41,14 @@ namespace stdf = std::filesystem;
 
 // Private dependencies
 #ifdef NANOLIVELENS_CORE_BUILDING
+// EATI Essentials 头文件
 #include <EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx>
 #include <EatiEssentials/io.hxx>
+
+// 第三方库头文件
 #include <httplib.h>
 #include <boost/process/v1.hpp>
+#include <Soloudpp/Soloud.hxx>
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN

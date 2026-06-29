@@ -4,7 +4,6 @@
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "platform/window_activation_optimization.hxx"
-#include "sound/sound.hxx"
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -55,7 +54,7 @@ public:
 				playSound(Sound::ERRR);
 				break;
 			case Type::EWARN:
-				playSound(Sound::WARNN);
+				playSound(Sound::INFO);
 				break;
 			case Type::EINFO:
 				playSound(Sound::INFO);

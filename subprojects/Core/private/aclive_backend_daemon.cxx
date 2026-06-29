@@ -1,5 +1,6 @@
 #include "Core/aclive_backend_daemon.hxx"
 #include "Core/assets.hxx"
+#include "Core/sound.hxx"
 
 using namespace Essentials::Memory;
 using namespace Essentials::ContainerAndView;
@@ -38,7 +39,7 @@ stdf::path getBackendExecutablePath() {
 	}();
 
 	return getAssetsDir() / "blob" /
-		("acbackensd-"s + acliveBackendOsPostfix + "-" + acliveBackendArchPostfix + ".exe");
+		("acbackend-"s + acliveBackendOsPostfix + "-" + acliveBackendArchPostfix + ".exe");
 
 }
 
@@ -58,6 +59,7 @@ AcliveBackendDaemon::CannotFindBackendExe::CannotFindBackendExe(std::string_view
 
 struct AcliveBackendDaemon::State
 {
+	using Lock = std::scoped_lock<std::mutex>;
 	ESSM::Rc<accoro::executor> mainThreadExecutor;
 	std::optional<bp::child> child;
 	std::optional<std::jthread> monitorThread;
@@ -71,91 +73,78 @@ struct AcliveBackendDaemon::State
 	}
 
 	void startMonitorLoop() {
-		startChild();
+		{
+			std::scoped_lock lock{ mutex };
+			startChild(lock);
+		}
 
 		monitorThread.emplace([this](std::stop_token stopToken) {
 			monitorLoop(stopToken);
 		});
 	}
 
-	void stopMonitorLoop() {
-		if (monitorThread && monitorThread->joinable()) {
-			monitorThread->request_stop();
-			requestStop();
-			monitorThread->join();
-		}
-		monitorThread.reset();
-
-		std::lock_guard lock{ mutex };
-		child.reset();
-	}
-
 	void setCrashLimitExceededHandler(CrashLimitExceededHandler handler) {
-		std::lock_guard lock{ mutex };
+		std::scoped_lock lock{ mutex };
 		crashLimitExceededHandler = std::move(handler);
 	}
 
 	void requestStop() {
-		std::lock_guard lock{ mutex };
-		if (child && child->running()) {
-			child->terminate();
+		if (monitorThread && monitorThread->joinable()) {
+			monitorThread->request_stop();
+			monitorThread->join();
 		}
+		monitorThread.reset();
+
+		std::scoped_lock lock{ mutex };
+		child.reset();
 	}
 
 	void monitorLoop(std::stop_token stopToken) {
 		while (!stopToken.stop_requested()) {
-			auto currentChild = takeChild();
-			if (!currentChild)
+			std::scoped_lock lock{ mutex };
+			if (!child)
 				return;
 
-			currentChild->wait();
-			if (stopToken.stop_requested())
+			if (stopToken.stop_requested()) {
+				child->terminate();
 				return;
+			}
 
-			if (!handleChildExit())
+			if (child->running())
+				continue;
+
+			bool giveup = handleChildExit(lock);
+
+			if (!giveup)
+				startChild(lock);
+			else
 				return;
-
-			startChild();
 		}
 	}
 
-	[[nodiscard]] std::optional<bp::child> takeChild() {
-		std::lock_guard lock{ mutex };
-		if (!child) {
-			return { };
-		}
 
-		auto currentChild = std::move(child);
-		child.reset();
-		return currentChild;
-	}
-
-	[[nodiscard]] bool handleChildExit() {
-		CrashLimitExceededHandler handlerToCall;
-
+	bool handleChildExit(const Lock &lock) {
+		std::println("[AcliveBackendDaemon] 后端已崩溃");
+		playSound(Sound::EXTERNAL_SERVICE_CRASH);
 		{
-			std::lock_guard lock{ mutex };
+			//std::scoped_lock lock{ mutex };
 			++crashCount;
 			if (crashCount > kCrashLimit) {
 				if (!crashLimitNotified) {
 					crashLimitNotified = true;
-					handlerToCall = crashLimitExceededHandler;
+					mainThreadExecutor->post([handler = std::move(crashLimitExceededHandler)]() mutable {
+						handler();
+					});
+					return true;
 				}
-			} else {
-				return true;
 			}
-		}
 
-		if (handlerToCall) {
-			mainThreadExecutor->post([handler = std::move(handlerToCall)]() mutable {
-				handler();
-			});
+			return false;
 		}
-
-		return false;
 	}
 
-	void startChild() {
+	void startChild(const Lock &lock) {
+		std::println("[AcliveBackendDaemon] 启动新的后端");
 		const auto backendExePath = getBackendExecutablePath();
 		if (!stdf::exists(backendExePath)) {
 			throw CannotFindBackendExe{ backendExePath.string() };
@@ -163,8 +152,9 @@ struct AcliveBackendDaemon::State
 
 		auto newChild = bp::child{ backendExePath.string() };
 
-		std::lock_guard lock{ mutex };
+		//std::scoped_lock lock{ mutex };
 		child.emplace(std::move(newChild));
+		std::this_thread::sleep_for(500ms);
 	}
 };
 
@@ -174,8 +164,9 @@ AcliveBackendDaemon::AcliveBackendDaemon(Rc<accoro::executor> mainThreadExecutor
 }
 
 AcliveBackendDaemon::~AcliveBackendDaemon() {
+	std::println("[AcliveBackendDaemon] DECONS");
 	if (state_) {
-		state_->stopMonitorLoop();
+		state_->requestStop();
 	}
 }
 

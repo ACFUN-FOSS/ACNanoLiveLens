@@ -10,7 +10,7 @@
             <div class="msg-box" id="msg-box">
                 <div class="msg-box-title" id="msg-box-title"></div>
                 <div class="msg-box-text" id="msg-box-text"></div>
-                <button class="msg-box-ok-btn" id="ok-btn">OK</button>
+                <button id="ok-btn">OK</button>
             </div>
         </div>
     </winframe>

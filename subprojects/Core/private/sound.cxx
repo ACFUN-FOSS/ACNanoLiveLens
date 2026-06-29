@@ -1,8 +1,9 @@
 
+#include "Core/sound.hxx"
+#include "Core/assets.hxx"
+
 using namespace Holoop;
 using namespace Essentials::IO;
-#include "sound.hxx"
-#include "Core/assets.hxx"
 
 static Soloudpp::Soloud &soloud() {
     static Soloudpp::Soloud soloud;
@@ -36,6 +37,9 @@ void playSound(const Sound sound) {
         case Sound::RELOAD:
             playOgg("hot_reload.ogg");
             break;
+		case Sound::EXTERNAL_SERVICE_CRASH:
+			playOgg("external_service_crash.ogg");
+			break;
         default:
             break;
     }

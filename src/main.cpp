@@ -2,7 +2,6 @@
 #include "appstate.hxx"
 #include "js_binding.hxx"
 #include "platform/crash_handler.hxx"
-#include "sound/sound.hxx"
 #include "rmlui_sys.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
@@ -38,8 +37,13 @@ static void drainUiShutdown(WinManager &winMan, coro::manual_executor &mainThrea
 	}
 }
 
+static void shutdown(WinManager &winMan) {
+	winMan.requestCloseAllWindows();
+}
+
 static void runUiMainLoop(WinManager &winMan, coro::manual_executor &mainThreadExecutor) {
 	while (winMan.hasOpenWins()) {
+
 		if (ctrlCPressed) {
 			drainUiShutdown(winMan, mainThreadExecutor);
 			return;
@@ -91,7 +95,14 @@ static void rmluiMain() {
 
 			AcliveBackendDaemon acliveBackendDaemon{ mainThreadExecutor };
 			acliveBackendDaemon.onCrashLimitExceeded([] {
-				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "後端崩潰已超過三次");
+				MsgBox::popupOKMsgBox(MsgBox::Type::EERR,
+					"後端崩潰已超過三次。\n"
+					"请联系 AcFun 弹幕姬问题反馈 QQ 群，并附上日志文件。"
+				);
+
+
+				Rml::Shutdown();
+				std::_Exit(EXIT_FAILURE);
 			});
 
 			//loadJsScript();

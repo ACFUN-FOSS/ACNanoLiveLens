@@ -14,7 +14,8 @@
 
 .msg-box-title
 {
-    margin: 0 0 10dp 0;
+	display: block;
+    margin: 0 0 4dp 0;
     font-size: 22dp;
     font-weight: bold;
 }
@@ -29,16 +30,6 @@
     white-space: pre-wrap;
 }
 
-.msg-box-ok-btn
-{
-    width: 60dp;
-    height: 24dp;
-	margin: 0 40dp 0 0;
-    float: right;
-    background-color: rgb(76, 120, 210);
-    border-radius: 6dp;
-	text-align: center;
-}
 
 .msg-box-error .msg-box-title
 {

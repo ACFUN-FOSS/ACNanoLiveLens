@@ -39,7 +39,7 @@ public:
 		}() } {
 		bindEventHandlers();
 		refreshQrCodeUi(false);
-		//centerToMainWin();
+		uiState_.mainWin_->centerToPrimaryMonitor();
 		client_.bindRuntime(*getAppState().coroRuntime, getAppState().mainThreadExecutor);
 		client_.onResp([this](const AnyResp &resp) {
 			handleResp(resp);
@@ -120,10 +120,14 @@ private:
 		std::visit(overloaded{
 			[this](const QrCodeLoginResp &qrResp) {
 				dbgLog("收到二维码");
-				saveQrCodeImage(qrResp.data.imageData, getAssetsDir() / "runtime" / "qrcode.png");
+
+				auto qrCodeImageFile = getAssetsDir()
+					/ "runtime"
+					/ std::format("qrcode-{}.png", qrCodeRefreshCount++);
+				saveQrCodeImage(qrResp.data.imageData, qrCodeImageFile);
 
 				auto &qrCodeEle = UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"));
-				qrCodeEle.SetAttribute("src", (getAssetsDir() / "runtime" / "qrcode.png").string());
+				qrCodeEle.SetAttribute("src", qrCodeImageFile.string());
 				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
 					.SetInnerRML("请使用 AcFun App 扫码登录");
 				refreshQrCodeUi(true);
@@ -140,28 +144,9 @@ private:
 			[this](const QrCodeLoginSuccessResp &) {
 				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
 					.SetInnerRML("登入成功");
-				uiState_.mainWin_->setShouldClose();
+				//uiState_.mainWin_->
 			}
 		}, resp);
-	}
-
-	void centerToMainWin() {
-		auto &mainWin = getAppState().winManager->getMainWin();
-		auto mainWinPos = mainWin.getWinPos();
-<<<<<<< HEAD
-		auto mainWinSize = Backend::GetWindowSize(mainWin.getNativeWin());
-		auto loginWinSize = Backend::GetWindowSize(uiState_.mainWin_->getNativeWin());
-=======
-		auto mainWinSize = mainWin.getWinSize();
-		auto loginWinSize = uiState_.mainWin_->getWinSize();
->>>>>>> 36e550a7ca2eb0ae82e40bd6f038eb9b597cf4e3
-
-		uiState_.mainWin_->setWinPos(
-			mainWinPos + Rml::Vector2i{
-				(mainWinSize.x - loginWinSize.x) / 2,
-				(mainWinSize.y - loginWinSize.y) / 2,
-			}
-		);
 	}
 
 
@@ -171,6 +156,7 @@ private:
 	AcliveBackendClient client_{
 		"ws://localhost:15368/"
 	};
+	int qrCodeRefreshCount = 0;
 
 	
 };

@@ -2,7 +2,6 @@
 #include "utils.hxx"
 #include "winframe.hxx"
 #include "danmaku_item.hxx"
-#include "sound/sound.hxx"
 
 using namespace Essentials::Misc;
 

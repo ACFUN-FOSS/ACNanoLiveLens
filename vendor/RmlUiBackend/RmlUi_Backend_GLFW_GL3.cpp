@@ -481,6 +481,26 @@ void Backend::SetWindowPos(GLFWwindow *window, Rml::Vector2i pos) {
 	glfwSetWindowPos(window, pos.x, pos.y);
 }
 
+void Backend::HideWindow(GLFWwindow *window) {
+	RMLUI_ASSERT(data && window);
+	auto winIt = std::ranges::find_if(
+		data->windows,
+		[window](const std::unique_ptr<WindowData> &w) { return w->glfw_win == window; }
+	);
+	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
+	glfwHideWindow(window);
+}
+
+void Backend::ShowWindow(GLFWwindow *window) {
+	RMLUI_ASSERT(data && window);
+	auto winIt = std::ranges::find_if(
+		data->windows,
+		[window](const std::unique_ptr<WindowData> &w) { return w->glfw_win == window; }
+	);
+	RMLUI_ASSERTMSG(winIt != data->windows.end(), "Window not managed by backend.");
+	glfwShowWindow(window);
+}
+
 Rml::Vector2f Backend::GetMonitorContentScale() {
 	Rml::Vector2f scale{1.f, 1.f};
 	GLFWmonitor* monitor = glfwGetPrimaryMonitor();

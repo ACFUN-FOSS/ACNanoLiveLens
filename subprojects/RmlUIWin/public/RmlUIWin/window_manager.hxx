@@ -72,6 +72,8 @@ public:
     void setWinPos(const Rml::Vector2i pos);
     void centerToPrimaryMonitor();
     void setPosInMonitor(const MonitorArea &monitorArea, const Rml::Vector2i relativePos);
+    void hide();
+    void show();
     void setShouldClose();
 
 private:
@@ -85,6 +87,7 @@ private:
     [[nodiscard]] bool shouldDestroyNow() const noexcept;
     [[nodiscard]] bool shouldShowClosingVisualState() const noexcept;
     [[nodiscard]] bool canCloseNow() const noexcept;
+    [[nodiscard]] bool isHidden() const noexcept;
     void destroy();
     void attachDocument(Rml::ElementDocument &document);
     void detachDocument() const;

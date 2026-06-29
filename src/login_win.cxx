@@ -144,7 +144,7 @@ private:
 			[this](const QrCodeLoginSuccessResp &) {
 				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
 					.SetInnerRML("登入成功");
-				//uiState_.mainWin_->
+				uiState_.mainWin_->hide();
 			}
 		}, resp);
 	}

@@ -74,6 +74,8 @@ Rml::Vector2i GetWindowSize(GLFWwindow* window);
 Rml::Vector2i GetWindowPos(GLFWwindow *window);
 void SetWindowSize(GLFWwindow *window, Rml::Vector2i size);
 void SetWindowPos(GLFWwindow *window, Rml::Vector2i pos);
+void HideWindow(GLFWwindow *window);
+void ShowWindow(GLFWwindow *window);
 Rml::Vector2f GetMonitorContentScale();
 MonitorArea GetPrimaryMonitorArea();
 Rml::Vector<MonitorArea> GetMonitorAreas();

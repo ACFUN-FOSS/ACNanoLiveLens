@@ -59,6 +59,7 @@ struct UiWin::SelfData
 	std::filesystem::path _documentPath;
 	bool _isMainWin;
 	bool _isTransparent;
+	bool _isHidden = false;
 	bool _shouldClose = false;
 	std::size_t _runningAsyncOpCount = 0;
 	std::function<void()> _updateCb;
@@ -289,6 +290,24 @@ void UiWin::setPosInMonitor(const MonitorArea &monitorArea, const Rml::Vector2i 
 	setWinPos(monitorArea.pos + relativePos);
 }
 
+void UiWin::hide() {
+	if (!_data || _data->_selfData->_isHidden) {
+		return;
+	}
+
+	Backend::HideWindow(_data->_rmlCStyleData->_win);
+	_data->_selfData->_isHidden = true;
+}
+
+void UiWin::show() {
+	if (!_data || !_data->_selfData->_isHidden) {
+		return;
+	}
+
+	Backend::ShowWindow(_data->_rmlCStyleData->_win);
+	_data->_selfData->_isHidden = false;
+}
+
 void UiWin::setShouldClose() {
 	_data->_selfData->_shouldClose = true;
 	refreshClosingVisualState();
@@ -373,6 +392,10 @@ void UiWin::requestCloseFromNativeEvent() {
 	return _data && _data->_selfData->_runningAsyncOpCount == 0;
 }
 
+[[nodiscard]] bool UiWin::isHidden() const noexcept {
+	return !_data || _data->_selfData->_isHidden;
+}
+
 void UiWin::attachDocument(Rml::ElementDocument &document) {
 	document.AddEventListener("click", &_data->_selfData->_eventListener);
 	document.Show();
@@ -430,12 +453,18 @@ UiWin &WinManager::createWindow(std::string name, Rml::Vector2i size, std::files
 
 void WinManager::updateAll() {
 	for (auto &window : wins_) {
+		if (window->isHidden()) {
+			continue;
+		}
 		window->update();
 	}
 }
 
 void WinManager::renderAll() {
 	for (auto &window : wins_) {
+		if (window->isHidden()) {
+			continue;
+		}
 		auto glfwWin = window->getNativeWin();
 		Backend::BeginFrame(glfwWin);
 		window->render();

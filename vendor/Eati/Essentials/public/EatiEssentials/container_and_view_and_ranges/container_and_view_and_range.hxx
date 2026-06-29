@@ -6,6 +6,11 @@
 #include <concepts>
 #include <exception>
 #include <ranges>
+#include <optional>
+#include <memory>
+#include <utility>
+#include <type_traits>
+#include <concepts>
 
 namespace Essentials::ContainerAndView
 {
@@ -33,6 +38,64 @@ auto findOrThrow(Rng&& range, Pred&& pred, ExFactory&& exFactory)
     return *it;
 }
 
+
+template<class ExFactory>
+struct OrElseThrowAdaptor
+{
+    ExFactory exFactory;
+
+    // optional<T>
+    template<class T>
+    decltype(auto) operator()(std::optional<T>& opt) const {
+        if (!opt)
+            throw exFactory();
+        return opt.value();
+    }
+
+    template<class T>
+    decltype(auto) operator()(std::optional<T>&& opt) const {
+        if (!opt)
+            throw exFactory();
+        return std::move(opt.value());
+    }
+
+    // raw pointer
+    template<class T>
+    T& operator()(T* ptr) const {
+        if (!ptr)
+            throw exFactory();
+        return *ptr;
+    }
+
+    // unique_ptr
+    template<class T>
+    T& operator()(std::unique_ptr<T>& ptr) const {
+        if (!ptr)
+            throw exFactory();
+        return *ptr;
+    }
+
+    // shared_ptr
+    template<class T>
+    T& operator()(std::shared_ptr<T>& ptr) const {
+        if (!ptr)
+            throw exFactory();
+        return *ptr;
+    }
+};
+
+template<class ExFactory>
+auto orElseThrow(ExFactory&& exFactory) {
+    return OrElseThrowAdaptor<std::decay_t<ExFactory>>{
+        std::forward<ExFactory>(exFactory)
+    };
 }
 
-#endif // ESS_CONTAINER_AND_VIEW_HXX
+template<class L, class R>
+decltype(auto) operator|(L&& lhs, R&& rhs) {
+    return rhs(std::forward<L>(lhs));
+}
+
+}
+
+#endif // ESS_CONTAINER_AND_VIEW_AND_RANGE_HXX

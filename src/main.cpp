@@ -1,4 +1,4 @@
-#include "assets.hxx"
+#include "Core/assets.hxx"
 #include "appstate.hxx"
 #include "js_binding.hxx"
 #include "platform/crash_handler.hxx"
@@ -11,6 +11,7 @@
 #include "danmaku_monitor_win.hxx"
 #include "test_win.hxx"
 #include "login_win.hxx"
+#include "msg_box.hxx"
 //#include "js_bindings.hxx"
 
 using namespace RmlUIWin;
@@ -70,7 +71,7 @@ static void rmluiMain() {
 	auto mainThreadExecutor = coroRuntime.make_manual_executor();
 
 
-    {
+	{
         // 使用窗口管理器管理所有窗口
 		RmlUIWin::WinManager winMan;
 
@@ -86,18 +87,28 @@ static void rmluiMain() {
 			 mainThreadExecutor
 		});
 
-		//loadJsScript();
+		try {
 
-        //TestWin testWin;
-		//DanmakuMonitorWin danmakuMonitorWin;
-		LoginWin loginWin;
+			AcliveBackendDaemon acliveBackendDaemon{ mainThreadExecutor };
+			acliveBackendDaemon.onCrashLimitExceeded([] {
+				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "後端崩潰已超過三次");
+			});
 
-        //assert(false);
+			//loadJsScript();
 
-		//JSBindings::init(rmlui, danmakuMonitorWin);
+        	//TestWin testWin;
+			//DanmakuMonitorWin danmakuMonitorWin;
+			LoginWin loginWin;
 
-		runUiMainLoop(winMan, *mainThreadExecutor);
+        	//assert(false);
 
+			//JSBindings::init(rmlui, danmakuMonitorWin);
+
+			runUiMainLoop(winMan, *mainThreadExecutor);
+		} catch (const std::exception &e) {
+			std::println("Exception: {}", e.what());
+			MsgBox::popupOKMsgBox(MsgBox::Type::EERR, e.what());
+		}
 		//JSBindings::shutdown();
     }
 }

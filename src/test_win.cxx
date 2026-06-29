@@ -1,6 +1,6 @@
 #include "test_win.hxx"
 #include "appstate.hxx"
-#include "assets.hxx"
+#include "Core/assets.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 // #include "utils.hxx"

@@ -1,7 +1,7 @@
 #include "danmaku_monitor_win.hxx"
 #include "danmaku_item.hxx"
 #include "appstate.hxx"
-#include "assets.hxx"
+#include "Core/assets.hxx"
 //#include "js_binding.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"

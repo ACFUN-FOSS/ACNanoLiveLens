@@ -255,6 +255,10 @@ void UiWin::setDocumentChangedCb(std::function<void()> cb) {
 	return UNWRAP(SystemInterface_GLFW::instance).GetMousePosition();
 }
 
+[[nodiscard]] Rml::Vector2i UiWin::getWinSize() const {
+	return Backend::GetWindowSize(_data->_rmlCStyleData->_win);
+}
+
 [[nodiscard]] Rml::Vector2i UiWin::getWinPos() const {
 	return Backend::GetWindowPos(_data->_rmlCStyleData->_win);
 }
@@ -269,6 +273,20 @@ void UiWin::setDocumentChangedCb(std::function<void()> cb) {
 
 void UiWin::setWinPos(const Rml::Vector2i pos) {
 	Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
+}
+
+void UiWin::centerToPrimaryMonitor() {
+	assert(_winManager && "UiWin is not registered to any WinManager.");
+	const auto monitorArea = _winManager->getPrimaryMonitorArea();
+	const auto winSize = getWinSize();
+	setPosInMonitor(monitorArea, {
+		(monitorArea.size.x - winSize.x) / 2,
+		(monitorArea.size.y - winSize.y) / 2,
+	});
+}
+
+void UiWin::setPosInMonitor(const MonitorArea &monitorArea, const Rml::Vector2i relativePos) {
+	setWinPos(monitorArea.pos + relativePos);
 }
 
 void UiWin::setShouldClose() {
@@ -399,6 +417,9 @@ UiWin &WinManager::createWindow(std::string name, Rml::Vector2i size, std::files
 			return win->isMainWin();
 		}));
 	}
+	assert((isMain || hasMainWin()) &&
+		"Cannot create a non-main UiWin before the backend main window has been adopted. "
+		"Create a main window first, or explicitly adopt the backend main window for early-startup UI.");
 
 	auto window = newBox(UiWin{std::move(name), size, std::move(documentPath), isMain, isTransparent});
 	window->_winManager = this;
@@ -449,6 +470,22 @@ void WinManager::requestCloseAllWindows() {
 	assert(mainWinIt != wins_.end());
 	return **mainWinIt;
 }
+
+[[nodiscard]] bool WinManager::hasMainWin() const {
+	return std::ranges::any_of(wins_, [](const auto &win) {
+		return win->isMainWin();
+	});
+}
+
+[[nodiscard]] MonitorArea WinManager::getPrimaryMonitorArea() const {
+	return Backend::GetPrimaryMonitorArea();
+}
+
+[[nodiscard]] Rml::Vector<MonitorArea> WinManager::getMonitorAreas() const {
+	return Backend::GetMonitorAreas();
+}
+
+
 
 [[nodiscard]] UiWin *WinManager::getWinOfElement(const Rml::Element &element) const {
 	if (!element.GetContext()) {

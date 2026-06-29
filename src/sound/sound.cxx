@@ -2,7 +2,7 @@
 using namespace Holoop;
 using namespace Essentials::IO;
 #include "sound.hxx"
-#include "assets.hxx"
+#include "Core/assets.hxx"
 
 static Soloudpp::Soloud &soloud() {
     static Soloudpp::Soloud soloud;

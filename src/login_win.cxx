@@ -1,6 +1,6 @@
 #include "login_win.hxx"
 #include "appstate.hxx"
-#include "assets.hxx"
+#include "Core/assets.hxx"
 #include "msg_box.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
@@ -148,8 +148,13 @@ private:
 	void centerToMainWin() {
 		auto &mainWin = getAppState().winManager->getMainWin();
 		auto mainWinPos = mainWin.getWinPos();
+<<<<<<< HEAD
 		auto mainWinSize = Backend::GetWindowSize(mainWin.getNativeWin());
 		auto loginWinSize = Backend::GetWindowSize(uiState_.mainWin_->getNativeWin());
+=======
+		auto mainWinSize = mainWin.getWinSize();
+		auto loginWinSize = uiState_.mainWin_->getWinSize();
+>>>>>>> 36e550a7ca2eb0ae82e40bd6f038eb9b597cf4e3
 
 		uiState_.mainWin_->setWinPos(
 			mainWinPos + Rml::Vector2i{

@@ -20,23 +20,6 @@ class WinManager;
 class UiWin
 {
 public:
-    class AsyncOpScope
-    {
-    public:
-        AsyncOpScope() = default;
-        explicit AsyncOpScope(UiWin *owner) noexcept;
-        ~AsyncOpScope();
-
-        AsyncOpScope(const AsyncOpScope &) = delete;
-        AsyncOpScope &operator=(const AsyncOpScope &) = delete;
-        AsyncOpScope(AsyncOpScope &&other) noexcept;
-        AsyncOpScope &operator=(AsyncOpScope &&other) noexcept;
-
-    private:
-        void release() noexcept;
-
-        UiWin *owner_ = nullptr;
-    };
 
     class EventListener : public Rml::EventListener
     {
@@ -68,7 +51,6 @@ public:
     [[nodiscard]] Rml::Vector2i getWinSize() const;
     [[nodiscard]] Rml::Vector2i getWinPos() const;
     [[nodiscard]] Rml::Element &getRootElement() const;
-    [[nodiscard]] AsyncOpScope startAsyncOp() noexcept;
     void setWinPos(const Rml::Vector2i pos);
     void centerToPrimaryMonitor();
     void setPosInMonitor(const MonitorArea &monitorArea, const Rml::Vector2i relativePos);
@@ -79,8 +61,7 @@ public:
 private:
     UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false);
 
-    void acquireAsyncOp() noexcept;
-    void releaseAsyncOp() noexcept;
+    void setRunningAsyncOp(bool running) noexcept;
     void applyCloseRequestState();
     void refreshClosingVisualState();
     void requestCloseFromNativeEvent();

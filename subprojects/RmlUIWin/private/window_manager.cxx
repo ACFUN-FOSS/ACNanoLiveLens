@@ -61,44 +61,10 @@ struct UiWin::SelfData
 	bool _isTransparent;
 	bool _isHidden = false;
 	bool _shouldClose = false;
-	std::size_t _runningAsyncOpCount = 0;
+	bool _runningAsyncOp = false;
 	std::function<void()> _updateCb;
 	std::function<void()> _documentChangedCb;
 };
-
-UiWin::AsyncOpScope::AsyncOpScope(UiWin *owner) noexcept
-	: owner_{ owner } {
-	if (owner_) {
-		owner_->acquireAsyncOp();
-	}
-}
-
-UiWin::AsyncOpScope::~AsyncOpScope() {
-	release();
-}
-
-UiWin::AsyncOpScope::AsyncOpScope(AsyncOpScope &&other) noexcept
-	: owner_{ std::exchange(other.owner_, nullptr) } {
-}
-
-UiWin::AsyncOpScope &UiWin::AsyncOpScope::operator=(AsyncOpScope &&other) noexcept {
-	if (this == &other) {
-		return *this;
-	}
-
-	release();
-	owner_ = std::exchange(other.owner_, nullptr);
-	return *this;
-}
-
-void UiWin::AsyncOpScope::release() noexcept {
-	if (!owner_) {
-		return;
-	}
-
-	owner_->releaseAsyncOp();
-	owner_ = nullptr;
-}
 
 void UiWin::EventListener::ProcessEvent(Rml::Event &event) {
 }
@@ -268,9 +234,6 @@ void UiWin::setDocumentChangedCb(std::function<void()> cb) {
 	return UNWRAP(_data->_rmlCStyleData->_context->GetRootElement());
 }
 
-[[nodiscard]] UiWin::AsyncOpScope UiWin::startAsyncOp() noexcept {
-	return AsyncOpScope{ this };
-}
 
 void UiWin::setWinPos(const Rml::Vector2i pos) {
 	Backend::SetWindowPos(_data->_rmlCStyleData->_win, pos);
@@ -314,23 +277,12 @@ void UiWin::setShouldClose() {
 	applyCloseRequestState();
 }
 
-void UiWin::acquireAsyncOp() noexcept {
+void UiWin::setRunningAsyncOp(bool running) noexcept {
 	if (!_data) {
 		return;
 	}
 
-	++_data->_selfData->_runningAsyncOpCount;
-}
-
-void UiWin::releaseAsyncOp() noexcept {
-	if (!_data) {
-		return;
-	}
-
-	assert(_data->_selfData->_runningAsyncOpCount > 0);
-	--_data->_selfData->_runningAsyncOpCount;
-	refreshClosingVisualState();
-	applyCloseRequestState();
+	_data->_selfData->_runningAsyncOp = running;
 }
 
 void UiWin::applyCloseRequestState() {
@@ -389,7 +341,7 @@ void UiWin::requestCloseFromNativeEvent() {
 }
 
 [[nodiscard]] bool UiWin::canCloseNow() const noexcept {
-	return _data && _data->_selfData->_runningAsyncOpCount == 0;
+	return _data && !_data->_selfData->_runningAsyncOp;
 }
 
 [[nodiscard]] bool UiWin::isHidden() const noexcept {

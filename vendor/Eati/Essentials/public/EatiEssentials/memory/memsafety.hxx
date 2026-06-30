@@ -9,26 +9,32 @@
 namespace Essentials::Memory
 {
 
-#define LIFETIMEBOUND_MEMBER
-
-// Lifetimebound attribute
+// GSL_POINTER attribute
 #if defined(_MSC_VER) // MSVC
-#ifndef __clang__   // Ignore for clang-based tools
+
+
+#elif defined(__GNUC__) // GCC
+
+#elif defined(__clang__) // Clang
+#define LIFETIMEBOUND [[gsl::Pointer]]
+
+#endif
+
+#ifndef GSL_POINTER
+#define GSL_POINTER
+#endif
+
+
+// LIFETIMEBOUND attribute
+#if defined(_MSC_VER) // MSVC
 #define LIFETIMEBOUND [[msvc::lifetimebound]]
 #include <CppCoreCheck/Warnings.h>
 #pragma warning(default: CPPCORECHECK_LIFETIME_WARNINGS) // Enable lifetimebound warnings
-#else	// clang-based tools
-#define LIFETIMEBOUND [[clang::lifetimebound]]
-#endif  // __clang__
 
 #elif defined(__GNUC__) // GCC
-#ifndef __clang__   // Ignore for clang-based tools
+
+#elif defined(__clang__) // Clang
 #define LIFETIMEBOUND [[clang::lifetimebound]]
-#endif  // __clang__
-
-#elif defined(__clang__)
-#define LIFETIMEBOUND
-
 #endif
 
 #ifndef LIFETIMEBOUND

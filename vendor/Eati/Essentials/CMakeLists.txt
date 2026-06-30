@@ -21,7 +21,7 @@ add_library(EatiEssentials
     private/dummy.cxx
 	private/memory/memory.cxx
 	private/memory/lifetime_informant.cxx
-	private/memsafety.cxx
+	private/memory/memsafety.cxx
 	private/special.cxx
 	private/io.cxx
 	private/container_and_view_and_range/container_and_view_and_range.cxx
@@ -35,7 +35,7 @@ target_sources(EatiEssentials PUBLIC
     FILES
         public/EatiEssentials/memory/memory.hxx
 		public/EatiEssentials/memory/lifetime_informant.hxx
-		public/EatiEssentials/memsafety.hxx
+		public/EatiEssentials/memory/memsafety.hxx
 		public/EatiEssentials/special.hxx
 		public/EatiEssentials/io.hxx
 		public/EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx

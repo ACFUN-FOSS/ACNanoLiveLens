@@ -25,7 +25,7 @@
 // EATI Essentials 头文件（EATI C++ 支持）
 #include <EatiEssentials/memory/lifetime_informant.hxx>
 #include <EatiEssentials/memory/memory.hxx>
-#include <EatiEssentials/memsafety.hxx>
+#include <EatiEssentials/memory/memsafety.hxx>
 #include <EatiEssentials/special.hxx>
 #include <EatiEssentials/io.hxx>
 #include <EatiEssentials/misc.hxx>

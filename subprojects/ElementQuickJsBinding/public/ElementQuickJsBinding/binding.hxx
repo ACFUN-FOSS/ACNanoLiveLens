@@ -5,7 +5,7 @@
 #include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
 #include <EatiEssentials/memory/memory.hxx>
-#include <EatiEssentials/memsafety.hxx>
+#include <EatiEssentials/memory/memsafety.hxx>
 #include <EatiEssentials/memory/lifetime_informant.hxx>
 #include <pimpl.hpp>
 #include <any>

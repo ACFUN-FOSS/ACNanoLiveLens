@@ -11,6 +11,7 @@
 #include "test_win.hxx"
 #include "login_win.hxx"
 #include "msg_box.hxx"
+#include "uiwin_bizlogic_obj_async_op_scope.hxx"
 //#include "js_bindings.hxx"
 
 using namespace RmlUIWin;
@@ -109,9 +110,10 @@ static void rmluiMain() {
 
         	//TestWin testWin;
 			//DanmakuMonitorWin danmakuMonitorWin;
-			LoginWin loginWin;
+			//LoginWin loginWin;
+			//UiWinBizLogicObjHandler<LoginWin> loginWin;
 
-        	//assert(false);
+		    //assert(false);
 
 			//JSBindings::init(rmlui, danmakuMonitorWin);
 

@@ -1,7 +1,7 @@
 #ifndef ELEMENT_QJS_BINDINGING_HXX
 #define ELEMENT_QJS_BINDINGING_HXX
 #include "metapp/implement/variant_intf.h"
-#include <EatiEssentials/memsafety.hxx>
+#include <EatiEssentials/memory/memsafety.hxx>
 #include <metapp/allmetatypes.h>
 #include <quickjspp.hpp>
 #include <EatiEssentials/memory.hxx>

@@ -185,6 +185,7 @@ add_executable(nanolivelens
     src/appstate.cxx
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
+	src/uiwin_bizlogic_obj_async_op_scope.cxx
 	# src/js_binding.cxx
     # src/aclive_client.cxx
 

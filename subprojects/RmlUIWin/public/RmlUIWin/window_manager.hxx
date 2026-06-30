@@ -9,7 +9,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <EatiEssentials/memory/memory.hxx>
-#include <EatiEssentials/memsafety.hxx>
+#include <EatiEssentials/memory/memsafety.hxx>
 #include <RmlUi_Backend.h>
 #include <RmlUi_Platform_GLFW.h>
 
@@ -57,6 +57,8 @@ public:
     void hide();
     void show();
     void setShouldClose();
+	bool isPendingClose() const;
+	bool hasUnfinishedOp() const;
 
 private:
     UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false);
@@ -69,6 +71,7 @@ private:
     [[nodiscard]] bool shouldShowClosingVisualState() const noexcept;
     [[nodiscard]] bool canCloseNow() const noexcept;
     [[nodiscard]] bool isHidden() const noexcept;
+
     void destroy();
     void attachDocument(Rml::ElementDocument &document);
     void detachDocument() const;

@@ -8,7 +8,7 @@
 #include <iterator>
 #include <utility>
 #include <gsl/pointers>
-#include "EatiEssentials/memsafety.hxx"
+#include "EatiEssentials/memory/memsafety.hxx"
 
 namespace Essentials::ContainerAndView
 {

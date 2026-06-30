@@ -277,6 +277,14 @@ void UiWin::setShouldClose() {
 	applyCloseRequestState();
 }
 
+bool UiWin::isPendingClose() const {
+	return _data && _data->_selfData->_shouldClose;
+}
+
+bool UiWin::hasUnfinishedOp() const {
+	return _data && _data->_selfData->_runningAsyncOp;
+}
+
 void UiWin::setRunningAsyncOp(bool running) noexcept {
 	if (!_data) {
 		return;

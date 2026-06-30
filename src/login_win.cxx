@@ -31,8 +31,9 @@ static void saveQrCodeImage(std::string_view base64Data, stdf::path filepath) {
 class LoginWin::Impl
 {
 public:
-	Impl()
-		: uiState_{ []() -> UIState {
+	Impl(UiWinBizLogicObjContext<LoginWin> &&ctx)
+		: ctx_(std::move(ctx)),
+		uiState_{ []() -> UIState {
 			auto &win = getAppState().winManager->createWindow("login", { 460, 460 }, getAssetsDir() / "login_win.rml", true);
 			SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
 			return { &win, std::move(mainWinRootEleEventMan) };
@@ -50,18 +51,18 @@ public:
 
 		// TODO：進一步封裝 `This &that, LiveKeepGuard liveKeepGuard` 的組合。
 		// 組合成一個參數，如 `CoroRefKeeper<This> that` 類似的
-		[](Impl &that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
-			try {
-				co_await that.client_.connectAsync();
-				that.client_.requestQrCodeLogin();
-			} catch (const std::exception& e) {
-				std::println("[错误] 连接后端时出错: {}", e.what());
-				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
-				that.uiState_.mainWin_->setShouldClose();
-			}
+		// [](Impl &that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
+		// 	try {
+		// 		co_await that.client_.connectAsync();
+		// 		that.client_.requestQrCodeLogin();
+		// 	} catch (const std::exception& e) {
+		// 		std::println("[错误] 连接后端时出错: {}", e.what());
+		// 		MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
+		// 		that.uiState_.mainWin_->setShouldClose();
+		// 	}
 
-			co_return;
-		}(*this, uiState_.mainWin_->startAsyncOp());
+		// 	co_return;
+		// }(*this, uiState_.mainWin_->startAsyncOp());
 
 	}
 
@@ -73,10 +74,10 @@ public:
 	Impl &operator=(const Impl &) = delete;
 	Impl &operator=(Impl &&) = delete;
 
-private:
+//private:
 	struct UIState
 	{
-		gsl::not_null<UiWin *> mainWin_ LIFETIMEBOUND_MEMBER;
+		gsl::not_null<UiWin *> mainWin_;
 		SimpleEventListenerManager mainWinRootEleEventMan_;
 		int frameCount = 0;
 	};
@@ -158,12 +159,17 @@ private:
 	};
 	int qrCodeRefreshCount = 0;
 
+	UiWinBizLogicObjContext<LoginWin> ctx_;
 	
 };
 
-LoginWin::LoginWin()
-	: pImpl{ stdx::pimpl::make_unique<Impl>() }
+LoginWin::LoginWin(UiWinBizLogicObjContext<LoginWin> ctx)
+	: pImpl{ stdx::pimpl::make_unique<Impl>(std::move(ctx)) }
 {
 }
 
+
+UiWinBizLogicObjContext<LoginWin>& LoginWin::getLogicObjCtx() {
+	return pImpl->ctx_;
+}
 LoginWin::~LoginWin() = default;

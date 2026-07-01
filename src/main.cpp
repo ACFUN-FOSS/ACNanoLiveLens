@@ -111,7 +111,7 @@ static void rmluiMain() {
         	//TestWin testWin;
 			//DanmakuMonitorWin danmakuMonitorWin;
 			//LoginWin loginWin;
-			//UiWinBizLogicObjHandler<LoginWin> loginWin;
+			UiWinBizLogicObjHandler<LoginWin> loginWin;
 
 		    //assert(false);
 

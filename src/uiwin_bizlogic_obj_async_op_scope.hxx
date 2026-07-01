@@ -6,14 +6,14 @@
 
 template <typename T>
 concept IsBizLogicObjDuckType = requires(T obj) {
-    { obj.getLogicObjCtx().hasUnfinishedOp() } -> std::convertible_to<bool>;
-    { obj.getLogicObjCtx().setShouldClose() }  -> std::same_as<void>;
+    { obj.getLogicObjCtx().hasUnfinishedAsyncOp() } -> std::convertible_to<bool>;
+    { obj.getLogicObjCtx().requestClose() }  -> std::same_as<void>;
     { obj.getLogicObjCtx().isPendingClose() }  -> std::convertible_to<bool>;
 };
 
 template <typename T> class UiWinBizLogicObjContext;
-template <IsBizLogicObjDuckType T> class UiWinBizLogicObjHandler_;
-template <IsBizLogicObjDuckType T> class UiWinBizLogicObjAsyncOpScope;
+template <typename T> class UiWinBizLogicObjHandler_;
+template <typename T> class UiWinBizLogicObjAsyncOpScope;
 
 GSL_POINTER
 template <typename T>
@@ -42,7 +42,7 @@ public:
 		return (*handler).hasUnfinishedOp();
 	}
 	void requestClose() {
-		(*handler).setShouldClose();
+		(*handler).requestClose();
 	}
 	bool isPendingClose() const {
 		return (*handler).isPendingClose();
@@ -54,19 +54,21 @@ public:
 
 private:
 	friend class UiWinBizLogicObjHandler_<T>;
+	friend class UiWinBizLogicObjAsyncOpScope<T>;
 	gsl::not_null<UiWinBizLogicObjHandler_<T> *> handler;
 
 	size_t asyncOpCount = 0;
 };
 
-template <IsBizLogicObjDuckType T>
+template <typename T>
 class UiWinBizLogicObjAsyncOpScope
 {
 public:
 	UiWinBizLogicObjAsyncOpScope(UiWinBizLogicObjContext<T> &ctx LIFETIMEBOUND)
-		: ctx{ ctx }
+		requires IsBizLogicObjDuckType<T>
+		: ctx{ &ctx }
 	{
-		ctx->markOneAsyncOpBegin();
+		ctx.markOneAsyncOpBegin();
 	}
 	UiWinBizLogicObjAsyncOpScope(const UiWinBizLogicObjAsyncOpScope &) = default;
 	UiWinBizLogicObjAsyncOpScope(UiWinBizLogicObjAsyncOpScope &&) = default;
@@ -84,19 +86,21 @@ private:
 	gsl::not_null<UiWinBizLogicObjContext<T> *> ctx;
 };
 
-template <IsBizLogicObjDuckType T>
+template <typename T>
 class UiWinBizLogicObjHandler_
 {
 public:
 
 	UiWinBizLogicObjHandler_()
 		requires std::constructible_from<T, UiWinBizLogicObjContext<T>>
+		&& IsBizLogicObjDuckType<T>
 		: logicObj_{ UiWinBizLogicObjContext{ *this } }
 	{ }
 
 
     template <typename... Args>
 		requires std::constructible_from<T, UiWinBizLogicObjContext<T>, Args...>
+		&& IsBizLogicObjDuckType<T>
     UiWinBizLogicObjHandler_(Args&&... args)
 		: logicObj_{ UiWinBizLogicObjContext{ *this }, std::forward<Args>(args)... }
     { }
@@ -105,6 +109,7 @@ public:
 	UiWinBizLogicObjHandler_(const UiWinBizLogicObjHandler_ &other)
 		requires
 			std::constructible_from<T, UiWinBizLogicObjContext<T>, const T &>
+			&& IsBizLogicObjDuckType<T>
 		: logicObj_{ UiWinBizLogicObjContext{ *this }, other.logicObj_ } {}
 
 	// 如果 T 不可拷贝，显式将其删除（可选，但能提供更好的编译错误信息）
@@ -116,6 +121,7 @@ public:
 	UiWinBizLogicObjHandler_(UiWinBizLogicObjHandler_ &&other) noexcept
 		requires
 			std::constructible_from<T, UiWinBizLogicObjContext<T>, T &&>
+			&& IsBizLogicObjDuckType<T>
 		: logicObj_{ UiWinBizLogicObjContext{ *this }, std::move(other.logicObj_) } {}
 
 	

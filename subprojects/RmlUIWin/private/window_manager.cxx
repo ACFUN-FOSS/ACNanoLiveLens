@@ -62,6 +62,7 @@ struct UiWin::SelfData
 	bool _isHidden = false;
 	bool _shouldClose = false;
 	bool _runningAsyncOp = false;
+	bool _firstFrame = true;
 	std::function<void()> _updateCb;
 	std::function<void()> _documentChangedCb;
 };
@@ -173,6 +174,7 @@ void UiWin::update() const {
 	if (_data->_rmlCStyleData->_context) {
 		_data->_rmlCStyleData->_context->Update();
 	}
+	//if (_data->_selfData->_firstFrame && _data->_selfData->)
 	if (_data->_selfData->_updateCb) {
 		try {
 			_data->_selfData->_updateCb();

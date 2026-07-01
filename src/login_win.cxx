@@ -30,6 +30,7 @@ static void saveQrCodeImage(std::string_view base64Data, stdf::path filepath) {
 
 class LoginWin::Impl
 {
+	using AsyncOpScope = UiWinBizLogicObjAsyncOpScope<LoginWin>;
 public:
 	Impl(UiWinBizLogicObjContext<LoginWin> &&ctx)
 		: ctx_(std::move(ctx)),
@@ -63,6 +64,12 @@ public:
 
 		// 	co_return;
 		// }(*this, uiState_.mainWin_->startAsyncOp());
+
+		[](AsyncOpScope asyncOpScope) -> coro::result<void> {
+			auto &that = *asyncOpScope.that().pImpl;
+			that.ctx_.requestClose();
+			co_return;
+		}(ctx_);
 
 	}
 

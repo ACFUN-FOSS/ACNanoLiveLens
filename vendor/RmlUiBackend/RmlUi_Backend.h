@@ -62,6 +62,7 @@ GLFWwindow* CreateWindow(const char* window_name, int width, int height, bool al
 void DestroyWindow(GLFWwindow* window);
 // Returns true if the window should close.
 bool ShouldWindowClose(GLFWwindow* window);
+void ClearShouldClose(GLFWwindow* glfw_win);
 
 void SetShouldClose(GLFWwindow *glfw_win);
 

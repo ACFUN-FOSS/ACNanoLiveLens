@@ -15,6 +15,8 @@ public:
     LoginWin &operator=(LoginWin &&) = delete;
 
 	UiWinBizLogicObjContext<LoginWin>& getLogicObjCtx();
+	RmlUIWin::UiWin &getUiWin();
+
 
 private:
     class Impl;

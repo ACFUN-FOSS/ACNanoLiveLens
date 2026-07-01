@@ -60,17 +60,18 @@ struct UiWin::SelfData
 	bool _isMainWin;
 	bool _isTransparent;
 	bool _isHidden = false;
-	bool _shouldClose = false;
+	bool _pendingClose = false;
 	bool _runningAsyncOp = false;
 	bool _firstFrame = true;
 	std::function<void()> _updateCb;
+	std::function<void()> _showCb;
 	std::function<void()> _documentChangedCb;
 };
 
 void UiWin::EventListener::ProcessEvent(Rml::Event &event) {
 }
 
-UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain, bool isTransparent)
+UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, WinManager &winManager, bool isMain, bool isTransparent)
 	: _data{ Data {
 		._rmlCStyleData = { [&]() {
 			auto &win = [&]() -> auto & {
@@ -128,14 +129,28 @@ UiWin::UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documen
 			._isMainWin = isMain,
 			._isTransparent = isTransparent,
 		})
-	} } {
+	} }
+	, _winManager{ &winManager } {
+	if (isMain) {
+		assert(std::ranges::none_of(_winManager->wins_, [](const auto &win) {
+			return win->isMainWin();
+		}));
+	} else {
+		assert(_winManager->hasMainWin() &&
+			"Cannot create a non-main UiWin before the backend main window has been adopted. "
+			"Create a main window first, or explicitly adopt the backend main window for early-startup UI.");
+	}
+
 	Backend::AttachContext(_data->_rmlCStyleData->_win, _data->_rmlCStyleData->_context, &processKeyDownShortcutsBridge);
 	attachDocument(*_data->_rmlCStyleData->_document);
+	hide();
+	_winManager->registerWindow(*this);
 	Rml::Debugger::Initialise(_data->_rmlCStyleData->_context);
 	std::println("Created window: {}, ptr: {}", _data->_selfData->_name, ptrToHex(_data->_rmlCStyleData->_win));
 }
 
 UiWin::~UiWin() {
+	assert(!_data || !_data->_selfData->_runningAsyncOp);
 	destroy();
 }
 
@@ -151,6 +166,7 @@ void UiWin::destroy() {
 
 	if (_winManager) {
 		_winManager->unregisterWindow(*this);
+		_winManager = nullptr;
 	}
 
 	if (!_data->_selfData->_isMainWin && _data->_rmlCStyleData->_win) {
@@ -170,7 +186,9 @@ void UiWin::destroy() {
 	return *_data->_rmlCStyleData->_document;
 }
 
-void UiWin::update() const {
+void UiWin::update() {
+	applyCloseRequestState();
+
 	if (_data->_rmlCStyleData->_context) {
 		_data->_rmlCStyleData->_context->Update();
 	}
@@ -205,6 +223,10 @@ void UiWin::reload() {
 
 void UiWin::setUpdateCb(std::function<void()> cb) {
 	_data->_selfData->_updateCb = std::move(cb);
+}
+
+void UiWin::setShowCb(std::function<void()> cb) {
+	_data->_selfData->_showCb = std::move(cb);
 }
 
 void UiWin::setDocumentChangedCb(std::function<void()> cb) {
@@ -260,6 +282,7 @@ void UiWin::hide() {
 		return;
 	}
 
+	_data->_rmlCStyleData->_document->Hide();
 	Backend::HideWindow(_data->_rmlCStyleData->_win);
 	_data->_selfData->_isHidden = true;
 }
@@ -269,18 +292,27 @@ void UiWin::show() {
 		return;
 	}
 
+	_data->_rmlCStyleData->_document->Show();
 	Backend::ShowWindow(_data->_rmlCStyleData->_win);
 	_data->_selfData->_isHidden = false;
+
+	if (_data->_selfData->_showCb) {
+		try {
+			_data->_selfData->_showCb();
+		} catch (const std::exception &e) {
+			std::println("UI Runtime error: {}", e.what());
+		}
+	}
 }
 
-void UiWin::setShouldClose() {
-	_data->_selfData->_shouldClose = true;
+void UiWin::requestClose() {
+	_data->_selfData->_pendingClose = true;
 	refreshClosingVisualState();
 	applyCloseRequestState();
 }
 
 bool UiWin::isPendingClose() const {
-	return _data && _data->_selfData->_shouldClose;
+	return _data && _data->_selfData->_pendingClose;
 }
 
 bool UiWin::hasUnfinishedOp() const {
@@ -296,12 +328,14 @@ void UiWin::setRunningAsyncOp(bool running) noexcept {
 }
 
 void UiWin::applyCloseRequestState() {
-	if (!_data || !_data->_selfData->_shouldClose) {
+	if (!_data || !_data->_selfData->_pendingClose) {
 		return;
 	}
 
 	if (canCloseNow()) {
-		Backend::SetShouldClose(_data->_rmlCStyleData->_win);
+		hide();
+		_data->_selfData->_pendingClose = false;
+		refreshClosingVisualState();
 	}
 }
 
@@ -338,16 +372,18 @@ void UiWin::requestCloseFromNativeEvent() {
 		return;
 	}
 
-	_data->_selfData->_shouldClose = true;
+	Backend::ClearShouldClose(_data->_rmlCStyleData->_win);
+	_data->_selfData->_pendingClose = true;
 	refreshClosingVisualState();
+	applyCloseRequestState();
 }
 
 [[nodiscard]] bool UiWin::shouldDestroyNow() const noexcept {
-	return _data && _data->_selfData->_shouldClose && canCloseNow();
+	return false;
 }
 
 [[nodiscard]] bool UiWin::shouldShowClosingVisualState() const noexcept {
-	return _data && _data->_selfData->_shouldClose && !canCloseNow();
+	return _data && _data->_selfData->_pendingClose && !canCloseNow();
 }
 
 [[nodiscard]] bool UiWin::canCloseNow() const noexcept {
@@ -360,13 +396,12 @@ void UiWin::requestCloseFromNativeEvent() {
 
 void UiWin::attachDocument(Rml::ElementDocument &document) {
 	document.AddEventListener("click", &_data->_selfData->_eventListener);
-	document.Show();
 	notifyDocumentChanged();
 }
 
 void UiWin::detachDocument() const {
 	if (_data && _data->_rmlCStyleData->_document) {
-		_data->_rmlCStyleData->_document->RemoveEventListener("click", &_data->_selfData->_eventListener);
+		//_data->_rmlCStyleData->_document->RemoveEventListener("click", &_data->_selfData->_eventListener);
 	}
 }
 
@@ -389,28 +424,10 @@ WinManager::WinManager() {
 
 WinManager::~WinManager() {
 	assert(!hasOpenWins() && "Should be no open wins after shutdown");
-	wins_.clear();
 	Backend::SetContextInputFilter(nullptr);
 	if (activeWinManager == this) {
 		activeWinManager = nullptr;
 	}
-}
-
-UiWin &WinManager::createWindow(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain, bool isTransparent) LIFETIMEBOUND {
-	if (isMain) {
-		assert(std::ranges::none_of(wins_, [](const auto &win) {
-			return win->isMainWin();
-		}));
-	}
-	assert((isMain || hasMainWin()) &&
-		"Cannot create a non-main UiWin before the backend main window has been adopted. "
-		"Create a main window first, or explicitly adopt the backend main window for early-startup UI.");
-
-	auto window = newBox(UiWin{std::move(name), size, std::move(documentPath), isMain, isTransparent});
-	window->_winManager = this;
-	registerWindow(*window);
-	wins_.push_back(std::move(window));
-	return *wins_.back();
 }
 
 void WinManager::updateAll() {
@@ -435,22 +452,28 @@ void WinManager::renderAll() {
 }
 
 void WinManager::cleanupClosedWindows() {
-	std::erase_if(wins_, [](const auto &win) {
+	for (auto &winRef : wins_) {
+		auto *win = winRef.get();
 		if (Backend::ShouldWindowClose(win->getNativeWin())) {
 			win->requestCloseFromNativeEvent();
 		}
-		return win->shouldDestroyNow();
-	});
+	}
 }
 
 void WinManager::requestCloseAllWindows() {
 	for (auto &window : wins_) {
-		window->setShouldClose();
+		window->requestClose();
 	}
 }
 
 [[nodiscard]] bool WinManager::hasOpenWins() const {
 	return !wins_.empty();
+}
+
+[[nodiscard]] bool WinManager::hasVisibleWins() const {
+	return std::ranges::any_of(wins_, [](const auto &win) {
+		return !win->isHidden();
+	});
 }
 
 [[nodiscard]] UiWin &WinManager::getMainWin() const {
@@ -504,11 +527,18 @@ void WinManager::setModalWin(UiWin *window) {
 }
 
 void WinManager::registerWindow(UiWin &window) {
+	assert(std::ranges::find_if(wins_, [&window](const auto &winRef) {
+		return winRef.get() == &window;
+	}) == wins_.end());
+	wins_.push_back(gsl::not_null<UiWin *>{ &window });
 	const auto [_, inserted] = context2Win_.emplace(&window.getContext(), &window);
 	assert(inserted);
 }
 
 void WinManager::unregisterWindow(const UiWin &window) {
+	std::erase_if(wins_, [&window](const auto &winRef) {
+		return winRef.get() == &window;
+	});
 	context2Win_.erase(const_cast<Rml::Context *>(&window.getContext()));
 	if (modalWin_ == &window) {
 		modalWin_ = nullptr;

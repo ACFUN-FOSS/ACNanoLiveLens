@@ -13,6 +13,8 @@
 #include <RmlUi_Backend.h>
 #include <RmlUi_Platform_GLFW.h>
 
+template <typename T> class UiWinBizLogicObjContext;
+
 namespace RmlUIWin {
 
 class WinManager;
@@ -27,6 +29,7 @@ public:
         void ProcessEvent(Rml::Event& event) override;
     };
 
+    UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, WinManager &winManager, bool isMain = false, bool isTransparent = false);
     UiWin(const UiWin &) = delete;
     UiWin& operator=(const UiWin &) = delete;
     UiWin(UiWin &&other) noexcept = delete;
@@ -38,11 +41,12 @@ public:
     [[nodiscard]] Rml::Context &getContext() const LIFETIMEBOUND;
     [[nodiscard]] Rml::ElementDocument &getDocument() const LIFETIMEBOUND;
 
-    void update() const;
+    void update();
     void render() const;
     void reload();
 
     void setUpdateCb(std::function<void()> cb);
+    void setShowCb(std::function<void()> cb);
     void setDocumentChangedCb(std::function<void()> cb);
 
     [[nodiscard]] std::string_view getName() const;
@@ -56,13 +60,12 @@ public:
     void setPosInMonitor(const MonitorArea &monitorArea, const Rml::Vector2i relativePos);
     void hide();
     void show();
-    void setShouldClose();
+    void requestClose();
+	[[nodiscard]] bool isHidden() const noexcept;
 	bool isPendingClose() const;
 	bool hasUnfinishedOp() const;
 
 private:
-    UiWin(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false);
-
     void setRunningAsyncOp(bool running) noexcept;
     void applyCloseRequestState();
     void refreshClosingVisualState();
@@ -70,8 +73,6 @@ private:
     [[nodiscard]] bool shouldDestroyNow() const noexcept;
     [[nodiscard]] bool shouldShowClosingVisualState() const noexcept;
     [[nodiscard]] bool canCloseNow() const noexcept;
-    [[nodiscard]] bool isHidden() const noexcept;
-
     void destroy();
     void attachDocument(Rml::ElementDocument &document);
     void detachDocument() const;
@@ -90,6 +91,8 @@ private:
 
     WinManager *_winManager = nullptr;
 
+    //template <typename T> friend class ::UiWinBizLogicObjAsyncOpScope;
+	template <typename T> friend class UiWinBizLogicObjContext;
     friend class WinManager;
 };
 
@@ -103,13 +106,13 @@ public:
     WinManager(WinManager&&) = delete;
     WinManager& operator=(WinManager&&) = delete;
 
-    UiWin &createWindow(std::string name, Rml::Vector2i size, std::filesystem::path documentPath, bool isMain = false, bool isTransparent = false) LIFETIMEBOUND;
     void updateAll();
     void renderAll();
     void cleanupClosedWindows();
     void requestCloseAllWindows();
 
     [[nodiscard]] bool hasOpenWins() const;
+    [[nodiscard]] bool hasVisibleWins() const;
     [[nodiscard]] UiWin &getMainWin() const;
     [[nodiscard]] bool hasMainWin() const;
     [[nodiscard]] MonitorArea getPrimaryMonitorArea() const;
@@ -129,7 +132,7 @@ private:
     void unregisterWindow(const UiWin &window);
     [[nodiscard]] bool isInputAllowedForContext(const Rml::Context *context) const;
 
-    std::vector<ESSM::Box<UiWin>> wins_;
+    std::vector<gsl::not_null<UiWin *>> wins_;
     std::unordered_map<gsl::not_null<Rml::Context *>, gsl::not_null<UiWin *>> context2Win_;
     UiWin *modalWin_ = nullptr;
 };

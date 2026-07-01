@@ -80,7 +80,7 @@ void WinFrame::bindEventHandlers() {
 	eventListenerMan_.on("close-btn", "mouseup", [this](Event &event) {
 		dbgLog("close-btn click");
 		auto &win = UNWRAP(getAppState().winManager->getWinOfElement(*this));
-		win.setShouldClose();
+		win.requestClose();
 		
 		event.StopPropagation();
 	});

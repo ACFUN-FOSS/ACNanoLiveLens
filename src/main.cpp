@@ -30,9 +30,9 @@ static void runUiFrame(WinManager &winMan, coro::manual_executor &mainThreadExec
 static void drainUiShutdown(WinManager &winMan, coro::manual_executor &mainThreadExecutor) {
 	winMan.requestCloseAllWindows();
 
-	while (winMan.hasOpenWins()) {
+	while (winMan.hasVisibleWins()) {
 		// Keep pumping events and the coroutine executor until every window
-		// has finished its async work and can be destroyed safely.
+		// has finished its async work and can be hidden safely.
 		Backend::ProcessEvents(false);
 		runUiFrame(winMan, mainThreadExecutor);
 	}
@@ -43,7 +43,7 @@ static void shutdown(WinManager &winMan) {
 }
 
 static void runUiMainLoop(WinManager &winMan, coro::manual_executor &mainThreadExecutor) {
-	while (winMan.hasOpenWins()) {
+	while (winMan.hasVisibleWins()) {
 
 		if (ctrlCPressed) {
 			drainUiShutdown(winMan, mainThreadExecutor);
@@ -83,7 +83,7 @@ static void rmluiMain() {
 		//qjs::Runtime rt;
 		//qjs::Context ctx(rt);
 
-		//initJs(rt, ctx);
+	//initJs(rt, ctx);
 		
 		initAppState({
 			 &rmlui,
@@ -112,6 +112,7 @@ static void rmluiMain() {
 			//DanmakuMonitorWin danmakuMonitorWin;
 			//LoginWin loginWin;
 			UiWinBizLogicObjHandler<LoginWin> loginWin;
+			loginWin->getUiWin().show();
 
 		    //assert(false);
 

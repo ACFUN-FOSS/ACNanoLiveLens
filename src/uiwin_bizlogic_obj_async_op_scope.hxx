@@ -9,6 +9,7 @@ concept IsBizLogicObjDuckType = requires(T obj) {
     { obj.getLogicObjCtx().hasUnfinishedAsyncOp() } -> std::convertible_to<bool>;
     { obj.getLogicObjCtx().requestClose() }  -> std::same_as<void>;
     { obj.getLogicObjCtx().isPendingClose() }  -> std::convertible_to<bool>;
+    { obj.getUiWin() } -> std::same_as<RmlUIWin::UiWin &>;
 };
 
 template <typename T> class UiWinBizLogicObjContext;
@@ -28,18 +29,20 @@ public:
 	void markOneAsyncOpBegin() {
 		assert(asyncOpCount >= 0);
 		asyncOpCount++;
+		(*handler)->getUiWin().setRunningAsyncOp(true);
 		assert(asyncOpCount >= 0);
 	}
 
 	void markOneAsyncOpFinish() {
 		assert(asyncOpCount >= 0);
 		asyncOpCount--;
+		if (asyncOpCount == 0)
+			(*handler)->getUiWin().setRunningAsyncOp(false);
 		assert(asyncOpCount >= 0);
 	}
 
 	bool hasUnfinishedAsyncOp() const {
-		// TODO: rename
-		return (*handler).hasUnfinishedOp();
+		return asyncOpCount > 0;
 	}
 	void requestClose() {
 		(*handler).requestClose();
@@ -50,7 +53,6 @@ public:
 	coro::result<void> close() {
 		co_return;
 	}
-
 
 private:
 	friend class UiWinBizLogicObjHandler_<T>;
@@ -154,6 +156,14 @@ public:
 
 	const T &operator *() const {
 		return logicObj_;
+	}
+
+	T *operator ->() {
+		return &logicObj_;
+	}
+
+	const T *operator ->() const {
+		return &logicObj_;
 	}
 	
 private:

@@ -6,6 +6,7 @@
 #include "RmlUIWin/window_manager.hxx"
 #include "utils.hxx"
 
+
 using namespace std::chrono_literals;
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -28,20 +29,17 @@ static void saveQrCodeImage(std::string_view base64Data, stdf::path filepath) {
 	std::println("[二维码] 已保存到: {} ({} 字节)", filepath.string(), imageData.size());
 }
 
+
 class LoginWin::Impl
 {
 	using AsyncOpScope = UiWinBizLogicObjAsyncOpScope<LoginWin>;
 public:
 	Impl(UiWinBizLogicObjContext<LoginWin> &&ctx)
 		: ctx_(std::move(ctx)),
-		uiState_{ []() -> UIState {
-			auto &win = getAppState().winManager->createWindow("login", { 460, 460 }, getAssetsDir() / "login_win.rml", true);
-			SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
-			return { &win, std::move(mainWinRootEleEventMan) };
-		}() } {
+		uiState_{ *getAppState().winManager, getAssetsDir() / "login_win.rml" } {
 		bindEventHandlers();
 		refreshQrCodeUi(false);
-		uiState_.mainWin_->centerToPrimaryMonitor();
+		uiState_.mainWin_.centerToPrimaryMonitor();
 		client_.bindRuntime(*getAppState().coroRuntime, getAppState().mainThreadExecutor);
 		client_.onResp([this](const AnyResp &resp) {
 			handleResp(resp);
@@ -50,26 +48,6 @@ public:
 			std::println("[重连] 尝试次数: {}", attemptCount);
 		});
 
-		// TODO：進一步封裝 `This &that, LiveKeepGuard liveKeepGuard` 的組合。
-		// 組合成一個參數，如 `CoroRefKeeper<This> that` 類似的
-		// [](Impl &that, UiWin::AsyncOpScope asyncOpScope) -> coro::result<void> {
-		// 	try {
-		// 		co_await that.client_.connectAsync();
-		// 		that.client_.requestQrCodeLogin();
-		// 	} catch (const std::exception& e) {
-		// 		std::println("[错误] 连接后端时出错: {}", e.what());
-		// 		MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
-		// 		that.uiState_.mainWin_->setShouldClose();
-		// 	}
-
-		// 	co_return;
-		// }(*this, uiState_.mainWin_->startAsyncOp());
-
-		[](AsyncOpScope asyncOpScope) -> coro::result<void> {
-			auto &that = *asyncOpScope.that().pImpl;
-			that.ctx_.requestClose();
-			co_return;
-		}(ctx_);
 
 	}
 
@@ -84,28 +62,51 @@ public:
 //private:
 	struct UIState
 	{
-		gsl::not_null<UiWin *> mainWin_;
+		UiWin mainWin_;
 		SimpleEventListenerManager mainWinRootEleEventMan_;
 		int frameCount = 0;
+
+		UIState(WinManager &winManager, std::filesystem::path documentPath)
+			: mainWin_{ "login", { 460, 460 }, std::move(documentPath), winManager, true }
+			, mainWinRootEleEventMan_{ mainWin_.getRootElement() } {
+		}
 	};
 
 	void bindEventHandlers() {
-		uiState_.mainWin_->setDocumentChangedCb([this] {
-			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_->getRootElement());
+		uiState_.mainWin_.setDocumentChangedCb([this] {
+			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_.getRootElement());
 			
 		});
 
-		uiState_.mainWin_->setUpdateCb([this]{
+		uiState_.mainWin_.setShowCb([this] {
+			std::println("show!");
+			[](AsyncOpScope asyncOpScope) -> coro::result<void> {
+				auto &that = *asyncOpScope.that().pImpl;
+				try {
+					std::println("------开始!");
+					co_await that.client_.connectAsync();
+					std::println("------OK!");
+					that.client_.requestQrCodeLogin();
+				} catch (const std::exception& e) {
+					std::println("------[错误] 连接后端时出错: {}", e.what());
+					MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
+				//that.uiState_.mainWin_->requestClose();
+				}
+				co_return;
+			}(ctx_);
+		});
+
+		uiState_.mainWin_.setUpdateCb([this]{
 			try {
 				client_.exec();
 			} catch (const AcliveBackendError &e) {
 				std::println("[错误] 后端响应错误: {}", e.what());
 				MsgBox::popupOKMsgBox(MsgBox::Type::EERR, e.meta().error.value_or("后端返回错误"));
-				uiState_.mainWin_->setShouldClose();
+				uiState_.mainWin_.requestClose();
 			} catch (const std::exception &e) {
 				std::println("[错误] 处理后端响应时出错: {}", e.what());
 				//MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "后端响应格式无效");
-				//uiState_.mainWin_->setShouldClose();
+				//uiState_.mainWin_->requestClose();
 			}
 		});
 
@@ -116,7 +117,7 @@ public:
 	}
 
 	void refreshQrCodeUi(bool hasQrCode) {
-		auto &rootElement = uiState_.mainWin_->getRootElement();
+		auto &rootElement = uiState_.mainWin_.getRootElement();
 		auto &qrCodeEle = UNWRAP(findChildOrSelfById(&rootElement, "qr-code"));
 		auto &placeholderEle = UNWRAP(findChildOrSelfById(&rootElement, "qr-code-placeholder"));
 
@@ -134,25 +135,25 @@ public:
 					/ std::format("qrcode-{}.png", qrCodeRefreshCount++);
 				saveQrCodeImage(qrResp.data.imageData, qrCodeImageFile);
 
-				auto &qrCodeEle = UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "qr-code"));
+				auto &qrCodeEle = UNWRAP(findChildOrSelfById(&uiState_.mainWin_.getRootElement(), "qr-code"));
 				qrCodeEle.SetAttribute("src", qrCodeImageFile.string());
-				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_.getRootElement(), "login-hint"))
 					.SetInnerRML("请使用 AcFun App 扫码登录");
 				refreshQrCodeUi(true);
 			},
 			[this](const QrCodeScannedResp &) {
-				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_.getRootElement(), "login-hint"))
 					.SetInnerRML("请确认登入");
 			},
 			[this](const QrCodeLoginTerminatedResp &) {
-				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_.getRootElement(), "login-hint"))
 					.SetInnerRML("二维码已过期或已取消，请刷新");
 				refreshQrCodeUi(false);
 			},
 			[this](const QrCodeLoginSuccessResp &) {
-				UNWRAP(findChildOrSelfById(&uiState_.mainWin_->getRootElement(), "login-hint"))
+				UNWRAP(findChildOrSelfById(&uiState_.mainWin_.getRootElement(), "login-hint"))
 					.SetInnerRML("登入成功");
-				uiState_.mainWin_->hide();
+				uiState_.mainWin_.hide();
 			}
 		}, resp);
 	}
@@ -179,4 +180,9 @@ LoginWin::LoginWin(UiWinBizLogicObjContext<LoginWin> ctx)
 UiWinBizLogicObjContext<LoginWin>& LoginWin::getLogicObjCtx() {
 	return pImpl->ctx_;
 }
+
+RmlUIWin::UiWin &LoginWin::getUiWin() {
+	return pImpl->uiState_.mainWin_;
+}
+
 LoginWin::~LoginWin() = default;

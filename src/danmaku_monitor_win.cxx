@@ -20,15 +20,11 @@ class DanmakuMonitorWin::Impl
 {
 public:
     Impl()
-        : uiState_{ [] -> UIState {
-            auto &win = getAppState().winManager->createWindow("danmaku_monitor", {466, 666}, getAssetsDir() / "danmaku_monitor.rml", true);
-            SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
-            return { &win, std::move(mainWinRootEleEventMan) };
-        }() }
+        : uiState_{ *getAppState().winManager, getAssetsDir() / "danmaku_monitor.rml" }
 		, danmakuList_{
-			uiState_.mainWin_->getDocument(), "#danmaku-list"
+			uiState_.mainWin_.getDocument(), "#danmaku-list"
 		} {
-			uiState_.mainWin_->setUpdateCb([this]() {
+			uiState_.mainWin_.setUpdateCb([this]() {
 				static bool first = true;
 				if (first) {
 					// read test danmakus from json
@@ -47,13 +43,13 @@ public:
 				scrollToEnd();
 			});
 
-			uiState_.mainWin_->setDocumentChangedCb([this]() {
+			uiState_.mainWin_.setDocumentChangedCb([this]() {
 				auto danmakuInGui = danmakuInGui_;
 				dbgLog("DanmakuMonitorWin: reload: clearDanmaku");
 
-				auto &mainWinRootEle = uiState_.mainWin_->getRootElement();
+				auto &mainWinRootEle = uiState_.mainWin_.getRootElement();
 				uiState_.mainWinRootEleEventMan_.reBind(mainWinRootEle);
-				danmakuList_.reBind(uiState_.mainWin_->getDocument());
+				danmakuList_.reBind(uiState_.mainWin_.getDocument());
 
 				clearDanmaku();
 				// Re-spawn danmakus
@@ -69,6 +65,8 @@ public:
 				std::chrono::system_clock::now()
 			});
 		});
+
+		uiState_.mainWin_.show();
     }
 
     ~Impl() = default;
@@ -88,7 +86,7 @@ public:
 
 		//try_eval_module();
 
-		auto &document = uiState_.mainWin_->getDocument();
+		auto &document = uiState_.mainWin_.getDocument();
 		//dbgLog("document: {}", ptrToHex(&document));
 
 		auto danmakuItemAppearAnimContainerEle = document.CreateElement("div");
@@ -132,7 +130,7 @@ public:
 
 	void scrollToEnd() {
 
-		auto &root = uiState_.mainWin_->getRootElement();
+		auto &root = uiState_.mainWin_.getRootElement();
 		//danmaku-list-scroll-container
 		//auto &scrollContainer = UNWRAP(findChildOrSelfById(&root, "danmaku-list-scroll-container"));
 		//scrollContainer.ScrollIntoView(true);
@@ -163,7 +161,7 @@ public:
   			std::cout << "newStyleSrc: " << newStyleSrc << std::endl;
   			
   			// 获取文档对象
-  			auto &document = uiState_.mainWin_->getDocument();
+  			auto &document = uiState_.mainWin_.getDocument();
 
   			// 创建样式表并合并到文档的样式表容器中
   			auto newStyle = Rml::Factory::InstanceStyleSheetString(newStyleSrc);
@@ -193,8 +191,13 @@ public:
 private:
     struct UIState
     {
-        gsl::not_null<UiWin *const> mainWin_;
+        UiWin mainWin_;
         SimpleEventListenerManager mainWinRootEleEventMan_;
+
+		UIState(WinManager &winManager, std::filesystem::path documentPath)
+			: mainWin_{ "danmaku_monitor", { 466, 666 }, std::move(documentPath), winManager, true }
+			, mainWinRootEleEventMan_{ mainWin_.getRootElement() } {
+		}
     } uiState_;
 
 	std::stack<DanmakuGuiInfo> pendingAnimDanmaku;

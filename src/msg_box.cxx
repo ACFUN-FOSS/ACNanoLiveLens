@@ -19,17 +19,7 @@ public:
 			auto &winManager = UNWRAP(getAppState().winManager);
 			return !winManager.hasMainWin();
 		}() }
-		, uiState_{ [this]() -> UIState {
-			auto &winManager = UNWRAP(getAppState().winManager);
-			auto &win = winManager.createWindow(
-				"msg_box",
-				{ 560, 250 },
-				getAssetsDir() / "msg_box.rml",
-				selfShouldBeMainWin_
-			);
-			SimpleEventListenerManager mainWinRootEleEventMan{ win.getRootElement() };
-			return { &win, std::move(mainWinRootEleEventMan) };
-		}() } {
+		, uiState_{ UNWRAP(getAppState().winManager), getAssetsDir() / "msg_box.rml", selfShouldBeMainWin_ } {
 		bindEventHandlers();
 		refreshUi();
 		centerToMainWinOrPrimaryMonitor();
@@ -46,8 +36,9 @@ public:
 	void showModal() {
 		auto &winManager = *getAppState().winManager;
 		auto oldModalWin = winManager.getModalWin();
-		winManager.setModalWin(uiState_.mainWin_);
-		MsgBoxWindowActivationGuard activationGuard{ uiState_.mainWin_->getNativeWin() };
+		winManager.setModalWin(&uiState_.mainWin_);
+		uiState_.mainWin_.show();
+		MsgBoxWindowActivationGuard activationGuard{ uiState_.mainWin_.getNativeWin() };
 
 		switch (type_) {
 			case Type::EERR:
@@ -71,14 +62,14 @@ public:
 
 			activationGuard.update();
 
-			uiState_.mainWin_->update();
+			uiState_.mainWin_.update();
 
-			auto nativeWin = uiState_.mainWin_->getNativeWin();
+			auto nativeWin = uiState_.mainWin_.getNativeWin();
 			Backend::BeginFrame(nativeWin);
-			uiState_.mainWin_->render();
+			uiState_.mainWin_.render();
 			Backend::PresentFrame(nativeWin);
 
-			if (Backend::ShouldWindowClose(nativeWin)) {
+			if (uiState_.mainWin_.isHidden()) {
 				prepareForClose();
 				getAppState().winManager->cleanupClosedWindows();
 				break;
@@ -91,13 +82,18 @@ public:
 private:
 	struct UIState
 	{
-		gsl::not_null<UiWin *> mainWin_;
+		UiWin mainWin_;
 		SimpleEventListenerManager mainWinRootEleEventMan_;
+
+		UIState(WinManager &winManager, std::filesystem::path documentPath, bool isMain)
+			: mainWin_{ "msg_box", { 560, 250 }, std::move(documentPath), winManager, isMain }
+			, mainWinRootEleEventMan_{ mainWin_.getRootElement() } {
+		}
 	};
 
 	void bindEventHandlers() {
-		uiState_.mainWin_->setDocumentChangedCb([this] {
-			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_->getRootElement());
+		uiState_.mainWin_.setDocumentChangedCb([this] {
+			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_.getRootElement());
 			//bindEventHandlers();
 			refreshUi();
 		});
@@ -110,8 +106,8 @@ private:
 	}
 
 	void refreshUi() {
-		auto &document = uiState_.mainWin_->getDocument();
-		auto &rootElement = uiState_.mainWin_->getRootElement();
+		auto &document = uiState_.mainWin_.getDocument();
+		auto &rootElement = uiState_.mainWin_.getRootElement();
 		auto &msgBoxEle = requireElement(rootElement, "msg-box");
 		auto &titleEle = requireElement(rootElement, "msg-box-title");
 		auto &textEle = requireElement(rootElement, "msg-box-text");
@@ -126,15 +122,15 @@ private:
 
 	void centerToMainWinOrPrimaryMonitor() {
 		if (selfShouldBeMainWin_) {
-			uiState_.mainWin_->centerToPrimaryMonitor();
+			uiState_.mainWin_.centerToPrimaryMonitor();
 			return;
 		}
 		auto &mainWin = getAppState().winManager->getMainWin();
 		auto mainWinPos = mainWin.getWinPos();
 		auto mainWinSize = mainWin.getWinSize();
-		auto msgBoxSize = uiState_.mainWin_->getWinSize();
+		auto msgBoxSize = uiState_.mainWin_.getWinSize();
 
-		uiState_.mainWin_->setWinPos(
+		uiState_.mainWin_.setWinPos(
 			mainWinPos + Rml::Vector2i{
 				(mainWinSize.x - msgBoxSize.x) / 2,
 				(mainWinSize.y - msgBoxSize.y) / 2,
@@ -144,7 +140,7 @@ private:
 
 	void requestClose() {
 		prepareForClose();
-		uiState_.mainWin_->setShouldClose();
+		uiState_.mainWin_.requestClose();
 	}
 
 	void prepareForClose() {
@@ -192,6 +188,7 @@ MsgBox::~MsgBox() = default;
 void MsgBox::popupOKMsgBox(Type type, std::string_view text) {
 	MsgBox msgBox{ type, text };
 	msgBox.showModal();
+
 }
 
 void MsgBox::showModal() {

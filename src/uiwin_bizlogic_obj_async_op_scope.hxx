@@ -34,7 +34,7 @@ public:
 	}
 
 	void markOneAsyncOpFinish() {
-		assert(asyncOpCount >= 0);
+		assert(asyncOpCount > 0);
 		asyncOpCount--;
 		if (asyncOpCount == 0)
 			(*handler)->getUiWin().setRunningAsyncOp(false);
@@ -66,13 +66,13 @@ template <typename T>
 class UiWinBizLogicObjAsyncOpScope
 {
 public:
-	UiWinBizLogicObjAsyncOpScope(UiWinBizLogicObjContext<T> &ctx LIFETIMEBOUND)
+	UiWinBizLogicObjAsyncOpScope(UiWinBizLogicObjContext<T> &ictx LIFETIMEBOUND)
 		requires IsBizLogicObjDuckType<T>
-		: ctx{ &ctx }
+		: ctx{ &ictx }
 	{
-		ctx.markOneAsyncOpBegin();
+		ctx->markOneAsyncOpBegin();
 	}
-	UiWinBizLogicObjAsyncOpScope(const UiWinBizLogicObjAsyncOpScope &) = default;
+	UiWinBizLogicObjAsyncOpScope(const UiWinBizLogicObjAsyncOpScope &other) = default;
 	UiWinBizLogicObjAsyncOpScope(UiWinBizLogicObjAsyncOpScope &&) = default;
 	UiWinBizLogicObjAsyncOpScope &operator =(const UiWinBizLogicObjAsyncOpScope &) = delete;
 	UiWinBizLogicObjAsyncOpScope &operator =(UiWinBizLogicObjAsyncOpScope &&) = delete;
@@ -82,10 +82,13 @@ public:
     }
 
 	~UiWinBizLogicObjAsyncOpScope() {
-		ctx->markOneAsyncOpFinish();
+		if (!moved)
+			ctx->markOneAsyncOpFinish();
 	}
 private:
+	ESSM::MovedFlag moved;
 	gsl::not_null<UiWinBizLogicObjContext<T> *> ctx;
+	int dummy = 123;
 };
 
 template <typename T>

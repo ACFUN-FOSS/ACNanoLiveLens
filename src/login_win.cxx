@@ -80,20 +80,31 @@ public:
 
 		uiState_.mainWin_.setShowCb([this] {
 			std::println("show!");
+			//uiState_.mainWin_.setRunningAsyncOp(true);
+			//AsyncOpScope asyncOpScope{ ctx_ };
+			//[](AsyncOpScope asyncOpScope) -> coro::result<void> {
+			//	auto &that = *asyncOpScope.that().pImpl;
+			//	try {
+			//		std::println("------开始!");
+			//		co_await that.client_.connectAsync();
+			//		std::println("------OK!");
+			//		that.client_.requestQrCodeLogin();
+			//	} catch (const std::exception& e) {
+			//		std::println("------[错误] 连接后端时出错: {}", e.what());
+			//		MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
+			//	//that.uiState_.mainWin_->requestClose();
+			//	}
+			//	co_return;
+			//}(ctx_);
 			[](AsyncOpScope asyncOpScope) -> coro::result<void> {
-				auto &that = *asyncOpScope.that().pImpl;
-				try {
-					std::println("------开始!");
-					co_await that.client_.connectAsync();
-					std::println("------OK!");
-					that.client_.requestQrCodeLogin();
-				} catch (const std::exception& e) {
-					std::println("------[错误] 连接后端时出错: {}", e.what());
-					MsgBox::popupOKMsgBox(MsgBox::Type::EERR, "无法连接到后端");
-				//that.uiState_.mainWin_->requestClose();
-				}
+				auto &e = asyncOpScope.that();
 				co_return;
 			}(ctx_);
+
+
+			//[](UiWinBizLogicObjContext<LoginWin> &ctx) -> coro::result<void> {
+			//	co_return;
+			//}(ctx_);
 		});
 
 		uiState_.mainWin_.setUpdateCb([this]{

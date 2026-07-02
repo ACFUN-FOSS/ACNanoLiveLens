@@ -22,12 +22,14 @@ add_library(EatiEssentials
 	private/memory/memory.cxx
 	private/memory/lifetime_informant.cxx
 	private/memory/memsafety.cxx
+	private/memory/moved_flag.cxx
 	private/special.cxx
 	private/io.cxx
 	private/container_and_view_and_range/container_and_view_and_range.cxx
 	private/container_and_view_and_range/addandremoveable_container_ref.cxx
 	private/container_and_view_and_range/container_lease.cxx
 	private/misc.cxx
+	
 )
 target_sources(EatiEssentials PUBLIC
     FILE_SET HEADERS
@@ -36,12 +38,14 @@ target_sources(EatiEssentials PUBLIC
         public/EatiEssentials/memory/memory.hxx
 		public/EatiEssentials/memory/lifetime_informant.hxx
 		public/EatiEssentials/memory/memsafety.hxx
+		public/EatiEssentials/memory/moved_flag.hxx
 		public/EatiEssentials/special.hxx
 		public/EatiEssentials/io.hxx
 		public/EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx
 		public/EatiEssentials/container_and_view_and_ranges/addandremoveable_container_ref.hxx
 		public/EatiEssentials/container_and_view_and_ranges/container_lease.hxx
 		public/EatiEssentials/misc.hxx
+		
 )
 target_link_libraries(EatiEssentials PUBLIC
 	Microsoft.GSL::GSL

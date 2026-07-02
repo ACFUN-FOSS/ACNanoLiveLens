@@ -64,9 +64,10 @@ public:
 	[[nodiscard]] bool isHidden() const noexcept;
 	bool isPendingClose() const;
 	bool hasUnfinishedOp() const;
+	void setRunningAsyncOp(bool running) noexcept;
 
 private:
-    void setRunningAsyncOp(bool running) noexcept;
+    
     void applyCloseRequestState();
     void refreshClosingVisualState();
     void requestCloseFromNativeEvent();

@@ -26,6 +26,7 @@
 #include <EatiEssentials/memory/lifetime_informant.hxx>
 #include <EatiEssentials/memory/memory.hxx>
 #include <EatiEssentials/memory/memsafety.hxx>
+#include <EatiEssentials/memory/moved_flag.hxx>
 #include <EatiEssentials/special.hxx>
 #include <EatiEssentials/io.hxx>
 #include <EatiEssentials/misc.hxx>

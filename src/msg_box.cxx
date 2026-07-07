@@ -16,10 +16,10 @@ public:
 		: type_{ type }
 		, text_{ text }
 		, selfShouldBeMainWin_{ []() -> bool {
-			auto &winManager = UNWRAP(getAppState().winManager);
+			auto &winManager = UNWRAP(App::getState().winManager);
 			return !winManager.hasMainWin();
 		}() }
-		, uiState_{ UNWRAP(getAppState().winManager), getAssetsDir() / "msg_box.rml", selfShouldBeMainWin_ } {
+		, uiState_{ UNWRAP(App::getState().winManager), getAssetsDir() / "msg_box.rml", selfShouldBeMainWin_ } {
 		bindEventHandlers();
 		refreshUi();
 		centerToMainWinOrPrimaryMonitor();
@@ -34,7 +34,7 @@ public:
 	Impl &operator=(Impl &&) = delete;
 
 	void showModal() {
-		auto &winManager = *getAppState().winManager;
+		auto &winManager = *App::getState().winManager;
 		auto oldModalWin = winManager.getModalWin();
 		winManager.setModalWin(&uiState_.mainWin_);
 		uiState_.mainWin_.show();
@@ -71,7 +71,7 @@ public:
 
 			if (uiState_.mainWin_.isHidden()) {
 				prepareForClose();
-				getAppState().winManager->cleanupClosedWindows();
+				App::getState().winManager->cleanupClosedWindows();
 				break;
 			}
 		}
@@ -125,7 +125,7 @@ private:
 			uiState_.mainWin_.centerToPrimaryMonitor();
 			return;
 		}
-		auto &mainWin = getAppState().winManager->getMainWin();
+		auto &mainWin = App::getState().winManager->getMainWin();
 		auto mainWinPos = mainWin.getWinPos();
 		auto mainWinSize = mainWin.getWinSize();
 		auto msgBoxSize = uiState_.mainWin_.getWinSize();

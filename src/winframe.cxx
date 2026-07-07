@@ -34,7 +34,7 @@ void WinFrame::onMounted() {
 
 void WinFrame::onUpdate() {
 	if (isDragging_) {
-		auto &win = UNWRAP(getAppState().winManager->getWinOfElement(*this));
+		auto &win = UNWRAP(App::getState().winManager->getWinOfElement(*this));
 		
 		auto deltaMousePos = win.getMousePos() - mousePosWhenBeginDrag_;
 		//dbgLog("Drag delta pos: ", deltaMousePos);
@@ -79,14 +79,14 @@ void WinFrame::bindEventHandlers() {
 	});
 	eventListenerMan_.on("close-btn", "mouseup", [this](Event &event) {
 		dbgLog("close-btn click");
-		auto &win = UNWRAP(getAppState().winManager->getWinOfElement(*this));
+		auto &win = UNWRAP(App::getState().winManager->getWinOfElement(*this));
 		win.requestClose();
 		
 		event.StopPropagation();
 	});
 	eventListenerMan_.on("title-bar", "mousedown", [this](Event &event) {
 		dbgLog("Drag begin");
-		auto &win = UNWRAP(getAppState().winManager->getWinOfElement(*this));
+		auto &win = UNWRAP(App::getState().winManager->getWinOfElement(*this));
 		isDragging_ = true;
 		mousePosWhenBeginDrag_ = win.getMousePos();
 		//dbgLog("Drag begin pos: ", mousePosWhenBeginDrag_);

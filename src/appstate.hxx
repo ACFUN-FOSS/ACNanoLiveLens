@@ -3,7 +3,9 @@
 #include "RmlUIWin/window_manager.hxx"
 #include "rmlui_sys.hxx"
 
-struct AppState
+namespace App {
+
+struct State
 {
 	gsl::not_null<RmlUISystem *const> rmluiSys;
     gsl::not_null<RmlUIWin::WinManager *const> winManager;
@@ -12,9 +14,13 @@ struct AppState
 	ESSM::Rc<coro::executor> mainThreadExecutor;
 };
 
-void initAppState(AppState &&appState);
-AppState &getAppState();
+void initState(State &&state);
+State &getState();
 
 metapp::MetaRepo &getGlobalMetaRepo();
+
+void die(int code);
+
+}
 
 #endif

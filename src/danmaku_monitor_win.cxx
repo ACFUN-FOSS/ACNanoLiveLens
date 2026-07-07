@@ -20,7 +20,7 @@ class DanmakuMonitorWin::Impl
 {
 public:
     Impl()
-        : uiState_{ *getAppState().winManager, getAssetsDir() / "danmaku_monitor.rml" }
+        : uiState_{ *App::getState().winManager, getAssetsDir() / "danmaku_monitor.rml" }
 		, danmakuList_{
 			uiState_.mainWin_.getDocument(), "#danmaku-list"
 		} {
@@ -120,11 +120,11 @@ public:
 		);
 
 		// {
-		// 	auto jsTwinObj = makeJsTwinObject(*getAppState().jsCtx, UNWRAP(metapp::getMetaType<DanmakuGuiInfo>()), danmakuInGui_.back());
-		// 	auto func = getAppState().jsCtx->global()["test"];
-		// 	auto res = JS_Call(getAppState().jsCtx->ctx, qjs::Value{ func }.v, JS_UNDEFINED, 1, &jsTwinObj.v);
+		// 	auto jsTwinObj = makeJsTwinObject(*App::getState().jsCtx, UNWRAP(metapp::getMetaType<DanmakuGuiInfo>()), danmakuInGui_.back());
+		// 	auto func = App::getState().jsCtx->global()["test"];
+		// 	auto res = JS_Call(App::getState().jsCtx->ctx, qjs::Value{ func }.v, JS_UNDEFINED, 1, &jsTwinObj.v);
 		// 	if (JS_IsException(res))
-		// 		js_std_dump_error(getAppState().jsCtx->ctx);
+		// 		js_std_dump_error(App::getState().jsCtx->ctx);
 		// }
     }
 
@@ -212,7 +212,7 @@ template<>
 struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::DeclareMetaTypeBase<DanmakuMonitorWin::DanmakuGuiInfo>
 {
 	static void setup() {
-		getGlobalMetaRepo().registerType<DanmakuMonitorWin::DanmakuGuiInfo>("DanmakuGuiInfo");
+		App::getGlobalMetaRepo().registerType<DanmakuMonitorWin::DanmakuGuiInfo>("DanmakuGuiInfo");
 	}
 	static const metapp::MetaClass *getMetaClass() {
 		static const metapp::MetaClass metaClass {

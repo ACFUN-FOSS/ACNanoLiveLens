@@ -592,7 +592,7 @@ bool WinManager::processKeyDownShortcuts(Rml::Context *context, Rml::Input::KeyI
 			}
 
 			if (auto *uiWin = getWinOfContext(*context)) {
-				reloadWindow(*uiWin);
+				//reloadWindow(*uiWin);
 			}
 		} else {
 			result = true;

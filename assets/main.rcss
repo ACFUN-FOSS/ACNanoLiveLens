@@ -36,8 +36,8 @@ winframe
 	border-radius: 8dp;
 	border: 1px rgba(100, 100, 100, 100);
 	background-color: rgb(42, 42, 42);
-	width: calc(100% - 4pt);
-	height: calc(100% - 4pt);
+	width: 100%;
+	height: 100%;
 	z-index: -1;
 }
 
@@ -91,9 +91,9 @@ winframe.closing .winframe-internal-content .title-bar
 winframe .content
 {
 	display: block;
-	width: 100%;
+	width: auto;
 	height: 100%;
-	padding: 2dp 5dp 2dp 5dp;
+	padding: 2dp 4dp 2dp 4dp;
 }
 
 svg

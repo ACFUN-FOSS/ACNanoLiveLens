@@ -1,10 +1,11 @@
 #ifndef NANOLIVELENS_CORE_ACLIVE_BACKEND_DAEMON_HXX
 #define NANOLIVELENS_CORE_ACLIVE_BACKEND_DAEMON_HXX
+#include "Core/excp_to_show_to_user.hxx"
 
 class AcliveBackendDaemon
 {
 public:
-	struct CannotFindBackendExe : public std::runtime_error
+	struct CannotFindBackendExe : public ExcpToShowToUser
 	{
 		CannotFindBackendExe(std::string_view exePath);
 	};

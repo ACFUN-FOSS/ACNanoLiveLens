@@ -1,17 +1,31 @@
 #include "appstate.hxx"
 
-std::optional<AppState> globalAppState;
+namespace App {
 
-void initAppState(AppState &&appState){
-	globalAppState.emplace(std::move(appState));
+std::optional<State> globalState;
+
+void initState(State &&state){
+	globalState.emplace(std::move(state));
 }
 
-AppState &getAppState() {
-	assert(globalAppState.has_value() && "AppState is not initialized yet!");
-    return *globalAppState;
+State &getState() {
+	assert(globalState.has_value() && "App::State is not initialized yet!");
+    return *globalState;
 }
 
 metapp::MetaRepo &getGlobalMetaRepo() {
 	static metapp::MetaRepo metaRepo;
 	return metaRepo;
+}
+
+void die(int code) {
+	std::println(
+		"=========="
+		" DIE! code={} "
+		"==========",
+		code);
+	Rml::Shutdown();
+	std::_Exit(code);
+}
+
 }

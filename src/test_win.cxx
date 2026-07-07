@@ -14,7 +14,7 @@ class TestWin::Impl
 {
 public:
 	Impl()
-		: uiState_{ *getAppState().winManager, getAssetsDir() / "test_win.rml" } {
+		: uiState_{ *App::getState().winManager, getAssetsDir() / "test_win.rml" } {
 		
 		// uiState_.mainWinRootEleEventMan_.on("btn", "click", [this](Rml::Event &e) {
 		// 	std::print("btn click\n");

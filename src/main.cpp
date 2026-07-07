@@ -85,7 +85,7 @@ static void rmluiMain() {
 
 	//initJs(rt, ctx);
 		
-		initAppState({
+		App::initState({
 			 &rmlui,
 			 &winMan,
 			 &coroRuntime,
@@ -101,9 +101,7 @@ static void rmluiMain() {
 					"请联系 AcFun 弹幕姬问题反馈 QQ 群，并附上日志文件。"
 				);
 
-
-				Rml::Shutdown();
-				std::_Exit(EXIT_FAILURE);
+				App::die(EXIT_FAILURE);
 			});
 
 			//loadJsScript();
@@ -119,21 +117,27 @@ static void rmluiMain() {
 			//JSBindings::init(rmlui, danmakuMonitorWin);
 
 			runUiMainLoop(winMan, *mainThreadExecutor);
-		} catch (const std::exception &e) {
-			std::println("Exception: {}", e.what());
-			MsgBox::popupOKMsgBox(MsgBox::Type::EERR, e.what());
+		} catch (const ExcpToShowToUser &e) {
+			std::println("Exception to show to user: {}", e.humanFriendlyMsg());
+			MsgBox::popupOKMsgBox(MsgBox::Type::EERR, e.humanFriendlyMsg());
 		}
 		//JSBindings::shutdown();
     }
 }
 
-
+static void testSTLHardending() {
+	std::vector<int> v{ 1, 3, 5};
+	std::println("{}", v[3]);
+	std::exit(0);
+}
 
 
 int crashHandlerProtectedMain() {
 #ifdef WIN32
     system("chcp 65001");
 #endif
+
+	// testSTLHardending();
 
 	CtrlCLibrary::SetCtrlCHandler([](enum CtrlCLibrary::CtrlSignal signal) {
 		if (signal == CtrlCLibrary::kCtrlCSignal) {
@@ -152,9 +156,10 @@ int crashHandlerProtectedMain() {
     rmluiMain();
 
     // 关闭后端
-    Backend::Shutdown();
+	gsl::final_action _{ [&]() {
+		Backend::Shutdown();
+	} };
 
-	
     return 0;
 }
 

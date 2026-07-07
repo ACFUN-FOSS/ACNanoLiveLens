@@ -46,7 +46,7 @@ stdf::path getBackendExecutablePath() {
 } // namespace
 
 AcliveBackendDaemon::CannotFindBackendExe::CannotFindBackendExe(std::string_view exePath)
-	: std::runtime_error{
+	: ExcpToShowToUser{
 		 std::format(
 			"無法找到當前平臺合適的 AcFun 直播通用後端。其可能遺失或未安装。\n"
 			"后端路径：{}；\n操作系统：{}；硬件架构：{}",

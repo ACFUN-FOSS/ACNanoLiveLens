@@ -30,12 +30,14 @@ set_target_properties(quickjs_koush PROPERTIES
     WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 target_compile_definitions(quickjs_koush PRIVATE ${quickjs_private_def} PUBLIC ${quickjs_public_def})
+target_compile_options(quickjs_koush PRIVATE "$<$<C_COMPILER_ID:MSVC>:/Oi->")
 set_target_properties(quickjs_koush PROPERTIES PUBLIC_HEADER "quickjs.h;quickjs-libc.h")
 # TODO:
 target_include_directories(quickjs_koush PUBLIC ..)
 
 add_library(quickjs_koush-dumpleaks SHARED ${quickjs_src})
 target_compile_definitions(quickjs_koush-dumpleaks PRIVATE ${quickjs_private_def} PUBLIC ${quickjs_public_def} DUMP_LEAKS=1)
+target_compile_options(quickjs_koush-dumpleaks PRIVATE "$<$<C_COMPILER_ID:MSVC>:/Oi->")
 
 #target_include_directories(quickjs PUBLIC .)
 set(QUICKJS_LINK_LIBS)

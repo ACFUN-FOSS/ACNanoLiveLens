@@ -1,5 +1,4 @@
 #include "crash_handler.hxx"
-#include <boost/stacktrace.hpp>
 #include "EmergUI/emerg_ui.hxx"
 #include "EmergUI/crash_dlg.hxx"
 
@@ -97,10 +96,6 @@ LONG WINAPI CrashHandlerException(EXCEPTION_POINTERS* ep) {
 
 	std::cerr << "Program crashed!\n";
 
-	if (assertFailedHandlerTriggered) {
-		std::cerr << "跳过崩溃处理，因为之前发生了断言失败" << std::endl;
-		return EXCEPTION_CONTINUE_SEARCH;
-	}
 
 	switch (ep->ExceptionRecord->ExceptionCode) {
 	case EXCEPTION_ACCESS_VIOLATION: {
@@ -224,66 +219,10 @@ LONG WINAPI CrashHandlerException(EXCEPTION_POINTERS* ep) {
 
 // NOLINTEND
 
-int CrtReportHook(int reportType, char* message, int* returnValue) {
-   int   nRet = FALSE;
-
-   std::cout << "CRT report hook.\n";
-   std::cout << "CRT report type is: ";
-   switch   (reportType)
-   {
-      case _CRT_WARN:
-      {
-         std::cout << "_CRT_WARN.\n";
-         break;
-      }
-
-
-      case _CRT_ERROR:
-      {
-         std::cout << "_CRT_ERROR.\n";
-		 if (IsDebuggerPresent()) {
-			 nRet = FALSE;	// Let the debugger handle it
-			 break;
-		 }
-
-		 nRet = TRUE;   // Always stop for this type of report
-		 boost::stacktrace::stacktrace stacktrace;
-		 std::stringstream ss;
-		 ss << stacktrace;
-		 spawnCrashDlg({
-			.crashReason = CrashReason::ASSERT_FAIL,
-			.msg = ss.str()
-		});
-		 assertFailedHandlerTriggered = true;
-         break;
-      }
-
-      case _CRT_ASSERT:
-      {
-         std::cout << "_CRT_ASSERT.\n";
-         //nRet = TRUE;   // Always stop for this type of report
-         break;
-      }
-
-      default:
-      {
-         std::cout << "???Unknown???\n";
-         break;
-      }
-   }
-
-   std::println("CRT report message is: {}", message);
-
-   if (nRet && returnValue)
-      *returnValue = 1;
-   // printf("CRT report code is %d.\n", *pnRet);
-   return   nRet;
-}
-
 void runProtectedMain() {
 	SetUnhandledExceptionFilter(CrashHandlerException);
-	_CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, CrtReportHook);
 
+	// Pass exception to debugger, in debugging mode.
 #ifndef NLLENS_DEVELOPMENT
 	try {
 #endif

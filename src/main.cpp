@@ -138,6 +138,7 @@ int crashHandlerProtectedMain() {
 #endif
 
 	// testSTLHardending();
+	NLS_ASSERT(false);
 
 	CtrlCLibrary::SetCtrlCHandler([](enum CtrlCLibrary::CtrlSignal signal) {
 		if (signal == CtrlCLibrary::kCtrlCSignal) {

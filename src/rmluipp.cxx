@@ -9,7 +9,7 @@ ElementNotFoundErr::ElementNotFoundErr(std::string_view elementId)
 
 Rml::Element &requireFactoryElement(Rml::Element &parent, const std::string_view id) {
     auto *result = parent.GetElementById(std::string{ id });
-    assert(result && "Required factory element not found.");
+    NLS_ASSERT(result && "Required factory element not found.");
     return *result;
 }
 

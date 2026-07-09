@@ -47,7 +47,10 @@ target_compile_definitions(nanolivelens_core PRIVATE
 )
 
 # == Tests =================================
-add_library(tests_public_dep STATIC test/dummy.cxx)
+add_library(tests_public_dep STATIC
+	test/dummy.cxx
+	test/assert_handler.cxx
+)
 
 target_precompile_headers(tests_public_dep PUBLIC test/stdafx.h)
 target_link_libraries(tests_public_dep

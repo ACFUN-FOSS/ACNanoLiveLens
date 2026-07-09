@@ -158,7 +158,7 @@ accoro::result<void> Ws::connectAsync() {
 
 	auto threadIdAfter = std::this_thread::get_id();
 
-	assert("Ws::connectAsync: threadIdBefore == threadIdAfter" && threadIdBefore == threadIdAfter);
+	NLS_ASSERT("Ws::connectAsync: threadIdBefore == threadIdAfter" && threadIdBefore == threadIdAfter);
 	if (excp) {
 		std::rethrow_exception(excp);
 	}

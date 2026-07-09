@@ -12,7 +12,7 @@ add_executable(nanolivelens_emergui_test2
 	2.cxx
 )
 
-target_link_libraries(nanolivelens_emergui_test2 PRIVATE	
+target_link_libraries(nanolivelens_emergui_test2 PRIVATE
 	nanolivelens::emergui_api
 )
 

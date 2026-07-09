@@ -11,6 +11,16 @@ common_compiler_setup()
 
 # == Options =====================
 option(EESS_ENABLE_CODECVT "Enable codecvt functionality")
+option(EESS_USE_CUSTOM_ASSERT_HANDLER "Use a downstream-provided assert handler")
+option(EESS_BUILD_SHARED_LIBS "Force essentials itself to be built as a shared library (ignore BUILD_SHARED_LIBS)")
+
+if(EESS_BUILD_SHARED_LIBS)
+	set(BUILD_SHARED_LIBS ON)
+endif()
+
+if(EESS_USE_CUSTOM_ASSERT_HANDLER AND BUILD_SHARED_LIBS)
+	message(FATAL_ERROR "EESS_USE_CUSTOM_ASSERT_HANDLER requires EatiEssentials to be built as a static library.")
+endif()
 
 # == Dependencies =====================
 find_package(Microsoft.GSL CONFIG REQUIRED)
@@ -41,6 +51,7 @@ target_sources(EatiEssentials PUBLIC
 		public/EatiEssentials/memory/moved_flag.hxx
 		public/EatiEssentials/special.hxx
 		public/EatiEssentials/io.hxx
+		public/EatiEssentials/assert.hxx
 		public/EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx
 		public/EatiEssentials/container_and_view_and_ranges/addandremoveable_container_ref.hxx
 		public/EatiEssentials/container_and_view_and_ranges/container_lease.hxx
@@ -50,6 +61,10 @@ target_sources(EatiEssentials PUBLIC
 target_link_libraries(EatiEssentials PUBLIC
 	Microsoft.GSL::GSL
 )
+
+if(EESS_USE_CUSTOM_ASSERT_HANDLER)
+	target_compile_definitions(EatiEssentials PUBLIC EESS_USE_CUSTOM_ASSERT_HANDLER)
+endif()
 
 if(EESS_ENABLE_CODECVT)
 	add_subdirectory(additional/CodeCvt)

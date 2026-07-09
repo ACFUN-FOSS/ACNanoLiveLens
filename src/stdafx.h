@@ -44,9 +44,13 @@
 #include <rfl.hpp>
 #include <rfl/json.hpp>
 #include <ctrl-c.h>
+#include <boost/stacktrace.hpp>
+
+
 
 // 子项目
 #include "Core/stdafx.h"
+#include "Core/assert.hxx"
 #include "Core/aclive_backend_daemon.hxx"
 #include "Core/aclive_backend_client.hxx"
 #include "Core/aclive_backend_msg.hxx"

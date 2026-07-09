@@ -104,6 +104,7 @@ unset(CMAKE_POLICY_VERSION_MINIMUM)
 # find_package(EatiEssentials CONFIG REQUIRED COMPONENT CodeCvt)
 # EatiEssentials_EnsureReallyHasComponents(CodeCvt)
 set(EESS_ENABLE_CODECVT ON)
+set(EESS_USE_CUSTOM_ASSERT_HANDLER ON)
 FetchContent_Declare(
     EatiEssentials
     SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/Eati/Essentials

@@ -1,5 +1,5 @@
 #include "EatiEssentials/codecvt.hxx"
-#include <cassert>
+#include "EatiEssentials/assert.hxx"
 #include <format>
 #include <iconv.hpp>
 
@@ -36,7 +36,7 @@ std::string_view encodingEnumToStr(const Encoding encoding) {
         MAP(CP949);
         MAP2(ISO_2022_KR, "ISO-2022-KR");
     default:
-        assert(!"民合圣诞节进口尽快设计结构");
+        ESS_ASSERT(!"民合圣诞节进口尽快设计结构");
         return "";
     }
 #undef MAP2

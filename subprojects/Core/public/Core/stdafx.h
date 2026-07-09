@@ -35,6 +35,7 @@
 #include <rfl/json.hpp>
 
 #include "Core/rfl_custom_type.hxx"
+#include "Core/assert.hxx"
 
 namespace accoro = concurrencpp;
 namespace stdf = std::filesystem;

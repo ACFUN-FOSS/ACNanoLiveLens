@@ -16,5 +16,6 @@ target_sources(EatiEssentials_CodeCvt PUBLIC
 target_link_libraries(EatiEssentials_CodeCvt PRIVATE
 	Iconv::Iconv
 	iconvpp
+	EatiEssentials
 )
 add_library(EatiEssentials::CodeCvt ALIAS EatiEssentials_CodeCvt)

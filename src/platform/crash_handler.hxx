@@ -10,6 +10,5 @@ int crashHandlerProtectedMain();
 // Platform dependent things
 void runProtectedMain();
 
-extern bool assertFailedHandlerTriggered;
 
 #endif //NANOLIVELENS_PLATFORM_CRASH_HANDLER_HXX

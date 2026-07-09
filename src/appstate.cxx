@@ -9,7 +9,7 @@ void initState(State &&state){
 }
 
 State &getState() {
-	assert(globalState.has_value() && "App::State is not initialized yet!");
+	NLS_ASSERT(globalState.has_value() && "App::State is not initialized yet!");
     return *globalState;
 }
 

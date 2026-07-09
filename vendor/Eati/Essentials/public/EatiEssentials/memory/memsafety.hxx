@@ -4,7 +4,7 @@
 
 #ifndef ESS_MEMSAFETY_HXX
 #define ESS_MEMSAFETY_HXX
-#include <cassert>
+#include "EatiEssentials/assert.hxx"
 
 namespace Essentials::Memory
 {
@@ -62,7 +62,7 @@ namespace Essentials::Memory
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define UNWRAP(x) \
     [](auto ptr) -> decltype(*ptr) & { \
-        assert(ptr != nullptr && "Null pointer dereference"); \
+        ESS_ASSERT(ptr != nullptr && "Null pointer dereference"); \
         return *ptr; \
     }(x)
 
@@ -73,7 +73,7 @@ namespace Essentials::Memory
 		std::string msg = failMsg; \
 		if (!ptr) { \
 			std::println(std::cerr, "EXCEPT failed: {}", msg); \
-			assert(ptr != nullptr); \
+			ESS_ASSERT(ptr != nullptr); \
 		} \
 		return *ptr; \
 	}(x)

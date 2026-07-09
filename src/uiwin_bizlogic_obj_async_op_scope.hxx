@@ -1,6 +1,7 @@
 #ifndef NANOLIVELENS_UIWIN_BIZLOGIC_OBJ_ASYNC_OP_SCOPE_HXX
 #define NANOLIVELENS_UIWIN_BIZLOGIC_OBJ_ASYNC_OP_SCOPE_HXX
 #include "RmlUIWin/window_manager.hxx"
+#include "Core/assert.hxx"
 
 
 
@@ -27,18 +28,18 @@ public:
 	UiWinBizLogicObjContext &operator =(UiWinBizLogicObjContext &&other) = default;
 
 	void markOneAsyncOpBegin() {
-		assert(asyncOpCount >= 0);
+		NLS_ASSERT(asyncOpCount >= 0);
 		asyncOpCount++;
 		(*handler)->getUiWin().setRunningAsyncOp(true);
-		assert(asyncOpCount >= 0);
+		NLS_ASSERT(asyncOpCount >= 0);
 	}
 
 	void markOneAsyncOpFinish() {
-		assert(asyncOpCount > 0);
+		NLS_ASSERT(asyncOpCount > 0);
 		asyncOpCount--;
 		if (asyncOpCount == 0)
 			(*handler)->getUiWin().setRunningAsyncOp(false);
-		assert(asyncOpCount >= 0);
+		NLS_ASSERT(asyncOpCount >= 0);
 	}
 
 	bool hasUnfinishedAsyncOp() const {

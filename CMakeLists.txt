@@ -145,7 +145,6 @@ add_executable(nanolivelens
     src/rmlui_element.cxx
 	src/uiwin_bizlogic_obj_async_op_scope.cxx
 	# src/js_binding.cxx
-    # src/aclive_client.cxx
 
 	# Elements
 	src/winframe.cxx
@@ -161,26 +160,41 @@ add_executable(nanolivelens
 	# src/js_bindings.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
-
-# 配置预编译头文件
 target_precompile_headers(nanolivelens PRIVATE src/stdafx.h)
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" AND MSVC)
-    target_sources(nanolivelens PRIVATE
+# 平台相关
+# 1. 崩溃处理器
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+	target_sources(nanolivelens PRIVATE
         src/platform/crash_handler_impl_win_msvc.cxx
-        src/platform/window_activation_optimization_win.cxx
     )
-    target_link_libraries(nanolivelens
+	target_link_libraries(nanolivelens
         PRIVATE
         psapi.lib
         dbghelp.lib
     )
 elseif(UNIX)
-
+	# TODO: 实现 Unix 平台的崩溃处理器
+	target_sources(nanolivelens PRIVATE
+        src/platform/crash_handler_impl_unix.cxx
+    )
 else()
-    message(WARNING Implement your system's crash handler. Dummy implementation is used.)
-    target_sources(nanolivelens PRIVATE
+	message(WARNING Implement your system's crash handler. Dummy implementation is used.)
+	target_sources(nanolivelens PRIVATE
         src/platform/crash_handler_impl_dummy.cxx
+    )
+endif()
+
+# 模态窗口激活优化
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
+    target_sources(nanolivelens PRIVATE
+        src/platform/window_activation_optimization_win.cxx
+    )
+#elseif(UNIX)
+	# TODO: 实现 X11, Wayland, 苹果平台的模态窗口激活优化
+else()
+    message(WARNING Implement your system's window activation optimization. Dummy implementation is used.)
+    target_sources(nanolivelens PRIVATE
         src/platform/window_activation_optimization_dummy.cxx
     )
 endif()

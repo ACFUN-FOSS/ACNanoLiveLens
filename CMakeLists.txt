@@ -31,6 +31,18 @@ add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:anglebrackets>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/external:W0>")
 #add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/fsanitize=address>")
 
+# Release 构建：优先照顾 MSVC，启用更激进的优化，同时保留 PDB 调试信息。
+# CMake 的 MSVC Release 默认包含 /O2 /Ob2；这里先移除默认值，避免 cl D9025 覆盖警告。
+if(MSVC)
+    foreach(_nllens_release_flags CMAKE_C_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELEASE)
+        string(REPLACE "/O2" "" ${_nllens_release_flags} "${${_nllens_release_flags}}")
+        string(REPLACE "/Ob2" "" ${_nllens_release_flags} "${${_nllens_release_flags}}")
+    endforeach()
+endif()
+add_compile_options("$<$<AND:$<COMPILE_LANG_AND_ID:C,MSVC>,$<CONFIG:Release>>:/Ob3;/Oi;/Ot;/Oy;/GL;/Gy;/Gw;/GF;/Zi;/Zo>")
+add_compile_options("$<$<AND:$<COMPILE_LANG_AND_ID:CXX,MSVC>,$<CONFIG:Release>>:/Ob3;/Oi;/Ot;/Oy;/GL;/Gy;/Gw;/GF;/Zi;/Zo>")
+add_link_options("$<$<AND:$<LINK_LANG_AND_ID:CXX,MSVC>,$<CONFIG:Release>>:/LTCG;/OPT:REF;/OPT:ICF;/DEBUG:FULL>")
+
 # == Platform macros ==================
 # This include sets these compile definitions for the whole project:
 # - NLLENS_PLATFORM_ARCH_<ARCH>

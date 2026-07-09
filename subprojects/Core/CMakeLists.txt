@@ -52,6 +52,16 @@ add_library(tests_public_dep STATIC
 	test/assert_handler.cxx
 )
 
+# set(NLLENS_CORE_TEST_PCH_PDB_DIR "${CMAKE_CURRENT_BINARY_DIR}/tests_public_dep.dir")
+# if(MSVC)
+#     set_target_properties(tests_public_dep PROPERTIES
+#         COMPILE_PDB_OUTPUT_DIRECTORY "${NLLENS_CORE_TEST_PCH_PDB_DIR}"
+#     )
+# endif()
+set(NLLENS_CORE_TEST_PCH_PDB_DIR "${CMAKE_CURRENT_BINARY_DIR}/tests_public_dep.dir")
+set_target_properties(tests_public_dep PROPERTIES
+    COMPILE_PDB_OUTPUT_DIRECTORY "${NLLENS_CORE_TEST_PCH_PDB_DIR}"
+)
 target_precompile_headers(tests_public_dep PUBLIC test/stdafx.h)
 target_link_libraries(tests_public_dep
     PUBLIC
@@ -72,4 +82,9 @@ target_link_libraries(ws_login_test
     PRIVATE
     tests_public_dep
 )
- 
+
+if(MSVC)
+    set_target_properties(ws_test ws_login_test PROPERTIES
+        COMPILE_PDB_OUTPUT_DIRECTORY "${NLLENS_CORE_TEST_PCH_PDB_DIR}"
+    )
+endif() 

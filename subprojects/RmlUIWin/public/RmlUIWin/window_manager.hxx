@@ -18,6 +18,26 @@ template <typename T> class UiWinBizLogicObjContext;
 namespace RmlUIWin {
 
 class WinManager;
+class UiWin;
+
+class DocumentChangedObserverToken {
+public:
+    DocumentChangedObserverToken() = default;
+    ~DocumentChangedObserverToken();
+
+    DocumentChangedObserverToken(const DocumentChangedObserverToken&) = delete;
+    DocumentChangedObserverToken& operator=(const DocumentChangedObserverToken&) = delete;
+    DocumentChangedObserverToken(DocumentChangedObserverToken&& other) noexcept;
+    DocumentChangedObserverToken& operator=(DocumentChangedObserverToken&& other) noexcept;
+
+private:
+    friend class UiWin;
+    DocumentChangedObserverToken(UiWin& window, std::size_t id) noexcept;
+    void reset() noexcept;
+
+    UiWin* window_ = nullptr;
+    std::size_t id_ = 0;
+};
 
 class UiWin
 {
@@ -48,6 +68,7 @@ public:
     void setUpdateCb(std::function<void()> cb);
     void setShowCb(std::function<void()> cb);
     void setDocumentChangedCb(std::function<void()> cb);
+    DocumentChangedObserverToken observeDocumentChanged(std::function<void()> cb);
 
     [[nodiscard]] std::string_view getName() const;
     [[nodiscard]] bool isMainWin() const;
@@ -78,6 +99,7 @@ private:
     void attachDocument(Rml::ElementDocument &document);
     void detachDocument() const;
     void notifyDocumentChanged() const;
+    void removeDocumentChangedObserver(std::size_t id) noexcept;
 
     struct RmlCStyleData;
     struct SelfData;
@@ -94,6 +116,7 @@ private:
 
     //template <typename T> friend class ::UiWinBizLogicObjAsyncOpScope;
 	template <typename T> friend class UiWinBizLogicObjContext;
+    friend class DocumentChangedObserverToken;
     friend class WinManager;
 };
 

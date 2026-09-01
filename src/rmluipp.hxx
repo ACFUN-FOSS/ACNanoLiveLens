@@ -1,6 +1,7 @@
 #ifndef NANOLIVELENS_RMLUIPP_HXX
 #define NANOLIVELENS_RMLUIPP_HXX
 #include "RmlUi_Platform_GLFW.h"
+#include "RmlUIWin/window_manager.hxx"
 
 class ElementNotFoundErr : public std::runtime_error
 {
@@ -27,12 +28,11 @@ public:
 class ElementDynRef
 {
 public:
-    ElementDynRef(Rml::ElementDocument &document, std::string_view query);
+    ElementDynRef(RmlUIWin::UiWin &window, std::string_view query);
 	Rml::Element &resolve();
 	Rml::Element *operator->();
-	void reBind(Rml::ElementDocument &document);
 private:
-	gsl::not_null<Rml::ElementDocument *> document_;
+	gsl::not_null<RmlUIWin::UiWin *> window_;
 	std::string query_;
 };
 
@@ -59,7 +59,7 @@ private:
     std::function<void(Rml::Event &)> callback_;
 };
 
-// Lifetime depends on: element
+// Lifetime depends on: window
 class SimpleEventListenerManager
 {
 public:
@@ -77,6 +77,7 @@ public:
 		};
 	};
 
+    SimpleEventListenerManager(RmlUIWin::UiWin &window LIFETIMEBOUND);
     SimpleEventListenerManager(Rml::Element &element LIFETIMEBOUND);
 	SimpleEventListenerManager(const SimpleEventListenerManager &) = delete;
 	SimpleEventListenerManager(SimpleEventListenerManager &&)  noexcept = default;
@@ -84,12 +85,16 @@ public:
 	SimpleEventListenerManager &operator=(SimpleEventListenerManager &&) = delete;
 	~SimpleEventListenerManager();
 
-    void on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback);
+	void on(const std::string_view childElementId, const std::string_view event, std::function<void(Rml::Event &)> callback);
 	void clear();
-	void reBind(Rml::Element &element);
 
 private:
-    gsl::not_null<Rml::Element *> element_;
+    void bindToCurrentDocument();
+    void unbindFromCurrentDocument();
+
+    RmlUIWin::UiWin *window_ = nullptr;
+	RmlUIWin::DocumentChangedObserverToken documentObserver_;
+	Rml::Element *element_ = nullptr;
 
 	std::unordered_map<BindingRecord, ESSM::Box<SimpleEventListener>, BindingRecord::Hasher> eventListeners_;
 

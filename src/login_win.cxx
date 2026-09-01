@@ -68,16 +68,11 @@ public:
 
 		UIState(WinManager &winManager, std::filesystem::path documentPath)
 			: mainWin_{ "login", { 460, 460 }, std::move(documentPath), winManager, true }
-			, mainWinRootEleEventMan_{ mainWin_.getRootElement() } {
+			, mainWinRootEleEventMan_{ mainWin_ } {
 		}
 	};
 
 	void bindEventHandlers() {
-		uiState_.mainWin_.setDocumentChangedCb([this] {
-			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_.getRootElement());
-			
-		});
-
 		uiState_.mainWin_.setShowCb([this] {
 			std::println("show!");
 			[](AsyncOpScope asyncOpScope) -> coro::result<void> {

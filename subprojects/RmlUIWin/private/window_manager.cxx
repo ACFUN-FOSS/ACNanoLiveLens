@@ -66,7 +66,37 @@ struct UiWin::SelfData
 	std::function<void()> _updateCb;
 	std::function<void()> _showCb;
 	std::function<void()> _documentChangedCb;
+	std::size_t _nextDocumentObserverId = 1;
+	std::vector<std::pair<std::size_t, std::function<void()>>> _documentObservers;
 };
+
+DocumentChangedObserverToken::DocumentChangedObserverToken(UiWin& window, std::size_t id) noexcept
+	: window_{ &window }, id_{ id } {}
+
+DocumentChangedObserverToken::~DocumentChangedObserverToken() {
+	reset();
+}
+
+DocumentChangedObserverToken::DocumentChangedObserverToken(DocumentChangedObserverToken&& other) noexcept
+	: window_{ std::exchange(other.window_, nullptr) }
+	, id_{ std::exchange(other.id_, 0) } {}
+
+DocumentChangedObserverToken& DocumentChangedObserverToken::operator=(DocumentChangedObserverToken&& other) noexcept {
+	if (this != &other) {
+		reset();
+		window_ = std::exchange(other.window_, nullptr);
+		id_ = std::exchange(other.id_, 0);
+	}
+	return *this;
+}
+
+void DocumentChangedObserverToken::reset() noexcept {
+	if (window_) {
+		window_->removeDocumentChangedObserver(id_);
+		window_ = nullptr;
+		id_ = 0;
+	}
+}
 
 void UiWin::EventListener::ProcessEvent(Rml::Event &event) {
 }
@@ -232,6 +262,12 @@ void UiWin::setShowCb(std::function<void()> cb) {
 void UiWin::setDocumentChangedCb(std::function<void()> cb) {
 	_data->_selfData->_documentChangedCb = std::move(cb);
 	notifyDocumentChanged();
+}
+
+DocumentChangedObserverToken UiWin::observeDocumentChanged(std::function<void()> cb) {
+	const auto id = _data->_selfData->_nextDocumentObserverId++;
+	_data->_selfData->_documentObservers.emplace_back(id, std::move(cb));
+	return DocumentChangedObserverToken{ *this, id };
 }
 
 [[nodiscard]] std::string_view UiWin::getName() const {
@@ -413,6 +449,27 @@ void UiWin::notifyDocumentChanged() const {
 			std::println("UI Runtime error: {}", e.what());
 		}
 	}
+
+	const auto observers = _data->_selfData->_documentObservers;
+	for (const auto& [id, observer] : observers) {
+		if (!observer) {
+			continue;
+		}
+		try {
+			observer();
+		} catch (const std::exception& e) {
+			std::println("UI document observer error: {}", e.what());
+		}
+	}
+}
+
+void UiWin::removeDocumentChangedObserver(std::size_t id) noexcept {
+	if (!_data) {
+		return;
+	}
+	std::erase_if(_data->_selfData->_documentObservers, [id](const auto& observer) {
+		return observer.first == id;
+	});
 }
 
 WinManager::WinManager() {

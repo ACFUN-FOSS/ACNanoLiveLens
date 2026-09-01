@@ -107,10 +107,13 @@ static void rmluiMain() {
 			//loadJsScript();
 
         	//TestWin testWin;
-			//DanmakuMonitorWin danmakuMonitorWin;
+			
 			//LoginWin loginWin;
-			UiWinBizLogicObjHandler<LoginWin> loginWin;
-			loginWin->getUiWin().show();
+			//UiWinBizLogicObjHandler<LoginWin> loginWin;
+			//loginWin->getUiWin().show();
+
+			UiWinBizLogicObjHandler<DanmakuMonitorWin> danmakuMonitorWin;
+			danmakuMonitorWin->getUiWin().show();
 
 		    //assert(false);
 
@@ -138,7 +141,7 @@ int crashHandlerProtectedMain() {
 #endif
 
 	// testSTLHardending();
-	NLS_ASSERT(false);
+	//NLS_ASSERT(false);
 
 	CtrlCLibrary::SetCtrlCHandler([](enum CtrlCLibrary::CtrlSignal signal) {
 		if (signal == CtrlCLibrary::kCtrlCSignal) {

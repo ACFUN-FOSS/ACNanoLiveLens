@@ -1,6 +1,8 @@
 #ifndef NANOLIVELENS_DANMAKU_MONITOR_WIN_HXX
 #define NANOLIVELENS_DANMAKU_MONITOR_WIN_HXX
 
+#include "uiwin_bizlogic_obj_async_op_scope.hxx"
+
 class DanmakuMonitorWin
 {
 public:
@@ -27,7 +29,7 @@ public:
 		DanmakuInfo danmakuInfo;
 	};
 
-    DanmakuMonitorWin();
+    DanmakuMonitorWin(UiWinBizLogicObjContext<DanmakuMonitorWin> ctx);
     ~DanmakuMonitorWin();
 
     DanmakuMonitorWin(const DanmakuMonitorWin &) = delete;
@@ -38,11 +40,15 @@ public:
     void addDanmaku(const DanmakuInfo &danmaku);
     void clearDanmaku();
 
+	UiWinBizLogicObjContext<DanmakuMonitorWin>& getLogicObjCtx();
+	RmlUIWin::UiWin &getUiWin();
+
 	//static void setupJsBinding(qjs::Context &ctx);
 
 private:
     class Impl;
     stdx::pimpl::unique_ptr<Impl> pImpl;
+	UiWinBizLogicObjContext<DanmakuMonitorWin> ctx_;
 };
 
 #endif

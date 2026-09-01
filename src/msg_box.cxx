@@ -87,14 +87,12 @@ private:
 
 		UIState(WinManager &winManager, std::filesystem::path documentPath, bool isMain)
 			: mainWin_{ "msg_box", { 560, 250 }, std::move(documentPath), winManager, isMain }
-			, mainWinRootEleEventMan_{ mainWin_.getRootElement() } {
+			, mainWinRootEleEventMan_{ mainWin_ } {
 		}
 	};
 
 	void bindEventHandlers() {
 		uiState_.mainWin_.setDocumentChangedCb([this] {
-			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_.getRootElement());
-			//bindEventHandlers();
 			refreshUi();
 		});
 

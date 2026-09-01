@@ -1,3 +1,4 @@
 CompileFlags:
+  CompilationDatabase: "BUILD/develop"
   Add: ["/clang:-std=c++23"]
   Remove: ["/Yu"]

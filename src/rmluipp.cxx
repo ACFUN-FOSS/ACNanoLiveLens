@@ -1,4 +1,5 @@
 #include "rmluipp.hxx"
+#include "RmlUIWin/window_manager.hxx"
 
 using namespace Essentials::Memory;
 
@@ -31,11 +32,11 @@ InvalidElementDynRefErr::InvalidElementDynRefErr(std::string_view elementQuery)
         std::format("Cannot find element `{}'!", elementQuery)
     } { }
 
-ElementDynRef::ElementDynRef(Rml::ElementDocument &document, std::string_view query)
-	: document_{ &document }, query_{ query } { }
+ElementDynRef::ElementDynRef(RmlUIWin::UiWin &window, std::string_view query)
+	: window_{ &window }, query_{ query } { }
 
 Rml::Element &ElementDynRef::resolve() {
-	const auto result = document_->QuerySelector(query_);
+	const auto result = window_->getDocument().QuerySelector(query_);
 	if (!result) {
 		throw InvalidElementDynRefErr{ query_ };
 	}
@@ -45,12 +46,6 @@ Rml::Element &ElementDynRef::resolve() {
 Rml::Element *ElementDynRef::operator->() {
 	return &resolve();
 }
-
-void ElementDynRef::reBind(Rml::ElementDocument &document) {
-	document_ = &document;
-}
-
-
 
 void printElementTree(const Rml::Element &parent) {
     std::cout << "BEGIN printElementTree\n";
@@ -141,8 +136,18 @@ std::function<void(Rml::Event &)> &SimpleEventListener::getCallback() {
 }
 
 
+SimpleEventListenerManager::SimpleEventListenerManager(RmlUIWin::UiWin &window LIFETIMEBOUND)
+    : window_{ &window }
+	, documentObserver_{ window.observeDocumentChanged([this] {
+		bindToCurrentDocument();
+	}) } {
+	bindToCurrentDocument();
+}
+
 SimpleEventListenerManager::SimpleEventListenerManager(Rml::Element &element LIFETIMEBOUND)
-    : element_{ &element } { }
+	: window_{ nullptr }
+	, element_{ &element } {
+}
 
 
 bool SimpleEventListenerManager::BindingRecord::operator==(const BindingRecord &other) const {
@@ -171,7 +176,10 @@ void SimpleEventListenerManager::on(const std::string_view childElementId, const
 	if (callbackResistered)
 		return;
 
-    auto &childElement = EXCEPT(findChildOrSelfById(element_, childElementId), std::format("找不到子元素 '{}'", childElementId));
+	auto &childElement = EXCEPT(
+		window_ ? findChildOrSelfById(&window_->getRootElement(), childElementId)
+			: findChildOrSelfById(element_, childElementId),
+		std::format("找不到子元素 '{}'", childElementId));
 
 	auto it = eventListeners_.emplace(regRec, newBox(SimpleEventListener{ callback }));
 
@@ -179,28 +187,27 @@ void SimpleEventListenerManager::on(const std::string_view childElementId, const
 }
 
 void SimpleEventListenerManager::clear() {
-	for (auto &[regRec, listenerBox] : eventListeners_) {
-		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
-
-		if (!childElementPtr)
-			continue;
-		childElementPtr->RemoveEventListener(regRec.event, &*listenerBox);
-	}
+	unbindFromCurrentDocument();
 	eventListeners_.clear();
 }
 
-void SimpleEventListenerManager::reBind(Rml::Element &element) {
+void SimpleEventListenerManager::unbindFromCurrentDocument() {
 	for (auto &[regRec, listenerBox] : eventListeners_) {
-		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
+		auto childElementPtr = window_
+		? findChildOrSelfById(&window_->getRootElement(), regRec.childElementId)
+		: findChildOrSelfById(element_, regRec.childElementId);
 
 		if (!childElementPtr)
 			continue;
 		childElementPtr->RemoveEventListener(regRec.event, &*listenerBox);
 	}
-	element_ = &element;
+}
 
+void SimpleEventListenerManager::bindToCurrentDocument() {
 	for (auto &[regRec, listenerBox] : eventListeners_) {
-		auto childElementPtr = findChildOrSelfById(element_, regRec.childElementId);
+		auto childElementPtr = window_
+		? findChildOrSelfById(&window_->getRootElement(), regRec.childElementId)
+		: findChildOrSelfById(element_, regRec.childElementId);
 
 		if (!childElementPtr)
 			continue;

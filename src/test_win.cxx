@@ -20,14 +20,6 @@ public:
 		// 	std::print("btn click\n");
 		// });
 
-		uiState_.mainWin_.setDocumentChangedCb([this]{
-			uiState_.mainWinRootEleEventMan_.reBind(uiState_.mainWin_.getRootElement());
-
-			// Don't do below: will cause crash: you should't unbind / clear event handler during reload.
-			//uiState_.mainWinRootEleEventMan_.clear();
-
-		});
-
 		uiState_.mainWin_.show();
 	
 	}
@@ -46,7 +38,7 @@ private:
 
 		UIState(WinManager &winManager, std::filesystem::path documentPath)
 			: mainWin_{ "main", {}, std::move(documentPath), winManager, true }
-			, mainWinRootEleEventMan_{ mainWin_.getRootElement() } {
+			, mainWinRootEleEventMan_{ mainWin_ } {
 		}
 	} uiState_;
 };

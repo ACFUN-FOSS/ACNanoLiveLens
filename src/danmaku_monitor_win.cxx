@@ -22,7 +22,7 @@ public:
     Impl()
         : uiState_{ *App::getState().winManager, getAssetsDir() / "danmaku_monitor.rml" }
 		, danmakuList_{
-			uiState_.mainWin_.getDocument(), "#danmaku-list"
+			uiState_.mainWin_, "#danmaku-list"
 		} {
 			uiState_.mainWin_.setUpdateCb([this]() {
 				static bool first = true;
@@ -48,8 +48,8 @@ public:
 				dbgLog("DanmakuMonitorWin: reload: clearDanmaku");
 
 				auto &mainWinRootEle = uiState_.mainWin_.getRootElement();
-				uiState_.mainWinRootEleEventMan_.reBind(mainWinRootEle);
-				danmakuList_.reBind(uiState_.mainWin_.getDocument());
+				// Event bindings are restored by SimpleEventListenerManager.
+				// ElementDynRef resolves against the current document.
 
 				clearDanmaku();
 				// Re-spawn danmakus
@@ -188,6 +188,10 @@ public:
 		danmakuInGui_.clear();
     }
 
+	RmlUIWin::UiWin &getUiWin() {
+		return uiState_.mainWin_;
+	}
+
 private:
     struct UIState
     {
@@ -196,7 +200,7 @@ private:
 
 		UIState(WinManager &winManager, std::filesystem::path documentPath)
 			: mainWin_{ "danmaku_monitor", { 466, 666 }, std::move(documentPath), winManager, true }
-			, mainWinRootEleEventMan_{ mainWin_.getRootElement() } {
+			, mainWinRootEleEventMan_{ mainWin_ } {
 		}
     } uiState_;
 
@@ -231,8 +235,9 @@ struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::Decl
 // 	//regClass(ctx, UNWRAP(metaType));
 // }
 
-DanmakuMonitorWin::DanmakuMonitorWin()
+DanmakuMonitorWin::DanmakuMonitorWin(UiWinBizLogicObjContext<DanmakuMonitorWin> ctx)
     : pImpl{ stdx::pimpl::make_unique<Impl>() }
+	, ctx_{ std::move(ctx) }
 {
 }
 
@@ -246,4 +251,14 @@ void DanmakuMonitorWin::addDanmaku(const DanmakuInfo &danmaku)
 void DanmakuMonitorWin::clearDanmaku()
 {
     pImpl->clearDanmaku();
+}
+
+UiWinBizLogicObjContext<DanmakuMonitorWin>& DanmakuMonitorWin::getLogicObjCtx()
+{
+	return ctx_;
+}
+
+RmlUIWin::UiWin &DanmakuMonitorWin::getUiWin()
+{
+	return pImpl->getUiWin();
 }

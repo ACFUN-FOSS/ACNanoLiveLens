@@ -2,6 +2,7 @@
 #define NANOLIVELENS_DANMAKU_MONITOR_WIN_HXX
 
 #include "uiwin_bizlogic_obj_async_op_scope.hxx"
+#include "Core/aclive_backend_client.hxx"
 
 class DanmakuMonitorWin
 {
@@ -29,7 +30,7 @@ public:
 		DanmakuInfo danmakuInfo;
 	};
 
-    DanmakuMonitorWin(UiWinBizLogicObjContext<DanmakuMonitorWin> ctx);
+    DanmakuMonitorWin(UiWinBizLogicObjContext<DanmakuMonitorWin> ctx, AcliveBackendClient *client);
     ~DanmakuMonitorWin();
 
     DanmakuMonitorWin(const DanmakuMonitorWin &) = delete;

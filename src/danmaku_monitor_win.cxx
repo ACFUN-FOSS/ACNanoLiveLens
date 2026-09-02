@@ -19,14 +19,15 @@ using namespace Essentials::Misc;
 class DanmakuMonitorWin::Impl
 {
 public:
-    Impl()
-        : uiState_{ *App::getState().winManager, getAssetsDir() / "danmaku_monitor.rml" }
-		, danmakuList_{
-			uiState_.mainWin_, "#danmaku-list"
-		} {
+    Impl(AcliveBackendClient *client)
+        : uiState_{ *App::getState().winManager, getAssetsDir() / "danmaku_monitor.rml" },
+			danmakuList_{
+				uiState_.mainWin_, "#danmaku-list"
+			},
+			client{ client }
+		{
 			uiState_.mainWin_.setUpdateCb([this]() {
-				static bool first = true;
-				if (first) {
+				if (this->client == nullptr && !testDanmakuLoaded_) {
 					// read test danmakus from json
 					auto danmakus = rfl::json::read<std::vector<DanmakuInfo>>(
 						readFile(getAssetsDir() / "test_danmaku.json")
@@ -37,11 +38,31 @@ public:
 						addDanmaku(danmaku);
 					}
 
-					first = false;
+					testDanmakuLoaded_ = true;
 				}
 				startPendingDanmakuContainerAnim();
 				scrollToEnd();
 			});
+			
+			if (client) {
+				client->onLiveActivity([that = LifetimeAwareWRef{ *this }](const LiveActivity &activity) {
+					if (!that.isValid())
+						return;
+					std::visit(overloaded{
+						[that](const DanmakuActivity &danmaku) mutable {
+							that->addDanmaku({
+								danmaku.data.danmuInfo.userInfo.nickname,
+								danmaku.data.content,
+								danmaku.data.danmuInfo.sendTime
+							});
+						},
+						[](const LikeActivity &) {
+						},
+						[](const GiftActivity &) {
+						}
+					}, activity);
+				});
+			}
 
 			uiState_.mainWin_.setDocumentReloadedCb([this]() {
 				
@@ -79,8 +100,7 @@ public:
 	void createUIState() {
 		//uiState_.mainWinRootEleEventMan_
 	}
-    void addDanmaku(const DanmakuInfo &danmaku)
-    {
+    void addDanmaku(const DanmakuInfo &danmaku) {
 
 		//MsgBox::popupOKMsgBox(MsgBox::Type::EINFO, "Add Danmaku");
 
@@ -193,6 +213,8 @@ public:
 		return uiState_.mainWin_;
 	}
 
+	LifetimeInformant lifetimeInformant;
+
 private:
     struct UIState
     {
@@ -211,6 +233,8 @@ private:
     ElementDynRef danmakuList_;
 
 	std::vector<DanmakuInfo> danmakuInfos_;
+	AcliveBackendClient *client;
+	bool testDanmakuLoaded_ = false;
 };
 
 template<>
@@ -236,8 +260,8 @@ struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::Decl
 // 	//regClass(ctx, UNWRAP(metaType));
 // }
 
-DanmakuMonitorWin::DanmakuMonitorWin(UiWinBizLogicObjContext<DanmakuMonitorWin> ctx)
-    : pImpl{ stdx::pimpl::make_unique<Impl>() }
+DanmakuMonitorWin::DanmakuMonitorWin(UiWinBizLogicObjContext<DanmakuMonitorWin> ctx, AcliveBackendClient *client)
+    : pImpl{ stdx::pimpl::make_unique<Impl>(client) }
 	, ctx_{ std::move(ctx) }
 {
 }

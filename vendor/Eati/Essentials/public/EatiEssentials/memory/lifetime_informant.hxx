@@ -89,11 +89,11 @@ public:
 			return ptr;
 	}
 
-	bool isValid() {
+	[[nodiscard]] bool isValid() const {
 		return ptr != nullptr;
 	}
 
-	operator bool() {
+	operator bool() const {
 		return isValid();
 	}
 

@@ -8,12 +8,13 @@ body
 
 .test-btn
 {
-	display: none;
+	display: block;
 	background-color: red;
-	width: 30px;
-	height: 18px;
+	width: 30dp;
+	height: 18dp;
 	padding: 2dp 5dp;
 	border-radius: 6dp;
+	z-order: 100;
 }
 
 button

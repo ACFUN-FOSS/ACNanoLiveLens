@@ -112,7 +112,7 @@ static void rmluiMain() {
 			//UiWinBizLogicObjHandler<LoginWin> loginWin;
 			//loginWin->getUiWin().show();
 
-			UiWinBizLogicObjHandler<DanmakuMonitorWin> danmakuMonitorWin;
+			UiWinBizLogicObjHandler<DanmakuMonitorWin> danmakuMonitorWin{ nullptr };
 			danmakuMonitorWin->getUiWin().show();
 
 		    //assert(false);

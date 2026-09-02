@@ -7,11 +7,12 @@
 <body>
     <winframe id="winframe" title="Danmaku monitor">
         <div class="content" id="content">
-			<button id="add-danmaku-btn" class="test-btn">Add danmaku</button>
+			
 			
 			<div id="danmaku-list-scroll-container">
             	<div id="danmaku-list"></div>
 			</div>
+			<button id="add-danmaku-btn" class="test-btn">Add danmaku</button>
         </div>
     </winframe>
 </body>

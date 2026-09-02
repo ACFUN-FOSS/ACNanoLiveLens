@@ -52,6 +52,20 @@ AcliveBackendRespMeta parseMeta(const AcliveBackendRespWire<T> &wire) {
 
 AnyResp parseResp(const WsData &wsData) {
 	switch (std::stoi(wsData.event)) {
+	case StartLiveActivityResp::type:
+	case StopLiveActivityResp::type: {
+		const auto wire = rfl::json::read<StartLiveActivityRespWire>(wsData.payload).value();
+		const auto meta = parseMeta(wire);
+		if (meta.result != 1) {
+			throw AcliveBackendError{ meta, std::format("Aclive backend live activity request failed. type={}, requestID={}, result={}, error={}", std::stoi(wsData.event), meta.requestID, meta.result, meta.error.value_or("unknown error")) };
+		}
+		if (!wire.data) {
+			throw std::runtime_error("Live activity response missing data.");
+		}
+		const auto data = *wire.data;
+		if (std::stoi(wsData.event) == StartLiveActivityResp::type) return StartLiveActivityResp{ meta, data };
+		return StopLiveActivityResp{ meta, data };
+	}
 	case QrCodeLoginResp::type: {
 		const auto wire = rfl::json::read<QrCodeLoginRespWire>(wsData.payload).value();
 		const auto meta = parseMeta(wire);
@@ -152,6 +166,25 @@ AnyResp parseResp(const WsData &wsData) {
 	}
 }
 
+LiveActivity parseLiveActivity(const WsData &wsData) {
+	switch (std::stoi(wsData.event)) {
+	case DanmakuActivity::type: {
+		const auto wire = rfl::json::read<DanmakuActivityWire>(wsData.payload).value();
+		return DanmakuActivity{ wire.liverUID, std::move(wire.data) };
+	}
+	case LikeActivity::type: {
+		const auto wire = rfl::json::read<LikeActivityWire>(wsData.payload).value();
+		return LikeActivity{ wire.liverUID, std::move(wire.data) };
+	}
+	case GiftActivity::type: {
+		const auto wire = rfl::json::read<GiftActivityWire>(wsData.payload).value();
+		return GiftActivity{ wire.liverUID, std::move(wire.data) };
+	}
+	default:
+		throw std::runtime_error(std::format("Unsupported live activity type: {}", wsData.event));
+	}
+}
+
 std::string makeRequestID() {
 	static std::atomic_uint64_t counter = 0;
 	return std::format("req_{}", ++counter);
@@ -163,6 +196,7 @@ struct AcliveBackendClient::State
 {
 	Ws ws;
 	std::vector<RespHandler> respHandlers;
+	std::vector<LiveActivityHandler> liveActivityHandlers;
 	std::optional<std::string> pendingQrCodeLoginRequestID;
 	bool waitingForReconnectRecovery = false;
 	Ws::ConnectionState lastConnectionState = Ws::ConnectionState::Disconnected;
@@ -188,12 +222,21 @@ struct AcliveBackendClient::State
 		ws.on("10", [this](const WsData &data) {
 			dispatch(parseResp(data));
 		});
+		ws.on("100", [this](const WsData &data) { dispatch(parseResp(data)); });
+		ws.on("101", [this](const WsData &data) { dispatch(parseResp(data)); });
+		ws.on("1000", [this](const WsData &data) { dispatchLiveActivity(parseLiveActivity(data)); });
+		ws.on("1001", [this](const WsData &data) { dispatchLiveActivity(parseLiveActivity(data)); });
+		ws.on("1005", [this](const WsData &data) { dispatchLiveActivity(parseLiveActivity(data)); });
 	}
 
 	void dispatch(const AnyResp &resp) {
 		for (const auto &handler : respHandlers) {
 			handler(resp);
 		}
+	}
+
+	void dispatchLiveActivity(const LiveActivity &activity) {
+		for (const auto &handler : liveActivityHandlers) handler(activity);
 	}
 };
 
@@ -279,6 +322,10 @@ void AcliveBackendClient::onResp(RespHandler handler) {
 	state_->respHandlers.push_back(std::move(handler));
 }
 
+void AcliveBackendClient::onLiveActivity(LiveActivityHandler handler) {
+	state_->liveActivityHandlers.push_back(std::move(handler));
+}
+
 void AcliveBackendClient::onReconnectAttempt(ReconnectHandler handler) {
 	state_->ws.onReconnectAttempt(std::move(handler));
 }
@@ -294,4 +341,16 @@ void AcliveBackendClient::requestQrCodeLogin(std::string_view requestID) {
 		.type = QrCodeLoginResp::type,
 		.requestID = actualRequestID,
 	}));
+}
+
+void AcliveBackendClient::startLiveActivity(std::uint64_t liverUID, std::string_view requestID) {
+	if (!state_->ws.isConnected()) throw std::runtime_error("Aclive backend is not connected.");
+	const auto actualRequestID = requestID.empty() ? makeRequestID() : std::string{ requestID };
+	state_->ws.sendText(rfl::json::write(LiveActivityRequestWire{ 100, actualRequestID, { liverUID } }));
+}
+
+void AcliveBackendClient::stopLiveActivity(std::uint64_t liverUID, std::string_view requestID) {
+	if (!state_->ws.isConnected()) throw std::runtime_error("Aclive backend is not connected.");
+	const auto actualRequestID = requestID.empty() ? makeRequestID() : std::string{ requestID };
+	state_->ws.sendText(rfl::json::write(LiveActivityRequestWire{ 101, actualRequestID, { liverUID } }));
 }

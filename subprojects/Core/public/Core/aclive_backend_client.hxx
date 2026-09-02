@@ -19,6 +19,7 @@ class AcliveBackendClient
 {
 public:
 	using RespHandler = std::function<void(const AnyResp &)>;
+	using LiveActivityHandler = std::function<void(const LiveActivity &)>;
 	using ReconnectHandler = std::function<void(std::chrono::system_clock::time_point disconnectAt, std::size_t attemptCount)>;
 
 	AcliveBackendClient(
@@ -42,8 +43,11 @@ public:
 	void bindRuntime(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor);
 
 	void onResp(RespHandler handler);
+	void onLiveActivity(LiveActivityHandler handler);
 	void onReconnectAttempt(ReconnectHandler handler);
 	void requestQrCodeLogin(std::string_view requestID = {});
+	void startLiveActivity(std::uint64_t liverUID, std::string_view requestID = {});
+	void stopLiveActivity(std::uint64_t liverUID, std::string_view requestID = {});
 
 private:
 	struct State;

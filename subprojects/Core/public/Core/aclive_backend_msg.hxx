@@ -7,12 +7,105 @@
 #include <string>
 #include <type_traits>
 #include <variant>
+#include <vector>
 #include <rfl.hpp>
 
 struct EmptyData
 {
 	rfl::ExtraFields<rfl::Generic> extraFields;
 };
+
+struct LiveActivityRequestData {
+	std::uint64_t liverUID;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+struct LiveActivityRequestWire {
+	int type;
+	std::string requestID;
+	LiveActivityRequestData data;
+};
+
+struct LiveActivityUserMedal {
+	std::uint64_t uperID;
+	std::uint64_t userID;
+	std::string clubName;
+	int level;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+struct LiveActivityUserInfo {
+	std::uint64_t userID;
+	std::string nickname;
+	std::string avatar;
+	LiveActivityUserMedal medal;
+	int managerType;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+struct LiveActivityDanmuInfo {
+	std::chrono::system_clock::time_point sendTime;
+	LiveActivityUserInfo userInfo;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+struct DanmakuActivityData {
+	LiveActivityDanmuInfo danmuInfo;
+	std::string content;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+struct LikeActivityData {
+	std::chrono::system_clock::time_point sendTime;
+	LiveActivityUserInfo userInfo;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+struct GiftDetail {
+	std::uint64_t giftID;
+	std::string giftName;
+	std::string arLiveName;
+	int payWalletType;
+	std::int64_t price;
+	std::string webpPic;
+	std::string pngPic;
+	std::string smallPngPic;
+	std::vector<std::int64_t> allowBatchSendSizeList;
+	bool canCombo;
+	bool canDraw;
+	std::int64_t magicFaceID;
+	std::int64_t vupArID;
+	std::string description;
+	std::int64_t redpackPrice;
+	std::string cornerMarkerText;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+struct GiftActivityData {
+	LiveActivityDanmuInfo danmuInfo;
+	GiftDetail giftDetail;
+	std::int64_t count;
+	std::int64_t combo;
+	std::int64_t value;
+	std::string comboID;
+	std::int64_t slotDisplayDuration;
+	std::int64_t expireDuration;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+
+// “Wire” type: align with aclive-backend's JSON request / response structure, for serializing / deserializing.
+template <int TYPE, typename T>
+struct LiveActivityWire {
+	std::uint64_t liverUID;
+	int type = TYPE;
+	T data;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+using DanmakuActivityWire = LiveActivityWire<1000, DanmakuActivityData>;
+using LikeActivityWire = LiveActivityWire<1001, LikeActivityData>;
+using GiftActivityWire = LiveActivityWire<1005, GiftActivityData>;
 
 struct AcliveBackendRespMeta
 {
@@ -29,6 +122,23 @@ struct AcliveBackendResp
 
 	static constexpr int type = TYPE;
 };
+
+using StartLiveActivityResp = AcliveBackendResp<100, LiveActivityRequestData>;
+using StopLiveActivityResp = AcliveBackendResp<101, LiveActivityRequestData>;
+
+template <int TYPE, typename T>
+struct LiveActivityEvent
+{
+	std::uint64_t liverUID;
+	T data;
+
+	static constexpr int type = TYPE;
+};
+
+using DanmakuActivity = LiveActivityEvent<1000, DanmakuActivityData>;
+using LikeActivity = LiveActivityEvent<1001, LikeActivityData>;
+using GiftActivity = LiveActivityEvent<1005, GiftActivityData>;
+using LiveActivity = std::variant<DanmakuActivity, LikeActivity, GiftActivity>;
 
 struct QrCodeLoginRespBody
 {
@@ -58,6 +168,7 @@ struct QrCodeLoginSuccessRespBody
 
 using QrCodeLoginSuccessResp = AcliveBackendResp<10, QrCodeLoginSuccessRespBody>;
 
+// “Wire” type: align with aclive-backend's JSON request / response structure, for serializing / deserializing.
 struct HeartbeatReqWire
 {
 	int type = 1;
@@ -84,8 +195,12 @@ using QrCodeLoginRespWire = AcliveBackendRespWire<QrCodeLoginRespBody>;
 using QrCodeScannedRespWire = AcliveBackendRespWire<EmptyData>;
 using QrCodeLoginTerminatedRespWire = AcliveBackendRespWire<EmptyData>;
 using QrCodeLoginSuccessRespWire = AcliveBackendRespWire<QrCodeLoginSuccessRespBody>;
+using StartLiveActivityRespWire = AcliveBackendRespWire<LiveActivityRequestData>;
+using StopLiveActivityRespWire = AcliveBackendRespWire<LiveActivityRequestData>;
 
 using AnyResp = std::variant<
+	StartLiveActivityResp,
+	StopLiveActivityResp,
 	QrCodeLoginResp,
 	QrCodeScannedResp,
 	QrCodeLoginTerminatedResp,

@@ -148,6 +148,12 @@ public:
 				UNWRAP(findChildOrSelfById(&uiState_.mainWin_.getRootElement(), "login-hint"))
 					.SetInnerRML("登入成功");
 				uiState_.mainWin_.hide();
+			},
+			[](const StartLiveActivityResp &) {
+				// Live activity control responses are handled by their caller.
+			},
+			[](const StopLiveActivityResp &) {
+				// Live activity control responses are handled by their caller.
 			}
 		}, resp);
 	}

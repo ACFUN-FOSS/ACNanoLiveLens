@@ -138,7 +138,7 @@ std::function<void(Rml::Event &)> &SimpleEventListener::getCallback() {
 
 SimpleEventListenerManager::SimpleEventListenerManager(RmlUIWin::UiWin &window LIFETIMEBOUND)
     : window_{ &window }
-	, documentObserver_{ window.observeDocumentChanged([this] {
+	, documentObserver_{ window.observeDocumentReloaded([this] {
 		bindToCurrentDocument();
 	}) } {
 	bindToCurrentDocument();

@@ -39,9 +39,8 @@ void RmlUIElement::processDefaultAction(Rml::Event &event) {
         event.GetParameter<Input::KeyIdentifier>("key_identifier", Input::KeyIdentifier::KI_FINAL)
         == Input::KeyIdentifier::KI_F6) {
 		playSound(Sound::RELOAD);
-        reload();
 		dbgLog("Reloading style sheet");
-        GetOwnerDocument()->ReloadStyleSheet();
+		reloadStyles();
     }
 
     if (event.GetId() == EventId::Keydown &&
@@ -57,6 +56,12 @@ void RmlUIElement::onMounted() {
 }
 
 void RmlUIElement::reload() {
+}
+
+void RmlUIElement::reloadStyles() {
+	if (auto *document = GetOwnerDocument()) {
+		document->ReloadStyleSheet();
+	}
 }
 
 bool RmlUIElement::getIsWindowElement() const {

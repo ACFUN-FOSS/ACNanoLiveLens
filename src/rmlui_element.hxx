@@ -13,7 +13,9 @@ public:
     RmlUIElement &operator=(RmlUIElement &&) = delete;
     ~RmlUIElement() = default;
 
+    // Rebuild element-owned content after the document has been replaced.
     virtual void reload();
+    void reloadStyles();
 
 	bool getIsWindowElement() const;
 

@@ -63,12 +63,13 @@ public:
 
     void update();
     void render() const;
-    void reload();
+    void reloadStyles();
+    void reloadDocument();
 
     void setUpdateCb(std::function<void()> cb);
     void setShowCb(std::function<void()> cb);
-    void setDocumentChangedCb(std::function<void()> cb);
-    DocumentChangedObserverToken observeDocumentChanged(std::function<void()> cb);
+    void setDocumentReloadedCb(std::function<void()> cb);
+    DocumentChangedObserverToken observeDocumentReloaded(std::function<void()> cb);
 
     [[nodiscard]] std::string_view getName() const;
     [[nodiscard]] bool isMainWin() const;
@@ -98,7 +99,7 @@ private:
     void destroy();
     void attachDocument(Rml::ElementDocument &document);
     void detachDocument() const;
-    void notifyDocumentChanged() const;
+    void notifyDocumentReloaded() const;
     void removeDocumentChangedObserver(std::size_t id) noexcept;
 
     struct RmlCStyleData;
@@ -144,7 +145,8 @@ public:
     [[nodiscard]] UiWin *getWinOfElement(const Rml::Element &element) const;
     [[nodiscard]] UiWin *getWinOfContext(const Rml::Context& context) const;
 
-    void reloadWindow(UiWin &window);
+    void reloadWindowStyles(UiWin &window);
+    void reloadWindowDocument(UiWin &window);
     void setModalWin(UiWin *window);
     [[nodiscard]] UiWin *getModalWin() const;
     bool processKeyDownShortcuts(Rml::Context *context, Rml::Input::KeyIdentifier key, int key_modifier, float native_dp_ratio, bool priority);

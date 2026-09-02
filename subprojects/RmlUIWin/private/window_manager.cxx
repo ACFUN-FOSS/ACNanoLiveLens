@@ -65,7 +65,7 @@ struct UiWin::SelfData
 	bool _firstFrame = true;
 	std::function<void()> _updateCb;
 	std::function<void()> _showCb;
-	std::function<void()> _documentChangedCb;
+	std::function<void()> _documentReloadedCb;
 	std::size_t _nextDocumentObserverId = 1;
 	std::vector<std::pair<std::size_t, std::function<void()>>> _documentObservers;
 };
@@ -238,7 +238,23 @@ void UiWin::render() const {
 	}
 }
 
-void UiWin::reload() {
+void UiWin::reloadStyles() {
+	if (!_data || !_data->_rmlCStyleData->_context) {
+		return;
+	}
+
+	for (int i = 0; i < _data->_rmlCStyleData->_context->GetNumDocuments(); ++i) {
+		if (auto *document = _data->_rmlCStyleData->_context->GetDocument(i)) {
+			const auto &source = document->GetSourceURL();
+			if (source.empty() || source == ".") {
+				continue;
+			}
+			document->ReloadStyleSheet();
+		}
+	}
+}
+
+void UiWin::reloadDocument() {
 	detachDocument();
 	_data->_rmlCStyleData->_document->Close();
 
@@ -250,6 +266,7 @@ void UiWin::reload() {
 	_data->_rmlCStyleData->_document = documentptr;
 	attachDocument(*documentptr);
 	documentptr->Show();
+	notifyDocumentReloaded();
 }
 
 void UiWin::setUpdateCb(std::function<void()> cb) {
@@ -260,12 +277,11 @@ void UiWin::setShowCb(std::function<void()> cb) {
 	_data->_selfData->_showCb = std::move(cb);
 }
 
-void UiWin::setDocumentChangedCb(std::function<void()> cb) {
-	_data->_selfData->_documentChangedCb = std::move(cb);
-	//notifyDocumentChanged();
+void UiWin::setDocumentReloadedCb(std::function<void()> cb) {
+	_data->_selfData->_documentReloadedCb = std::move(cb);
 }
 
-DocumentChangedObserverToken UiWin::observeDocumentChanged(std::function<void()> cb) {
+DocumentChangedObserverToken UiWin::observeDocumentReloaded(std::function<void()> cb) {
 	const auto id = _data->_selfData->_nextDocumentObserverId++;
 	_data->_selfData->_documentObservers.emplace_back(id, std::move(cb));
 	return DocumentChangedObserverToken{ *this, id };
@@ -433,7 +449,6 @@ void UiWin::requestCloseFromNativeEvent() {
 
 void UiWin::attachDocument(Rml::ElementDocument &document) {
 	document.AddEventListener("click", &_data->_selfData->_eventListener);
-	notifyDocumentChanged();
 }
 
 void UiWin::detachDocument() const {
@@ -442,10 +457,10 @@ void UiWin::detachDocument() const {
 	}
 }
 
-void UiWin::notifyDocumentChanged() const {
-	if (_data->_selfData->_documentChangedCb) {
+void UiWin::notifyDocumentReloaded() const {
+	if (_data->_selfData->_documentReloadedCb) {
 		try {
-			_data->_selfData->_documentChangedCb();
+			_data->_selfData->_documentReloadedCb();
 		} catch (const std::exception &e) {
 			std::println("UI Runtime error: {}", e.what());
 		}
@@ -572,8 +587,12 @@ void WinManager::requestCloseAllWindows() {
 	return it != context2Win_.end() ? it->second.get() : nullptr;
 }
 
-void WinManager::reloadWindow(UiWin &window) {
-	window.reload();
+void WinManager::reloadWindowStyles(UiWin &window) {
+	window.reloadStyles();
+}
+
+void WinManager::reloadWindowDocument(UiWin &window) {
+	window.reloadDocument();
 }
 
 void WinManager::setModalWin(UiWin *window) {
@@ -640,17 +659,8 @@ bool WinManager::processKeyDownShortcuts(Rml::Context *context, Rml::Input::KeyI
 		}
 	} else {
 		if (key == Rml::Input::KI_R && key_modifier & Rml::Input::KM_CTRL) {
-			for (int i = 0; i < context->GetNumDocuments(); i++) {
-				Rml::ElementDocument *document = context->GetDocument(i);
-				const Rml::String &src = document->GetSourceURL();
-				if (src.size() > 4 && src.substr(src.size() - 4) == ".rml") {
-					std::println("Reloading: {}", src);
-					document->ReloadStyleSheet();
-				}
-			}
-
 			if (auto *uiWin = getWinOfContext(*context)) {
-				reloadWindow(*uiWin);
+				reloadWindowDocument(*uiWin);
 			}
 		} else {
 			result = true;

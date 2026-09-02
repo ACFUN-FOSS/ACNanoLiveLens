@@ -19,7 +19,6 @@ struct Ws::State
 		std::chrono::system_clock::time_point nextAttemptAt{};
 		std::optional<accoro::result<void>> result;
 		std::jthread thread;
-		std::mutex resultMutex;
 		std::vector<ReconnectHandler> handlers;
 	};
 
@@ -38,6 +37,8 @@ struct Ws::State
 	std::jthread receiveThread;
 	std::jthread heartbeatThread;
 	DisconnectReason disconnectReason = DisconnectReason::None;
+	std::mutex connectMutex;
+	bool connectInProgress = false;
 	std::chrono::system_clock::time_point disconnectedAt{};
 	std::chrono::system_clock::time_point lastHeartbeatSentAt{};
 	std::chrono::system_clock::time_point lastMessageReceivedAt{};
@@ -122,16 +123,40 @@ accoro::result<void> Ws::connectAsync() {
 		co_return;
 	}
 
+	{
+		std::lock_guard lock{ state->connectMutex };
+		if (state->connectInProgress) {
+			throw std::runtime_error("WebSocket connection attempt is already in progress");
+		}
+		state->connectInProgress = true;
+	}
 
 	state->reconnect.thread = std::jthread(
 		[state, promise = std::move(promise)]() mutable {
-			std::lock_guard resultLock{ state->reconnect.resultMutex };
 			try {
 				state->connectBlocking();
+				{
+					std::lock_guard lock{ state->connectMutex };
+					state->connectInProgress = false;
+				}
+
+				bool connected = false;
+				{
+					std::lock_guard lock{ state->controlMutex };
+					connected = state->connectionState == Ws::ConnectionState::Connected;
+				}
+				if (!connected) {
+					throw std::runtime_error("WebSocket connection attempt was cancelled");
+				}
+
 				state->resetReconnectState();
 				promise.set_result();
 				std::println("Ws::connectAsync: Connected");
 			} catch (...) {
+				{
+					std::lock_guard lock{ state->connectMutex };
+					state->connectInProgress = false;
+				}
 				std::println("Ws::connectAsync: Exception in connectBlocking");
 				promise.set_exception(std::current_exception());
 				
@@ -140,8 +165,6 @@ accoro::result<void> Ws::connectAsync() {
 	);
 
 	std::exception_ptr excp;
-
-	auto threadIdBefore = std::this_thread::get_id();
 
 	try {
 		co_await result;
@@ -153,12 +176,11 @@ accoro::result<void> Ws::connectAsync() {
 		std::lock_guard lock{ state->controlMutex };
 		return state->mainThreadExecutor;
 	}();
-	
-	co_await accoro::resume_on(mainThreadExecutor);
 
-	auto threadIdAfter = std::this_thread::get_id();
+	if (mainThreadExecutor) {
+		co_await accoro::resume_on(mainThreadExecutor);
+	}
 
-	NLS_ASSERT("Ws::connectAsync: threadIdBefore == threadIdAfter" && threadIdBefore == threadIdAfter);
 	if (excp) {
 		std::rethrow_exception(excp);
 	}

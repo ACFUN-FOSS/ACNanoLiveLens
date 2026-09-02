@@ -44,7 +44,7 @@ void DanmakuItem::bindEventHandlers() {
 
 void DanmakuItem::reload() {
 	dbgLog("RELOAD: DanmakuItem");
-	SetInnerRML(Rml::String{ readTextAssetCached(getAssetsDir() / "danmaku_item.rml") });
+	SetInnerRML(Rml::String{ readFile(getAssetsDir() / "danmaku_item.rml") });
 	initAfterConstruct();
 	bindEventHandlers();
 	if (currentDanmakuInfo_) {

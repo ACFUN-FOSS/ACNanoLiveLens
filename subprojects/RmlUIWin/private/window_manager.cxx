@@ -249,6 +249,7 @@ void UiWin::reload() {
 
 	_data->_rmlCStyleData->_document = documentptr;
 	attachDocument(*documentptr);
+	documentptr->Show();
 }
 
 void UiWin::setUpdateCb(std::function<void()> cb) {
@@ -261,7 +262,7 @@ void UiWin::setShowCb(std::function<void()> cb) {
 
 void UiWin::setDocumentChangedCb(std::function<void()> cb) {
 	_data->_selfData->_documentChangedCb = std::move(cb);
-	notifyDocumentChanged();
+	//notifyDocumentChanged();
 }
 
 DocumentChangedObserverToken UiWin::observeDocumentChanged(std::function<void()> cb) {
@@ -649,7 +650,7 @@ bool WinManager::processKeyDownShortcuts(Rml::Context *context, Rml::Input::KeyI
 			}
 
 			if (auto *uiWin = getWinOfContext(*context)) {
-				//reloadWindow(*uiWin);
+				reloadWindow(*uiWin);
 			}
 		} else {
 			result = true;

@@ -92,9 +92,9 @@ private:
 	};
 
 	void bindEventHandlers() {
-		uiState_.mainWin_.setDocumentChangedCb([this] {
-			refreshUi();
-		});
+		// uiState_.mainWin_.setDocumentChangedCb([this] {
+		// 	refreshUi();
+		// });
 
 		uiState_.mainWinRootEleEventMan_.clear();
 		uiState_.mainWinRootEleEventMan_.on("ok-btn", "mouseup", [this](Rml::Event &event) {

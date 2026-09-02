@@ -44,6 +44,7 @@ public:
 			});
 
 			uiState_.mainWin_.setDocumentChangedCb([this]() {
+				
 				auto danmakuInGui = danmakuInGui_;
 				dbgLog("DanmakuMonitorWin: reload: clearDanmaku");
 
@@ -66,7 +67,7 @@ public:
 			});
 		});
 
-		uiState_.mainWin_.show();
+		//uiState_.mainWin_.show();
     }
 
     ~Impl() = default;

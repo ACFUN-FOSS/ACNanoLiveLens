@@ -171,7 +171,7 @@ public:
   			pendingAnimDanmaku.pop();
 
   			// 生成唯一的类名并创建动态样式字符串
-  			auto className = std::format("anim-{}", randomInt(0, 1000000));
+  			auto className = std::format("anim-{}", randomInt(0, std::numeric_limits<int>::max()));
   			auto newStyleSrc = std::format(
   				".{}{{"
   				"height: {}px;"

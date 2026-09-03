@@ -26,6 +26,12 @@ struct LiveActivityRequestWire {
 	LiveActivityRequestData data;
 };
 
+struct LiveStatusReqWire
+{
+	int type = 903;
+	std::string requestID;
+};
+
 struct LiveActivityUserMedal {
 	std::uint64_t uperID;
 	std::uint64_t userID;
@@ -168,6 +174,27 @@ struct QrCodeLoginSuccessRespBody
 
 using QrCodeLoginSuccessResp = AcliveBackendResp<10, QrCodeLoginSuccessRespBody>;
 
+struct LiveStatusRespBody
+{
+	std::optional<std::string> liveID;
+	std::optional<std::string> streamName;
+	std::optional<std::string> title;
+	std::optional<std::chrono::system_clock::time_point> liveStartTime;
+	std::optional<bool> portrait;
+	std::optional<bool> panoramic;
+	std::optional<std::string> liveCover;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
+using LiveStatusResp = AcliveBackendResp<903, LiveStatusRespBody>;
+
+struct LiveActivityEndedWire
+{
+	std::uint64_t liverUID;
+	int type = 2000;
+	rfl::ExtraFields<rfl::Generic> extraFields;
+};
+
 // “Wire” type: align with aclive-backend's JSON request / response structure, for serializing / deserializing.
 struct HeartbeatReqWire
 {
@@ -197,6 +224,7 @@ using QrCodeLoginTerminatedRespWire = AcliveBackendRespWire<EmptyData>;
 using QrCodeLoginSuccessRespWire = AcliveBackendRespWire<QrCodeLoginSuccessRespBody>;
 using StartLiveActivityRespWire = AcliveBackendRespWire<LiveActivityRequestData>;
 using StopLiveActivityRespWire = AcliveBackendRespWire<LiveActivityRequestData>;
+using LiveStatusRespWire = AcliveBackendRespWire<LiveStatusRespBody>;
 
 using AnyResp = std::variant<
 	StartLiveActivityResp,
@@ -204,7 +232,8 @@ using AnyResp = std::variant<
 	QrCodeLoginResp,
 	QrCodeScannedResp,
 	QrCodeLoginTerminatedResp,
-	QrCodeLoginSuccessResp
+	QrCodeLoginSuccessResp,
+	LiveStatusResp
 >;
 
 template<class... Ts>

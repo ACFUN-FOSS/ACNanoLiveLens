@@ -154,6 +154,9 @@ public:
 			},
 			[](const StopLiveActivityResp &) {
 				// Live activity control responses are handled by their caller.
+			},
+			[](const LiveStatusResp &) {
+				// Live status responses are handled by their caller.
 			}
 		}, resp);
 	}

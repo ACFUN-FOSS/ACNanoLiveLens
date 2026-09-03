@@ -1,3 +1,5 @@
+#include "appstate.hxx"
+
 std::string toDbgString(const std::string_view strv) {
 	return std::string{ strv };
 }
@@ -24,5 +26,9 @@ int randomInt(int min, int max) {
 	static std::mt19937 mt{ r() };
 	std::uniform_int_distribution<int> gen{ min, max };
 	return gen(mt);
+}
+
+coro::result<void> coroSleep(std::chrono::milliseconds ms) {
+	co_await App::getState().coroRuntime->timer_queue()->make_delay_object(ms, App::getState().mainThreadExecutor);
 }
 

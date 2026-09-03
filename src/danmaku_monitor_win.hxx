@@ -49,7 +49,7 @@ public:
 private:
     class Impl;
     stdx::pimpl::unique_ptr<Impl> pImpl;
-	UiWinBizLogicObjContext<DanmakuMonitorWin> ctx_;
+	
 };
 
 #endif

@@ -1,7 +1,6 @@
 #ifndef NANOLIVELENS_UTILS_HXX
 #define NANOLIVELENS_UTILS_HXX
 
-
 std::string toDbgString(const std::string_view str);
 //std::string toDbgString(const bool b);
 std::string toDbgString(const Rml::Event &event);
@@ -20,5 +19,7 @@ void dbgLog(const T&... args) {
 }
 
 int randomInt(int min, int max);
+
+coro::result<void> coroSleep(std::chrono::milliseconds ms);
 
 #endif

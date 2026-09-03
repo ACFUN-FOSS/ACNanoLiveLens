@@ -97,6 +97,16 @@ winframe .content
 	padding: 2dp 4dp 2dp 4dp;
 }
 
+#not-live-hint
+{
+	display: block;
+	width: 100%;
+	height: 100%;
+	text-align: center;
+	padding-top: 120dp;
+	color: rgb(190, 190, 190);
+}
+
 svg
 {
     display: inline-block;

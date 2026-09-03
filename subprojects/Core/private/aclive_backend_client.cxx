@@ -161,6 +161,14 @@ AnyResp parseResp(const WsData &wsData) {
 			}
 		};
 	}
+	case LiveStatusResp::type: {
+		const auto wire = rfl::json::read<LiveStatusRespWire>(wsData.payload).value();
+		const auto meta = parseMeta(wire);
+		if (meta.result != 1 || !wire.data) {
+			return LiveStatusResp{ .meta = meta, .data = {} };
+		}
+		return LiveStatusResp{ .meta = meta, .data = std::move(*wire.data) };
+	}
 	default:
 		throw std::runtime_error(std::format("Unsupported aclive backend response type: {}", wsData.event));
 	}
@@ -197,6 +205,8 @@ struct AcliveBackendClient::State
 	Ws ws;
 	std::vector<RespHandler> respHandlers;
 	std::vector<LiveActivityHandler> liveActivityHandlers;
+	std::vector<LiveActivityEndedHandler> liveActivityEndedHandlers;
+	std::optional<std::uint64_t> authenticatedUserID;
 	std::optional<std::string> pendingQrCodeLoginRequestID;
 	bool waitingForReconnectRecovery = false;
 	Ws::ConnectionState lastConnectionState = Ws::ConnectionState::Disconnected;
@@ -220,10 +230,19 @@ struct AcliveBackendClient::State
 			dispatch(parseResp(data));
 		});
 		ws.on("10", [this](const WsData &data) {
-			dispatch(parseResp(data));
+			auto response = parseResp(data);
+			if (const auto *login = std::get_if<QrCodeLoginSuccessResp>(&response)) {
+				authenticatedUserID = login->data.tokenInfo.userID;
+			}
+			dispatch(response);
 		});
 		ws.on("100", [this](const WsData &data) { dispatch(parseResp(data)); });
 		ws.on("101", [this](const WsData &data) { dispatch(parseResp(data)); });
+		ws.on("903", [this](const WsData &data) { dispatch(parseResp(data)); });
+		ws.on("2000", [this](const WsData &data) {
+			const auto wire = rfl::json::read<LiveActivityEndedWire>(data.payload).value();
+			for (const auto &handler : liveActivityEndedHandlers) handler(wire.liverUID);
+		});
 		ws.on("1000", [this](const WsData &data) { dispatchLiveActivity(parseLiveActivity(data)); });
 		ws.on("1001", [this](const WsData &data) { dispatchLiveActivity(parseLiveActivity(data)); });
 		ws.on("1005", [this](const WsData &data) { dispatchLiveActivity(parseLiveActivity(data)); });
@@ -285,6 +304,10 @@ void AcliveBackendClient::disconnect() {
 	return state_ && state_->ws.isConnected();
 }
 
+[[nodiscard]] std::optional<std::uint64_t> AcliveBackendClient::authenticatedUserID() const noexcept {
+	return state_ ? state_->authenticatedUserID : std::nullopt;
+}
+
 void AcliveBackendClient::exec() {
 	state_->ws.execCb();
 
@@ -326,6 +349,10 @@ void AcliveBackendClient::onLiveActivity(LiveActivityHandler handler) {
 	state_->liveActivityHandlers.push_back(std::move(handler));
 }
 
+void AcliveBackendClient::onLiveActivityEnded(LiveActivityEndedHandler handler) {
+	state_->liveActivityEndedHandlers.push_back(std::move(handler));
+}
+
 void AcliveBackendClient::onReconnectAttempt(ReconnectHandler handler) {
 	state_->ws.onReconnectAttempt(std::move(handler));
 }
@@ -339,6 +366,14 @@ void AcliveBackendClient::requestQrCodeLogin(std::string_view requestID) {
 	state_->pendingQrCodeLoginRequestID = actualRequestID;
 	state_->ws.sendText(rfl::json::write(QrCodeLoginReqWire{
 		.type = QrCodeLoginResp::type,
+		.requestID = actualRequestID,
+	}));
+}
+
+void AcliveBackendClient::requestLiveStatus(std::string_view requestID) {
+	if (!state_->ws.isConnected()) throw std::runtime_error("Aclive backend is not connected.");
+	const auto actualRequestID = requestID.empty() ? makeRequestID() : std::string{ requestID };
+	state_->ws.sendText(rfl::json::write(LiveStatusReqWire{
 		.requestID = actualRequestID,
 	}));
 }

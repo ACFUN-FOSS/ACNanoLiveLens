@@ -13,21 +13,25 @@ using namespace RmlUIWin;
 using namespace Essentials::Memory;
 using namespace Essentials::IO;
 using namespace Essentials::Misc;
+using namespace std::chrono_literals;
 
 // 太复杂，需要进一步封装
 // TODO：或将 UiWin 初始化放在外部，要求构造时传入（不一定）
 class DanmakuMonitorWin::Impl
 {
+	using AsyncOpScope = UiWinBizLogicObjAsyncOpScope<DanmakuMonitorWin>;
 public:
-    Impl(AcliveBackendClient *client)
+    Impl(AcliveBackendClient *client, UiWinBizLogicObjContext<DanmakuMonitorWin> ctx)
         : uiState_{ *App::getState().winManager, getAssetsDir() / "danmaku_monitor.rml" },
 			danmakuList_{
 				uiState_.mainWin_, "#danmaku-list"
 			},
-			client{ client }
+			client{ client },
+			ctx_{ std::move(ctx) }
 		{
-			uiState_.mainWin_.setUpdateCb([this]() {
-				if (this->client == nullptr && !testDanmakuLoaded_) {
+
+			uiState_.mainWin_.setShowCb([this]() {
+				if (!this->client) {
 					// read test danmakus from json
 					auto danmakus = rfl::json::read<std::vector<DanmakuInfo>>(
 						readFile(getAssetsDir() / "test_danmaku.json")
@@ -37,17 +41,60 @@ public:
 					for (auto &danmaku : danmakus) {
 						addDanmaku(danmaku);
 					}
+				}
 
-					testDanmakuLoaded_ = true;
+				[](AsyncOpScope asyncOpScope) -> coro::result<void> {
+					while(true) {
+						co_await coroSleep(2s);
+						std::println("test sleep");
+						if (asyncOpScope.that().pImpl->uiState_.mainWin_.isPendingClose())
+							break;
+					}
+					
+				}(ctx_);
+			});
+
+
+			uiState_.mainWin_.setUpdateCb([this]() {
+				if (this->client != nullptr && this->client->isConnected()) {
+					const auto now = std::chrono::steady_clock::now();
+					if (liveStatusRequestPending_ && now >= liveStatusRequestDeadline_) {
+						liveStatusRequestPending_ = false;
+						setLiveState(false);
+					}
+					if (now >= nextLiveStatusAt_ && !liveStatusRequestPending_) {
+						this->client->requestLiveStatus();
+						liveStatusRequestPending_ = true;
+						nextLiveStatusAt_ = now + 5s;
+						liveStatusRequestDeadline_ = now + 2s;
+					}
 				}
 				startPendingDanmakuContainerAnim();
 				scrollToEnd();
 			});
 			
 			if (client) {
-				client->onLiveActivity([that = LifetimeAwareWRef{ *this }](const LiveActivity &activity) {
+				client->onResp([that = LifetimeAwareWRef{ *this }](const AnyResp &response) mutable {
 					if (!that.isValid())
 						return;
+					if (const auto *status = std::get_if<LiveStatusResp>(&response)) {
+						that->liveStatusRequestPending_ = false;
+						if (status->meta.result == 1 && status->data.liveID) {
+							that->setLiveState(true);
+						} else {
+							that->setLiveState(false);
+						}
+					}
+				});
+				client->onLiveActivityEnded([that = LifetimeAwareWRef{ *this }](std::uint64_t) mutable {
+					if (!that.isValid())
+						return;
+					that->setLiveState(false);
+				});
+				client->onLiveActivity([that = LifetimeAwareWRef{ *this }](const LiveActivity &activity) mutable {
+					if (!that.isValid())
+						return;
+					that->setLiveState(true);
 					std::visit(overloaded{
 						[that](const DanmakuActivity &danmaku) mutable {
 							that->addDanmaku({
@@ -197,8 +244,7 @@ public:
   		}
   	}
 
-    void clearDanmaku()
-    {
+	void clearDanmaku() {
 
 		for (auto &danmakuInGui : danmakuInGui_) {
 			danmakuList_->RemoveChild(
@@ -213,9 +259,33 @@ public:
 		return uiState_.mainWin_;
 	}
 
+	void setLiveState(bool isLive) {
+		if (isLive == isLive_)
+			return;
+
+		isLive_ = isLive;
+		auto &root = uiState_.mainWin_.getRootElement();
+		UNWRAP(findChildOrSelfById(&root, "not-live-hint"))
+			.SetProperty("display", isLive ? "none" : "block");
+		danmakuList_->SetProperty("display", isLive ? "block" : "none");
+
+		if (!isLive) {
+			clearDanmaku();
+			if (client && activeLiverUID_) {
+				client->stopLiveActivity(*activeLiverUID_);
+				activeLiverUID_.reset();
+			}
+		} else if (client) {
+			if (const auto userID = client->authenticatedUserID()) {
+				activeLiverUID_ = *userID;
+				client->startLiveActivity(*activeLiverUID_);
+			}
+		}
+	}
+
 	LifetimeInformant lifetimeInformant;
 
-private:
+//private:
     struct UIState
     {
         UiWin mainWin_;
@@ -227,6 +297,8 @@ private:
 		}
     } uiState_;
 
+	UiWinBizLogicObjContext<DanmakuMonitorWin> ctx_;
+
 	std::stack<DanmakuGuiInfo> pendingAnimDanmaku;
 	std::vector<DanmakuInGui> danmakuInGui_;
 
@@ -234,7 +306,11 @@ private:
 
 	std::vector<DanmakuInfo> danmakuInfos_;
 	AcliveBackendClient *client;
-	bool testDanmakuLoaded_ = false;
+	bool isLive_ = false;
+	bool liveStatusRequestPending_ = false;
+	std::optional<std::uint64_t> activeLiverUID_;
+	std::chrono::steady_clock::time_point nextLiveStatusAt_{};
+	std::chrono::steady_clock::time_point liveStatusRequestDeadline_{};
 };
 
 template<>
@@ -261,29 +337,24 @@ struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::Decl
 // }
 
 DanmakuMonitorWin::DanmakuMonitorWin(UiWinBizLogicObjContext<DanmakuMonitorWin> ctx, AcliveBackendClient *client)
-    : pImpl{ stdx::pimpl::make_unique<Impl>(client) }
-	, ctx_{ std::move(ctx) }
+    : pImpl{ stdx::pimpl::make_unique<Impl>(client, std::move(ctx)) }
 {
 }
 
 DanmakuMonitorWin::~DanmakuMonitorWin() = default;
 
-void DanmakuMonitorWin::addDanmaku(const DanmakuInfo &danmaku)
-{
+void DanmakuMonitorWin::addDanmaku(const DanmakuInfo &danmaku) {
     pImpl->addDanmaku(danmaku);
 }
 
-void DanmakuMonitorWin::clearDanmaku()
-{
+void DanmakuMonitorWin::clearDanmaku() {
     pImpl->clearDanmaku();
 }
 
-UiWinBizLogicObjContext<DanmakuMonitorWin>& DanmakuMonitorWin::getLogicObjCtx()
-{
-	return ctx_;
+UiWinBizLogicObjContext<DanmakuMonitorWin>& DanmakuMonitorWin::getLogicObjCtx() {
+	return pImpl->ctx_;
 }
 
-RmlUIWin::UiWin &DanmakuMonitorWin::getUiWin()
-{
+RmlUIWin::UiWin &DanmakuMonitorWin::getUiWin() {
 	return pImpl->getUiWin();
 }

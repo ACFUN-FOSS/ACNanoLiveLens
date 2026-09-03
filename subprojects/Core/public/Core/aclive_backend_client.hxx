@@ -20,6 +20,7 @@ class AcliveBackendClient
 public:
 	using RespHandler = std::function<void(const AnyResp &)>;
 	using LiveActivityHandler = std::function<void(const LiveActivity &)>;
+	using LiveActivityEndedHandler = std::function<void(std::uint64_t liverUID)>;
 	using ReconnectHandler = std::function<void(std::chrono::system_clock::time_point disconnectAt, std::size_t attemptCount)>;
 
 	AcliveBackendClient(
@@ -38,14 +39,17 @@ public:
 	accoro::result<void> connectAsync();
 	void disconnect();
 	[[nodiscard]] bool isConnected() const noexcept;
+	[[nodiscard]] std::optional<std::uint64_t> authenticatedUserID() const noexcept;
 
 	void exec();
 	void bindRuntime(accoro::runtime &corort, ESSM::Rc<accoro::executor> mainThreadExecutor);
 
 	void onResp(RespHandler handler);
 	void onLiveActivity(LiveActivityHandler handler);
+	void onLiveActivityEnded(LiveActivityEndedHandler handler);
 	void onReconnectAttempt(ReconnectHandler handler);
 	void requestQrCodeLogin(std::string_view requestID = {});
+	void requestLiveStatus(std::string_view requestID = {});
 	void startLiveActivity(std::uint64_t liverUID, std::string_view requestID = {});
 	void stopLiveActivity(std::uint64_t liverUID, std::string_view requestID = {});
 

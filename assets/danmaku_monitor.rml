@@ -7,6 +7,7 @@
 <body>
     <winframe id="winframe" title="Danmaku monitor">
         <div class="content" id="content">
+			<div id="not-live-hint">未開播</div>
 			
 			
 			<div id="danmaku-list-scroll-container">

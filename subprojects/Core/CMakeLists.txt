@@ -70,14 +70,14 @@ target_link_libraries(tests_public_dep
 )
 
 add_executable(ws_test test/ws_test.cxx)
-target_precompile_headers(ws_test REUSE_FROM tests_public_dep)
+#target_precompile_headers(ws_test REUSE_FROM tests_public_dep)
 target_link_libraries(ws_test
     PRIVATE
     tests_public_dep
 )
 
 add_executable(ws_login_test test/ws_login_test.cxx)
-target_precompile_headers(ws_login_test REUSE_FROM tests_public_dep)
+#target_precompile_headers(ws_login_test REUSE_FROM tests_public_dep)
 target_link_libraries(ws_login_test
     PRIVATE
     tests_public_dep

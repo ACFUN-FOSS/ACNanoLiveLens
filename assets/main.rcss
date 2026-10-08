@@ -127,3 +127,39 @@ p
     line-height: 1.4;
 }
 
+/* 通用滑块/开关（自绘自定义元素 Toggle，见 src/toggle.cxx）：
+ * 仅定义外观（尺寸/圆角/配色/过渡）；定位与层叠由使用方在自己的
+ * 样式表中指定（见 danmaku.rcss 的 #auto-scroll-toggle）。
+ * 元素自身即滑轨，.on 表示开启（红色滑轨 + 滑块右移）。 */
+toggle
+{
+    display: block;
+    width: 34dp;
+    height: 18dp;
+    border-radius: 9dp;
+    background-color: rgb(85, 85, 85);
+    transition: background-color 0.15s;
+}
+
+toggle.on
+{
+    background-color: rgb(220, 60, 60);
+}
+
+toggle .knob
+{
+    display: block;
+    width: 14dp;
+    height: 14dp;
+    margin: 2dp;
+    border-radius: 7dp;
+    background-color: rgb(235, 235, 235);
+    transform: translateX(0dp);
+    transition: transform 0.15s;
+}
+
+toggle.on .knob
+{
+    transform: translateX(16dp);
+}
+

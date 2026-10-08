@@ -162,6 +162,7 @@ add_executable(nanolivelens
 	# Elements
 	src/winframe.cxx
 	src/danmaku_item.cxx
+	src/toggle.cxx
 
 	# Windows
 	src/test_win.cxx

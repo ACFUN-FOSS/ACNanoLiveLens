@@ -2,6 +2,7 @@
 #include "utils.hxx"
 #include "winframe.hxx"
 #include "danmaku_item.hxx"
+#include "toggle.hxx"
 
 using namespace Essentials::Misc;
 
@@ -84,4 +85,5 @@ void RmlUIElement::ensureMounted() {
 void registerCustomElements(RmlUISystem &rmlui) {
     WinFrame::reg(rmlui);
     DanmakuItem::reg(rmlui);
+    Toggle::reg(rmlui);
 }

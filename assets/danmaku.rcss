@@ -21,14 +21,15 @@
 	.danmaku-item-appear-anim-container
 	{
 		display: block;
-		height: 0px;
+		height: auto;
 		overflow-y: hidden;
-		transition: height 3s elastic-out;
+		transition: transform 1s elastic-out;
+		transform: scale(.65, .8);
 	}
 
 	.danmaku-item-appear-anim-container.show
 	{
-		height: auto;
+        transform: scale(1, 1);
 	}
 
 	danmaku-item
@@ -65,10 +66,22 @@
            color: rgb(220, 220, 220);
        }
 
-       #time
-       {
-           display: block;
+     #time
+     {
+         display: block;
 		height: 1em;
-           color: rgb(150, 150, 150);
-           font-size: 14dp;
-       }
+         color: rgb(150, 150, 150);
+         font-size: 14dp;
+     }
+
+	/* 自动滚动开关（通用 toggle 元素，外观见 main.rcss）在弹幕窗口中的定位：
+	 * 悬浮于右下角，盖在弹幕列表之上。 */
+	#auto-scroll-toggle
+	{
+		position: absolute;
+		right: 8dp;
+		bottom: 6dp;
+		z-index: 200;
+	}
+
+

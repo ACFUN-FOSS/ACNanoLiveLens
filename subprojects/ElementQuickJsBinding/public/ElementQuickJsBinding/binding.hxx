@@ -109,7 +109,7 @@ public:
 			.type = metapp::getMetaType<T>(),
 			.shareLifetimeInfoFunc = [](const metapp::Variant &cppVal) {
 				if constexpr (ESSM::LifetimeAware<T>) {
-					return getLifetimeInfo<T>(cppVal.get<T &>());
+					return ESSM::getLifetimeInfo<T>(cppVal.get<T &>());
 				} else {
 					return nullptr;
 				}

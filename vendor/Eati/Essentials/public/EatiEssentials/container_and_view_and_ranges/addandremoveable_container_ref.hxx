@@ -69,7 +69,7 @@ class AddandremoveableContainerRef : public IAddandremoveableContainerRef<T>
 {
 public:
     explicit AddandremoveableContainerRef(Container &c LIFETIMEBOUND)
-        : container_{ c } {}
+        : container_{ &c } {}
 
     void add(T&& value) override {
         container_->emplace_back(std::move(value));
@@ -93,7 +93,7 @@ class AddandremoveableAssoContainerRef : public IAddandremoveableAssoContainerRe
 {
 public:
     explicit AddandremoveableAssoContainerRef(Container &c LIFETIMEBOUND)
-        : container_{ c } {}
+        : container_{ &c } {}
 
     void add(TKey &&key, TVal &&value) override {
         container_->emplace(std::move(key), std::move(value));

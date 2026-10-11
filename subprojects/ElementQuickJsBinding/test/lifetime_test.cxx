@@ -11,7 +11,7 @@ int main() {
         auto pointer = cpp.get<TestStruct *>();
         assert(pointer);
         return pointer;
-    });
+    }, true);
 
     std::optional<TestStruct> testStruct;
     testStruct.emplace("nimshab", 99);
@@ -20,7 +20,7 @@ int main() {
 		UNWRAP(ctx.ctx),
 		UNWRAP(metapp::getMetaType<TestStruct>()),
 		testStruct.value(),
-		testStruct.value().lifetimeInformant.info
+		testStruct.value().lifetimeInformant.shareLifetimeInfo()
 	);
 
 	testStruct.reset();

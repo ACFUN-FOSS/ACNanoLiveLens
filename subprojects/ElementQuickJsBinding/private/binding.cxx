@@ -120,6 +120,33 @@ metapp::Variant Binding::getPointerToCppObjByEJSObj(JSValue jsvalue) {
 	return getCppObjRefByEJSObj(jsvalue);
 }
 
+metapp::Variant Binding::js2Cpp(JSValue jsVal) {
+	if (JS_IsObject(jsVal))
+		return getCppObjRefByEJSObj(jsVal);
+
+	if (JS_IsNumber(jsVal)) {
+		double num = 0;
+		JS_ToFloat64(ctx->ctx, &num, jsVal);
+		return metapp::Variant{ num };
+	}
+
+	if (JS_IsString(jsVal)) {
+		size_t len = 0;
+		const char *str = JS_ToCStringLen(ctx->ctx, &len, jsVal);
+		metapp::Variant varStr{ std::string{ str, len } };
+		JS_FreeCString(ctx->ctx, str);
+		return varStr;
+	}
+
+	if (JS_IsBool(jsVal))
+		return metapp::Variant{ JS_ToBool(ctx->ctx, jsVal) != 0 };
+
+	if (JS_IsNull(jsVal) || JS_IsUndefined(jsVal) || JS_IsUninitialized(jsVal))
+		return metapp::Variant{ };
+
+	throw std::invalid_argument{ "Unsupported JS value type." };
+}
+
 static TypeInfo *findTypeInfoByCppType(std::vector<TypeInfo> &regedTypes, const metapp::MetaType &type) {
 	auto typeIt = std::ranges::find_if(
 		regedTypes,
@@ -247,7 +274,9 @@ JSValue Binding::cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeI
 
 	if (auto typeInfo = findTypeInfoByCppType(regedTypes, getRawType(cppVal));
 		typeInfo && typeInfo->translator) {
-		auto cppObjRef = typeInfo->makeVariantRef(cppVal);
+		auto cppObjRef = isReferenceOrPointerVariant(cppVal)
+			? makeRefFromReferenceOrPointerVariant(cppVal)
+			: makeRefVariantOfVariant(cppVal);
 		return typeInfo->translator->translateToJS(typeInfo->translator->makeTranslateInput(cppObjRef));
 	}
 
@@ -265,7 +294,12 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 			) };
 	}
 
-	auto typeInfo = rfl::as<TypeInfo>(std::move(typeInfoCd));
+	TypeInfo typeInfo{
+		.type = typeInfoCd.type,
+		.shareLifetimeInfoFunc = std::move(typeInfoCd.shareLifetimeInfoFunc),
+		.moveable = typeInfoCd.moveable,
+		.translator = std::move(typeInfoCd.translator)
+	};
 
 	// New type setup
     // Translatable type

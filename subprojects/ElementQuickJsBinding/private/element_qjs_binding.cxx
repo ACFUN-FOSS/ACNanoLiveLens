@@ -10,38 +10,6 @@
 
 using namespace Essentials::Memory;
 
-LifetimeInformant::LifetimeInformant()
-	: info{ newBox(
-		LifetimeInfo{ std::chrono::steady_clock::now() })} {
-}
-LifetimeInformant::~LifetimeInformant() {
-	info->isAlive = false;
-	info->deathTime = std::chrono::steady_clock::now();
-}
-	
-LifetimeInformant::LifetimeInformant(const LifetimeInformant &other)
-	: LifetimeInformant{ } {
-}
-
-LifetimeInformant::LifetimeInformant(LifetimeInformant &&other) noexcept
-	: LifetimeInformant{ } {
-	other.info->isMovedAway = true;
-	other.info->movedAwayTime = std::chrono::steady_clock::now();
-}
-
-LifetimeInformant &LifetimeInformant::operator=(const LifetimeInformant &other) {
-	if (this == &other)
-		return *this;
-	return *this;
-}
-
-LifetimeInformant &LifetimeInformant::operator=(LifetimeInformant &&other) noexcept {
-	if (this == &other)
-		return *this;
-	return *this;
-}
-
-
 
 struct TypeJsInfo
 {
@@ -171,7 +139,7 @@ static bool doesTypeHasItsOwnJSRepresentation(const metapp::MetaType &type) {
 		return false;
 
 	// C++ sequence container will convert into JS array instead of creating a twin.
-	if (type.isArray() || type.getMetaIterable)
+	if (type.isArray() || type.getMetaIterable())
 		return true;
 
 	// C++ enum will convert into JS string instead of creating a twin.
@@ -361,20 +329,38 @@ void regClass(
 	proto.release();
 }
 
+static std::string safeTypeName(const metapp::MetaType &type) {
+	if (auto *metaClass = type.getMetaClass())
+		return metaClass->getType(&type).getName();
+	return "<unnamed>";
+}
+
+// Fail-soft variant of type lookup: unregistered types must not crash the host
+// (assert), they should raise a JS TypeError instead.
+static const TypeJsInfo *findTypeJsInfo(const metapp::MetaType &type) {
+	if (auto it = metaType2TypeJsInfo.find(&type);
+		it != metaType2TypeJsInfo.end() && it->second.classID != 0)
+		return &it->second;
+	return nullptr;
+}
+
 qjs::Value makeRefJsTwinObject(JSContext &ctx, const metapp::MetaType &type, metapp::Variant cppObj, Rc<LifetimeInformant::LifetimeInfo> lifetimeInfoOfCppObj) {
 
 
 	//auto jsfunc = try_eval(ctx, runtime, "tests").as<std::function<void(MyWidget *)>>();
 
-	auto &typeJsInfo = metaType2TypeJsInfo[&type];
-	assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
+	auto *typeJsInfo = findTypeJsInfo(type);
+	if (!typeJsInfo) {
+		JS_ThrowTypeError(&ctx, "Type %s is not registered via regClass.", safeTypeName(type).c_str());
+		return { &ctx, JS_EXCEPTION };
+	}
 
 	// std::string *d = new std::string("Hello from JsTwinObject");
 	//qjs::Value dd{ d };
 	//qjs::js_traits<qjs::Value>::wrap(ctx.ctx, d);
 
 
-	JSValue jsObj = JS_NewObjectClass(&ctx, typeJsInfo.classID);
+	JSValue jsObj = JS_NewObjectClass(&ctx, typeJsInfo->classID);
 
 	gsl::owner<JsTwinObjOpaque *> opaque{ new JsTwinObjOpaque{
 		gsl::not_null<const metapp::MetaType *>{ &type },
@@ -390,10 +376,13 @@ qjs::Value makeRefJsTwinObject(JSContext &ctx, const metapp::MetaType &type, met
 }
 
 qjs::Value makeOwnedJsTwinObject(JSContext &ctx, const metapp::MetaType &type, metapp::Variant cppObj) {
-	auto &typeJsInfo = metaType2TypeJsInfo[&type];
-	assert(typeJsInfo.classID != 0 && "Type not registered in regClass");
+	auto *typeJsInfo = findTypeJsInfo(type);
+	if (!typeJsInfo) {
+		JS_ThrowTypeError(&ctx, "Type %s is not registered via regClass.", safeTypeName(type).c_str());
+		return { &ctx, JS_EXCEPTION };
+	}
 
-	JSValue jsObj = JS_NewObjectClass(&ctx, typeJsInfo.classID);
+	JSValue jsObj = JS_NewObjectClass(&ctx, typeJsInfo->classID);
 
 	gsl::owner<JsTwinObjOpaque *> opaque{ new JsTwinObjOpaque{
 		gsl::not_null<const metapp::MetaType *>{ &type },
@@ -418,7 +407,7 @@ qjs::Value makeJsArrayByCppSeqContainer(JSContext &ctx, metapp::Variant cppSeqCo
 	for (std::size_t i = 0; i < size; ++i) {
 		auto elementVar = metaIndexable->get(cppSeqContainer, i);
 		auto jsVal = variant2Js(ctx, elementVar);
-		JS_DefinePropertyValueUint32(&ctx, jsArray, static_cast<uint32_t>(i), jsVal.val, JS_PROP_C_W_E);
+		JS_DefinePropertyValueUint32(&ctx, jsArray, static_cast<uint32_t>(i), jsVal.release(), JS_PROP_C_W_E);
 	}
 	return { &ctx, std::move(jsArray) };
 }

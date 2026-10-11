@@ -7,7 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 创建库
 add_library(element_qjs_binding
-    #private/element_qjs_binding.cxx
+    private/element_qjs_binding.cxx
 	private/ejs_obj.cxx
 	private/binding.cxx
 )
@@ -41,25 +41,25 @@ target_link_libraries(element_qjs_binding__regType_test
     metapp::metapp
 )
 
-# add_executable(element_qjs_binding__lifetime_test
-#     test/lifetime_test.cxx
-# )
+ add_executable(element_qjs_binding__lifetime_test
+     test/lifetime_test.cxx
+ )
 
-# target_link_libraries(element_qjs_binding__lifetime_test
-#     PRIVATE
-#     element_qjs_binding
-#     quickjspp
-#     metapp::metapp
-# )
+ target_link_libraries(element_qjs_binding__lifetime_test
+     PRIVATE
+     element_qjs_binding
+     quickjspp
+     metapp::metapp
+ )
 
-# add_executable(element_qjs_binding__value_to_js_test
-#     test/value_to_js_test.cxx
-#     test/test_common.hxx
-# )
+ add_executable(element_qjs_binding__value_to_js_test
+     test/value_to_js_test.cxx
+     test/test_common.hxx
+ )
 
-# target_link_libraries(element_qjs_binding__value_to_js_test
-#     PRIVATE
-#     element_qjs_binding
-#     quickjspp
-#     metapp::metapp
-# )
+ target_link_libraries(element_qjs_binding__value_to_js_test
+     PRIVATE
+     element_qjs_binding
+     quickjspp
+     metapp::metapp
+ )

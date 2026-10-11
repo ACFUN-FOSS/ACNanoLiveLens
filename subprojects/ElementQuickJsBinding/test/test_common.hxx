@@ -2,13 +2,24 @@
 #include <iostream>
 #include <vector>
 #include <print>
+#include <cassert>
+#include <cstdlib>
 #include <quickjs/quickjs.h>
 #include <quickjs/quickjs-libc.h>
 #include <quickjspp.hpp>
 #include <metapp/variant.h>
 #include <metapp/interfaces/metaclass.h>
-#include "element_qjs_binding.hxx"
+#include <EatiEssentials/assert.hxx>
+#include "ElementQuickJsBinding/element_qjs_binding.hxx"
 #include "metapp/metarepo.h"
+
+using namespace Essentials::Memory;
+
+// EESS_USE_CUSTOM_ASSERT_HANDLER requires the executable to provide this handler.
+[[noreturn]] inline void eatiEssentialsAssertHandler(const char *expr, const char *file, const int line) {
+	std::cerr << "EatiEssentials assert failed: " << expr << '\n' << file << ':' << line << std::endl;
+	std::abort();
+}
 
 static void initJs(qjs::Runtime &rt, qjs::Context &ctx) {
 	js_std_init_handlers(rt.rt);
@@ -77,10 +88,6 @@ struct TestStruct
         return { name, age };
     }
 
-	// This doesn't compile, cause metapp requires T of a "MetaIndexable"
-	// to be resizeable, std::vector<T>::resize requires T can be construct with
-	// empty arguments.....
-	// what to do?
 	std::vector<TestStruct2> returnObjVector() {
 		//std::vector<TestStruct2> a{ };
 
@@ -90,7 +97,6 @@ struct TestStruct
 	CannotMove returnCannotMove() {
 		return { };
 	}
-
 
 
 	LifetimeInformant lifetimeInformant;

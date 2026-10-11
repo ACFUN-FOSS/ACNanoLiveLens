@@ -353,7 +353,8 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 				}
 				
 				// Call C++ function
-				auto &metaCallable = UNWRAP(getNonReferenceMetaType(functionData.callable)->getMetaCallable());
+				auto &callableVar = *functionData.callable;
+				auto &metaCallable = UNWRAP(callableVar.getMetaType()->getMetaCallable());
 				auto res = metaCallable.invoke(
 					*functionData.callable,
 					subject,

@@ -10,13 +10,15 @@
 #include <metapp/variant.h>
 #include <metapp/interfaces/metaclass.h>
 #include <EatiEssentials/assert.hxx>
-#include "ElementQuickJsBinding/element_qjs_binding.hxx"
+#include "ElementQuickJsBinding/binding.hxx"
 #include "metapp/metarepo.h"
 
+using namespace ElementEngine::QJSBinding;
 using namespace Essentials::Memory;
 
 // EESS_USE_CUSTOM_ASSERT_HANDLER requires the executable to provide this handler.
-[[noreturn]] inline void eatiEssentialsAssertHandler(const char *expr, const char *file, const int line) {
+// Each test is a single-TU executable, so a non-inline definition here is fine.
+[[noreturn]] void eatiEssentialsAssertHandler(const char *expr, const char *file, const int line) {
 	std::cerr << "EatiEssentials assert failed: " << expr << '\n' << file << ':' << line << std::endl;
 	std::abort();
 }
@@ -89,9 +91,7 @@ struct TestStruct
     }
 
 	std::vector<TestStruct2> returnObjVector() {
-		//std::vector<TestStruct2> a{ };
-
-		return { };
+		return { { "alpha", 1 }, { "beta", 2 } };
 	}
 
 	CannotMove returnCannotMove() {

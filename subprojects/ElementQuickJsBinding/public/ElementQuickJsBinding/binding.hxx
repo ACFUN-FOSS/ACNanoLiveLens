@@ -2,6 +2,10 @@
 #define _H_O7641
 
 #include <metapp/allmetatypes.h>
+// Type-level whitelist of C++20 view types (std::span, std::string_view):
+// metatype declarations that must be visible in every TU instantiating
+// their metapp metatypes (ODR), so the binding can treat them as views.
+#include "ElementQuickJsBinding/metapp_view_metatypes.hxx"
 #include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
 #include <EatiEssentials/memory/memory.hxx>
@@ -90,12 +94,44 @@ public:
 
 	JSValue cpp2JSTranslate(metapp::Variant cppValRef);
 
-	JSValue cpp2JSAuto(metapp::Variant cppVal, ESSM::LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
+	JSValue cpp2JSAuto(metapp::Variant cppVal,
+		const ESSM::Rc<ESSM::LifetimeInformant::LifetimeInfo> &lifetimeInfo = { });
+
+private:
+	// Container support (structural, not registration-based).
+	// Transplant an owning container Variant into a JS live container view,
+	// whose exotic object proxies index access back into the C++ container.
+	JSValue cpp2JSContainerTransplant(metapp::Variant containerVal);
+	// Create a non-owning live container view (twin) over an existing C++
+	// container. lifetimeInfo must track the container (or its owner), so the
+	// view can detect dangling access after the source dies.
+	JSValue cpp2JSContainerTwin(metapp::Variant containerRef,
+		ESSM::Rc<ESSM::LifetimeInformant::LifetimeInfo> lifetimeInfo);
+	// Lazily create (and cache) the JS class for a container metatype.
+	JSClassID getOrMakeContainerClass(const metapp::MetaType &type);
+
+	// Lazily create (and cache) the JS class for a mappable (associative)
+	// container metatype.
+	JSClassID getOrMakeMapClass(const metapp::MetaType &type);
+
+	JSValue cpp2JSMapTransplant(metapp::Variant containerVal);
+
+	JSValue cpp2JSMapTwin(metapp::Variant containerRef,
+		ESSM::Rc<ESSM::LifetimeInformant::LifetimeInfo> lifetimeInfo);
+
+public:
 
 	template <typename T>
 	JSValue cpp2JSAutoStatic(const T &cppVal) {
-
+		return cpp2JSAuto(metapp::Variant{ cppVal });
 	}
+
+	// Directed marshalling: convert a JS value into a Variant of the given
+	// C++ parameter type (e.g. the declared parameter of a proxied method).
+	// EJSObj arguments are passed through as live C++ references; primitive
+	// JS values are converted and cast to the target type, failing with a
+	// descriptive error instead of a generic mismatch deep inside invoke.
+	metapp::Variant js2CppAs(const metapp::MetaType &targetType, JSValue jsVal);
 
 	metapp::Variant js2Cpp(JSValue jsVal);
 

@@ -39,7 +39,7 @@ struct TypeInfoCreatingData
 	gsl::not_null<const metapp::MetaType *> type;
 	// Called only for twin conversion. cppVal is a non-owning access Variant for an
 	// existing C++ object, normally wrapping T &.
-	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)>  shareLifetimeInfoFunc;
+	std::function<ESSM::Rc<ESSM::LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)>  shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
 };
@@ -49,7 +49,7 @@ struct TypeInfo
 	gsl::not_null<const metapp::MetaType *> type;
 	// Same contract as TypeInfoCreatingData::shareLifetimeInfoFunc.
 	// cppVal should hold a reference to the registered raw type T.
-	std::function<ESSM::Rc<LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)> shareLifetimeInfoFunc;
+	std::function<ESSM::Rc<ESSM::LifetimeInformant::LifetimeInfo>(const metapp::Variant &cppVal)> shareLifetimeInfoFunc;
 	bool moveable;
 	std::optional<Translator> translator;
 
@@ -74,7 +74,7 @@ private:
 	stdx::pimpl::unique_ptr<Detail> detail;
 	
 public:
-	LifetimeInformant lifetimeInformant;
+	ESSM::LifetimeInformant lifetimeInformant;
 	Binding(metapp::MetaRepo &metaRepo LIFETIMEBOUND, qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
 
 	TypeInfo &findTypeInfoOfEJSObj(JSValue jsvalue);
@@ -90,7 +90,7 @@ public:
 
 	JSValue cpp2JSTranslate(metapp::Variant cppValRef);
 
-	JSValue cpp2JSAuto(metapp::Variant cppVal, LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
+	JSValue cpp2JSAuto(metapp::Variant cppVal, ESSM::LifetimeInformant::LifetimeInfo *lifetimeInfo = nullptr);
 
 	template <typename T>
 	JSValue cpp2JSAutoStatic(const T &cppVal) {
@@ -108,7 +108,7 @@ public:
 		regType({
 			.type = metapp::getMetaType<T>(),
 			.shareLifetimeInfoFunc = [](const metapp::Variant &cppVal) {
-				if constexpr (LifetimeAware<T>) {
+				if constexpr (ESSM::LifetimeAware<T>) {
 					return getLifetimeInfo<T>(cppVal.get<T &>());
 				} else {
 					return nullptr;

@@ -141,7 +141,7 @@ add_subdirectory(vendor/quickjspp)
 add_subdirectory(subprojects/Core)
 add_subdirectory(subprojects/RmlUIWin)
 add_subdirectory(subprojects/EmergUI)
-# add_subdirectory(subprojects/ElementQuickJsBinding)
+add_subdirectory(subprojects/ElementQuickJsBinding)
 
 # == Targets ================================
 

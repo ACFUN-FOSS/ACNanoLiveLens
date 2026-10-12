@@ -164,7 +164,6 @@ add_executable(nanolivelens
     src/safe_element_instancer.cxx
     src/rmlui_element.cxx
 	src/uiwin_bizlogic_obj_async_op_scope.cxx
-	# src/js_binding.cxx
 
 	# Elements
 	src/winframe.cxx
@@ -177,8 +176,9 @@ add_executable(nanolivelens
 	src/msg_box.cxx
 	src/login_win.cxx
 
-	# JavaScript bindings
-	# src/js_bindings.cxx
+	# JavaScript scripting (JsTwinObject 桥接 + 钩子系统)
+	src/js_hook.cxx
+	src/js_engine.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
 target_precompile_headers(nanolivelens PRIVATE src/stdafx.h)
@@ -241,7 +241,7 @@ target_link_libraries(nanolivelens
     ctrl-c
 	nanolivelens_core
 	quickjspp
-	# element_qjs_binding
+	element_qjs_binding
 	metapp::metapp
     #${CMAKE_CURRENT_BINARY_DIR}/vcpkg_installed/x64-windows/debug/lib/duktape.lib
 )

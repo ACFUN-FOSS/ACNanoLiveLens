@@ -1,8 +1,10 @@
 #include "rmlui_element.hxx"
+#include "appstate.hxx"
 #include "utils.hxx"
 #include "winframe.hxx"
 #include "danmaku_item.hxx"
 #include "toggle.hxx"
+#include "js_hook.hxx"
 
 using namespace Essentials::Misc;
 
@@ -38,6 +40,17 @@ void RmlUIElement::processDefaultAction(Rml::Event &event) {
 
     if (event.GetId() == EventId::Keydown &&
         event.GetParameter<Input::KeyIdentifier>("key_identifier", Input::KeyIdentifier::KI_FINAL)
+        == Input::KeyIdentifier::KI_F5) {
+		// F5：只重新加载 JS 脚本，不动界面。重载会重建 JS 上下文，脚本的顶层
+		// 状态随之清零（详见 JsEngine::hotReload）。
+		playSound(Sound::RELOAD);
+		dbgLog("Reloading JS scripts");
+		if (auto &reloadScripts = App::getState().reloadScripts)
+			reloadScripts();
+    }
+
+    if (event.GetId() == EventId::Keydown &&
+        event.GetParameter<Input::KeyIdentifier>("key_identifier", Input::KeyIdentifier::KI_FINAL)
         == Input::KeyIdentifier::KI_F6) {
 		playSound(Sound::RELOAD);
 		dbgLog("Reloading style sheet");
@@ -62,6 +75,8 @@ void RmlUIElement::reload() {
 void RmlUIElement::reloadStyles() {
 	if (auto *document = GetOwnerDocument()) {
 		document->ReloadStyleSheet();
+		// PostHotreloadStyle：样式（RCSS）热重载执行完毕。
+		JsHook::triggerPostHotreloadStyle();
 	}
 }
 

@@ -35,6 +35,9 @@ static std::string_view getTypeName(const metapp::MetaType &type) {
 // Defined below; usable by types without a MetaClass (e.g. containers).
 static std::string getTypeNameSafe(const metapp::MetaType &type);
 
+// Defined below; used by js2CppAs.
+static TypeInfo *findTypeInfoByCppType(std::vector<TypeInfo> &regedTypes, const metapp::MetaType &type);
+
 // Normalize a Variant's C++ representation to the type stored in regedTypes.
 // For example, T, T &, and T * should all resolve to T when looking up binding metadata.
 static const metapp::MetaType &getRawType(const metapp::Variant &cppVal) {
@@ -59,6 +62,38 @@ static JSValue throwJsTypeError(JSContext &ctx, const std::exception &ex) {
 	return JS_EXCEPTION;
 }
 
+void dumpJsException(JSContext &ctx, const std::string_view where) {
+	JSContext *const rawCtx = &ctx;
+	const JSValue exception = JS_GetException(rawCtx);
+
+	std::string description;
+	if (const char *msg = JS_ToCString(rawCtx, exception)) {
+		description = msg;
+		JS_FreeCString(rawCtx, msg);
+	}
+
+	// QuickJS' stack doesn't repeat the message, so print both.
+	std::string stack;
+	if (JS_IsError(rawCtx, exception)) {
+		const JSValue stackVal = JS_GetPropertyStr(rawCtx, exception, "stack");
+		if (!JS_IsUndefined(stackVal)) {
+			const char *stackStr = JS_ToCString(rawCtx, stackVal);
+			if (stackStr) {
+				stack = stackStr;
+				JS_FreeCString(rawCtx, stackStr);
+			}
+		}
+		JS_FreeValue(rawCtx, stackVal);
+	}
+
+	JS_FreeValue(rawCtx, exception);
+
+	if (stack.empty())
+		std::println(stderr, "{} 抛出异常：{}", where, description);
+	else
+		std::println(stderr, "{} 抛出异常：{}\n{}", where, description, stack);
+}
+
 bool TypeInfo::isTranslatableType() {
 	return translator.has_value();
 }
@@ -78,6 +113,14 @@ struct Binding::Detail
 Binding::Binding(metapp::MetaRepo &metaRepo, qjs::Runtime &rt, qjs::Context &ctx)
 	: metaRepo{ &metaRepo }, rt{ &rt }, ctx{ &ctx },
 	  detail{ stdx::pimpl::make_unique<Detail>(*this, ctx) }  { }
+
+
+Binding *Binding::bindingOfContext_(JSContext *ctx) {
+	const auto found = ctxToBindingMap.find(ctx);
+	if (found == ctxToBindingMap.end())
+		throw std::runtime_error{ "No Binding is associated with this QuickJS context." };
+	return found->second;
+}
 
 
 TypeInfo &Binding::findTypeInfoOfEJSObj(JSValue jsvalue) {
@@ -164,10 +207,37 @@ metapp::Variant Binding::js2Cpp(JSValue jsVal) {
 }
 
 metapp::Variant Binding::js2CppAs(const metapp::MetaType &targetType, JSValue jsVal) {
+	// A JS function may be bridged into a C++ callable type
+	// (std::function<R(Args...)> registered via regTypeStatic). Functions are
+	// objects in JS, so this must be tested before the EJSObj path below; the
+	// bridge itself rejects non-functions with a descriptive error.
+	if (auto *typeInfo = findTypeInfoByCppType(regedTypes, targetType);
+		typeInfo && typeInfo->isJsFunctionBridgeType()) {
+		return typeInfo->makeFromJsFunction(ctx->ctx, jsVal);
+	}
+
+	// A translatable target type accepts the JS representation its translator
+	// knows how to read back (a JS Date for a time point, ...). This has to
+	// precede the EJSObj path for the same reason.
+	if (auto *typeInfo = findTypeInfoByCppType(regedTypes, targetType);
+		typeInfo && typeInfo->translator) {
+		return typeInfo->translator->detranslate(*ctx, jsVal);
+	}
+
 	// EJSObj arguments are passed through as live C++ references; whether the
 	// reference is usable as the parameter type is decided by metapp's
 	// invoke-time cast (with const-correctness checks).
 	if (JS_IsObject(jsVal)) {
+		// A JS function is only accepted where a bridge type is declared.
+		if (JS_IsFunction(ctx->ctx, jsVal))
+			throw std::runtime_error{
+				std::format(
+					"Cannot marshal a JS function into C++ parameter type {}: "
+					"register the type with regTypeStatic (e.g. regTypeStatic<std::function<...>>()) "
+					"to make JS functions bridgeable to it.",
+					getTypeNameSafe(targetType))
+			};
+
 		auto opaque = getEJSObjOpaque(jsVal);
 		if (!opaque)
 			throw std::invalid_argument{ "Cannot marshal a non-EJSObj JS object into a C++ parameter." };
@@ -715,7 +785,8 @@ JSValue Binding::cpp2JSTranslate(metapp::Variant cppValRef) {
 	auto cppObjRef = isReferenceOrPointerVariant(cppValRef)
 		? makeRefFromReferenceOrPointerVariant(cppValRef)
 		: makeRefVariantOfVariant(cppValRef);
-	return typeInfo.translator->translateToJS(typeInfo.translator->makeTranslateInput(cppObjRef));
+	return typeInfo.translator->translateToJS(*ctx,
+		typeInfo.translator->makeTranslateInput(cppObjRef));
 }
 
 JSValue Binding::cpp2JSAuto(metapp::Variant cppVal,
@@ -798,7 +869,8 @@ JSValue Binding::cpp2JSAuto(metapp::Variant cppVal,
 		auto cppObjRef = isReferenceOrPointerVariant(cppVal)
 			? makeRefFromReferenceOrPointerVariant(cppVal)
 			: makeRefVariantOfVariant(cppVal);
-		return typeInfo->translator->translateToJS(typeInfo->translator->makeTranslateInput(cppObjRef));
+		return typeInfo->translator->translateToJS(*ctx,
+			typeInfo->translator->makeTranslateInput(cppObjRef));
 	}
 
 	return cpp2JSTransplant(std::move(cppVal));
@@ -971,7 +1043,7 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 	}) != regedTypes.end()) {
 		throw std::runtime_error{
 			std::format("类型 {} 已被注册进 Binding。",
-				getTypeName(*typeInfoCd.type)
+				getTypeNameSafe(*typeInfoCd.type)
 			) };
 	}
 
@@ -979,7 +1051,8 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 		.type = typeInfoCd.type,
 		.shareLifetimeInfoFunc = std::move(typeInfoCd.shareLifetimeInfoFunc),
 		.moveable = typeInfoCd.moveable,
-		.translator = std::move(typeInfoCd.translator)
+		.translator = std::move(typeInfoCd.translator),
+		.makeFromJsFunction = std::move(typeInfoCd.makeFromJsFunction)
 	};
 
 	// New type setup
@@ -989,6 +1062,14 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 		regedTypes.push_back(std::move(typeInfo));
         return;
     }
+
+	// JS function bridge type (std::function<R(Args...)>).
+	// Such a type has no MetaClass and needs no JS class: registering it only
+	// records how to build it from a JS function.
+	if (typeInfo.isJsFunctionBridgeType()) {
+		regedTypes.push_back(std::move(typeInfo));
+		return;
+	}
 
 	// Non-translatable type
 
@@ -1257,6 +1338,99 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 	regedTypes.push_back(std::move(typeInfo));
 }
 
+void Binding::regGlobalFunction(const std::string_view name, metapp::Variant callable) {
 
+	auto &metaCallable = UNWRAP(callable.getMetaType()->getMetaCallable());
+	if (!metaCallable.isStatic(callable)) {
+		throw std::invalid_argument{
+			std::format("注册全局函数 {} 失败：可调用对象必须是没有关联对象的自由函数。",
+				name)
+		};
+	}
+
+	struct JsGlobalFunctionData
+	{
+		metapp::Variant callable;
+	};
+	static std::map<int, JsGlobalFunctionData> jsGlobalFunctionsData;
+	static int jsGlobalFunctionNewestMagicNum = 0;
+
+	const int funcMagicNum = ++jsGlobalFunctionNewestMagicNum;
+	jsGlobalFunctionsData.insert({
+		funcMagicNum,
+		JsGlobalFunctionData{ std::move(callable) }
+	});
+	auto &funcData = jsGlobalFunctionsData.find(funcMagicNum)->second;
+
+	const auto paramCountInfo =
+		UNWRAP(funcData.callable.getMetaType()->getMetaCallable())
+			.getParameterCountInfo(funcData.callable);
+
+	const std::string jsName{ name };
+
+	static auto proxyGlobalFunction = [](JSContext *ctx, JSValueConst /*this_val*/,
+		int argc, JSValueConst *argv, int magic) noexcept -> JSValue {
+			try {
+				auto funcDataIt = jsGlobalFunctionsData.find(magic);
+				assert(funcDataIt != jsGlobalFunctionsData.end() && "Cannot find JsGlobalFunctionData with magicNum");
+				auto &globalFuncData = funcDataIt->second;
+
+				auto bindingFoundInMap = ctxToBindingMap.find(ctx);
+				assert(bindingFoundInMap != ctxToBindingMap.end() && "No Binding is associated with this QuickJS context.");
+				auto &binding = *bindingFoundInMap->second;
+
+				auto &callableVar = globalFuncData.callable;
+				auto &metaCallable = UNWRAP(callableVar.getMetaType()->getMetaCallable());
+				auto paramCountInfo = metaCallable.getParameterCountInfo(callableVar);
+
+				// Directed marshalling: each argument is converted towards the
+				// declared parameter type, exactly like a proxied method.
+				std::vector<metapp::Variant> args2CppResult;
+				args2CppResult.reserve(static_cast<std::size_t>(argc));
+				for (int i = 0; i < argc; ++i) {
+					const bool hasDeclaredParam =
+						i < paramCountInfo.getMaxParameterCount();
+					const metapp::MetaType *paramType = hasDeclaredParam
+						? metaCallable.getParameterType(callableVar, i)
+						: nullptr;
+					if (paramType)
+						args2CppResult.push_back(binding.js2CppAs(*paramType, argv[i]));
+					else
+						args2CppResult.push_back(binding.js2Cpp(argv[i]));
+				}
+
+				// A global function has no associated object; metapp ignores
+				// the instance for a static callable.
+				auto res = metaCallable.invoke(callableVar, metapp::Variant{ }, args2CppResult);
+				return binding.cpp2JSAuto(std::move(res));
+			} catch (const std::exception &ex) {
+				return throwJsTypeError(*ctx, ex);
+			}
+	};
+
+	JSValue jsFunc = JS_NewCFunctionMagic(ctx->ctx,
+		proxyGlobalFunction,
+		jsName.c_str(),
+		paramCountInfo.getMinParameterCount(),
+		JS_CFUNC_generic_magic,
+		funcMagicNum
+	);
+
+	if (JS_IsException(jsFunc)) {
+		throw std::runtime_error{
+			std::format("注册全局函数 {} 失败。", name)
+		};
+	}
+
+	JSValue globalObj = JS_GetGlobalObject(ctx->ctx);
+	// JS_SetPropertyStr takes ownership of jsFunc, also when it fails.
+	const int setResult = JS_SetPropertyStr(ctx->ctx, globalObj, jsName.c_str(), jsFunc);
+	JS_FreeValue(ctx->ctx, globalObj);
+	if (setResult < 0) {
+		throw std::runtime_error{
+			std::format("注册全局函数 {} 失败。", name)
+		};
+	}
+}
 
 }

@@ -45,6 +45,10 @@ struct CannotMove
 	std::string bar() {
 		return "bar";
 	}
+
+	// Observable state, so tests can tell a twin (writes reach the original)
+	// apart from a copy.
+	int value = 0;
 };
 
 
@@ -243,6 +247,7 @@ struct metapp::DeclareMetaType<CannotMove> : metapp::DeclareMetaTypeBase<CannotM
 		static const metapp::MetaClass metaClass{
 			metapp::getMetaType<CannotMove>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerVariable("value", &CannotMove::value);
 				mc.registerCallable("bar", &CannotMove::bar);
 			}
 		};

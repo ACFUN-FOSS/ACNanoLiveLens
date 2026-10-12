@@ -1,6 +1,7 @@
 #include "Core/assets.hxx"
 #include "appstate.hxx"
-#include "js_binding.hxx"
+#include "js_engine.hxx"
+#include "js_hook.hxx"
 #include "platform/crash_handler.hxx"
 #include "rmlui_sys.hxx"
 #include "rmluipp.hxx"
@@ -12,7 +13,8 @@
 #include "login_win.hxx"
 #include "msg_box.hxx"
 #include "uiwin_bizlogic_obj_async_op_scope.hxx"
-//#include "js_bindings.hxx"
+
+#include <chrono>
 
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
@@ -80,11 +82,6 @@ static void rmluiMain() {
         // 使用窗口管理器管理所有窗口
 		RmlUIWin::WinManager winMan;
 
-		//qjs::Runtime rt;
-		//qjs::Context ctx(rt);
-
-	//initJs(rt, ctx);
-		
 		App::initState({
 			 &rmlui,
 			 &winMan,
@@ -92,7 +89,26 @@ static void rmluiMain() {
 			 mainThreadExecutor
 		});
 
+		// 脚本引擎。声明在窗口与业务对象之前：脚本回调持有 JS 引用，
+		// 引擎必须比它们活得更久。
+		JsEngine jsEngine;
+
 		try {
+
+			// 初始化引擎（注册 C++ 类型、时间点翻译器、JS 函数桥接与钩子注册函数），
+			// 再加载 assets/scripts 下的全部用户脚本。
+			jsEngine.init();
+			jsEngine.loadScripts(getAssetsDir() / "scripts");
+
+			// 安装脚本热重载入口：F5 由 RmlUIElement 转发到这里。
+			App::getState().reloadScripts = [&jsEngine] {
+				jsEngine.hotReload();
+			};
+			// 该回调捕获了 jsEngine 的引用，而它存放在全局 App 状态中，
+			// 销毁时机晚于 jsEngine；离开本作用域前必须摘除，避免悬空引用。
+			const auto removeReloadEntry = gsl::final_action{ [&] {
+				App::getState().reloadScripts = nullptr;
+			} };
 
 			AcliveBackendDaemon acliveBackendDaemon{ mainThreadExecutor };
 			acliveBackendDaemon.onCrashLimitExceeded([] {
@@ -112,19 +128,25 @@ static void rmluiMain() {
 			//UiWinBizLogicObjHandler<LoginWin> loginWin;
 			//loginWin->getUiWin().show();
 
+			// SysStartUp：RmlUi 上下文、窗口管理器、音频系统、脚本引擎都已初始化完毕，
+			// 即将显示第一个窗体（登入窗体）。此处尚未接入登入窗体，故紧接着触发
+			// PostLogin 并直接显示应用窗体。
+			JsHook::triggerSysStartUp(std::chrono::system_clock::now());
+
 			UiWinBizLogicObjHandler<DanmakuMonitorWin> danmakuMonitorWin{ nullptr };
+
+			// PostLogin：用户已成功登入，即将显示应用窗体（弹幕监视窗体）。
+			JsHook::triggerPostLogin();
+
 			danmakuMonitorWin->getUiWin().show();
 
 		    //assert(false);
-
-			//JSBindings::init(rmlui, danmakuMonitorWin);
 
 			runUiMainLoop(winMan, *mainThreadExecutor);
 		} catch (const ExcpToShowToUser &e) {
 			std::println("Exception to show to user: {}", e.humanFriendlyMsg());
 			MsgBox::popupOKMsgBox(MsgBox::Type::EERR, e.humanFriendlyMsg());
 		}
-		//JSBindings::shutdown();
     }
 }
 

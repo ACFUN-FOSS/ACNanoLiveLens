@@ -3,7 +3,7 @@
 #include "toggle.hxx"
 #include "appstate.hxx"
 #include "Core/assets.hxx"
-//#include "js_binding.hxx"
+#include "js_hook.hxx"
 #include "rmluipp.hxx"
 #include "RmlUIWin/window_manager.hxx"
 #include "msg_box.hxx"
@@ -127,6 +127,10 @@ public:
 
 			uiState_.mainWin_.setDocumentReloadedCb([this]() {
 				
+				// 完整热重载：文档（连同样式）已经重新加载完毕，
+				// 先触发样式热重载钩子，待 DOM 重建、弹幕重新生成后再触发完整重载钩子。
+				JsHook::triggerPostHotreloadStyle();
+
 				auto danmakuInGui = danmakuInGui_;
 				dbgLog("DanmakuMonitorWin: reload: clearDanmaku");
 
@@ -139,10 +143,14 @@ public:
 				syncToUI();
 
 				clearDanmaku();
+				
 				// Re-spawn danmakus
 				for (auto &danmakuInGui : danmakuInGui) {
 					addDanmaku(danmakuInGui.danmakuInfo);
 				}
+
+				// 完整热重载执行完毕。
+				JsHook::triggerPostHotreloadFull();
 			});
 
 			uiState_.mainWinRootEleEventMan_.on("add-danmaku-btn", "click", [this](auto &&_) {
@@ -176,6 +184,10 @@ public:
 		//uiState_.mainWinRootEleEventMan_
 	}
     void addDanmaku(const DanmakuInfo &danmaku) {
+
+		// OnReceivedDanmaku：弹幕到达、尚未被本窗口处理时触发，
+		// 这是脚本观察/统计弹幕内容的时机。
+		JsHook::triggerOnReceivedDanmaku(danmaku, std::chrono::system_clock::now());
 
 		//MsgBox::popupOKMsgBox(MsgBox::Type::EINFO, "Add Danmaku");
 
@@ -224,6 +236,10 @@ public:
 			},
 			danmaku
 		);
+
+		// PostShowedDanmaku：弹幕元素已创建并插入列表，脚本可以在此操作它的元素
+		//（孪生体，只在本次调用有效——元素会随弹幕清理或 DOM 重建而销毁）。
+		JsHook::triggerPostShowedDanmaku(danmaku, danmakuItem_);
 
 		// {
 		// 	auto jsTwinObj = makeJsTwinObject(*App::getState().jsCtx, UNWRAP(metapp::getMetaType<DanmakuGuiInfo>()), danmakuInGui_.back());
@@ -374,6 +390,10 @@ public:
 	void evictOldestDanmaku() {
 		auto &oldest = danmakuInGui_.front();
 		auto removedEle = oldest.guiInfo.danmakuItemAppearAnimContainerEle;
+
+		// OnDanmakuDrop：弹幕因过于久远被自动清理，其元素与结构体即将被销毁，
+		// 脚本可以在此释放与该弹幕关联的资源。
+		JsHook::triggerOnDanmakuDrop(oldest.danmakuInfo, *oldest.guiInfo.danmakuEle);
 
 		const float removedHeight = static_cast<float>(removedEle->GetOffsetHeight());
 

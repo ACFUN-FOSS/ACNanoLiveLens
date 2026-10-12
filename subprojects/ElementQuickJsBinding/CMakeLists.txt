@@ -74,3 +74,15 @@ target_link_libraries(element_qjs_binding__regType_test
      quickjspp
      metapp::metapp
  )
+
+ add_executable(element_qjs_binding__global_function_test
+     test/global_function_test.cxx
+     test/test_common.hxx
+ )
+
+ target_link_libraries(element_qjs_binding__global_function_test
+     PRIVATE
+     element_qjs_binding
+     quickjspp
+     metapp::metapp
+ )

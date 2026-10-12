@@ -16,6 +16,7 @@
 //   * QuickJS 运行时（Runtime）与上下文（Context）的生命周期；
 //   * 通过 ElementQuickJsBinding 把 C++ 类型自动暴露给脚本（JsTwinObject 双生对象机制）；
 //   * 把 JsHook 的 addXxxHook 注册成脚本侧的全局函数（钩子系统的脚本入口）；
+//   * 装上 QuickJS 自带的全局辅助（console.log / print，见 init()）；
 //   * 以模块语义加载用户脚本，并求值。
 //
 // 本类只管运行时与脚本加载；**具体暴露了什么**（哪些类型、翻译器、函数桥接签名、

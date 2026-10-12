@@ -4,13 +4,11 @@
  * 把本文件放在 assets/scripts/ 目录下即可生效，无需重新编译主程序：
  * 脚本在加载时把回调注册到钩子上，应用运行到对应时刻就会调用它们。
  *
- * 脚本可以用 `import * as std from 'std'` 使用 QuickJS 提供的 std 模块
- *（std.puts 输出到标准输出），也可以用 console 之外的任何标准 JavaScript 语法。
+ * 脚本可以用钩子函数与全局的 console，它们由宿主直接装在全局上，无需 import。
+ * 需要写标准错误或读写文件时，再 `import * as std from 'std'` 使用 QuickJS 的 std 模块。
  */
 
-import * as std from 'std';
-
-const log = (message) => std.puts(`[统计] ${message}\n`);
+const log = (message) => console.log(`[统计] ${message}`);
 
 let receivedCount = 0;
 let shownCount = 0;

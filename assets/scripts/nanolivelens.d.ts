@@ -8,11 +8,15 @@
  * 命名空间速览：
  *   * 全局函数 addXxxHook / removeHook —— JS 钩子系统，见 src/js_hook.hxx；
  *   * 全局函数 addScriptStyle            —— 脚本注入 RCSS 样式，见 src/script_style.hxx；
+ *   * 全局函数 playOgg / playSound       —— 播放音频，见 subprojects/Core/public/Core/sound.hxx；
  *   * 类型 DanmakuInfo / DanmakuGuiInfo / RmlUIEle —— 见 src/js_bindings.hxx；
+ *   * 全局 console / print               —— QuickJS 自带（宿主调用 js_std_add_helpers 装上的）；
  *   * 模块 'std' / 'os'                  —— QuickJS 自带（quickjs-libc），此处只声明常用部分。
  *
- * 注意：宿主没有调用 js_std_add_helpers，因此没有全局的 console / print，
- * 需要输出时使用 `import * as std from 'std'` 后用 std.puts / std.printf。
+ * 输出：脚本里有 console.log 与 print，两者等价，都写到标准输出——宿主装的是
+ * QuickJS 自带的 js_std_add_helpers，没有自己另造一套。它们只有 log 这一个方法，
+ * 且实参按 JS 的 String() 转换（对象打印成 `[object Object]`、数组打印成
+ * `1,two`），想看清结构请自己 JSON.stringify；需要写标准错误时用 std.err.puts。
  */
 
 /**
@@ -20,6 +24,42 @@
  * 传给 removeHook 即可注销对应回调。
  */
 type HookId = number;
+
+/* -------------------------------------------------------------------------
+ * 输出：QuickJS 自带的全局辅助（宿主调用 js_std_add_helpers 装上）
+ * ---------------------------------------------------------------------- */
+
+/**
+ * 输出到标准输出：实参用空格连接，末尾自动换行。
+ *
+ * 它是 QuickJS 自带的，与 console.log 是同一个函数。值按 JS 的 String() 转换，
+ * 因此对象是 `[object Object]`、数组是逗号连接的 `1,two`——要看清结构请自己
+ * JSON.stringify：
+ *
+ * @example
+ * ```js
+ * print('收到', 3, '条弹幕');
+ * console.log(JSON.stringify({ sender: 'A', content: 'B' }));
+ * ```
+ */
+declare function print(...args: unknown[]): void;
+
+/**
+ * QuickJS 自带的 console，**只有 log 一个方法**。
+ *
+ * 常与 print 混用（两者等价）。需要写标准错误时没有 console.error，改用
+ * `import * as std from 'std'` 后的 `std.err.puts`；需要 printf 风格格式化时用
+ * `std.printf`。
+ *
+ * @example
+ * ```js
+ * console.log('命中关键字：%s', hit);   // 注意：这不支持 %s，会原样打印
+ * console.log(`命中关键字：${hit}`);     // 想插值就用模板串
+ * ```
+ */
+declare const console: {
+	log(...args: unknown[]): void;
+};
 
 /* -------------------------------------------------------------------------
  * 宿主暴露给脚本的 C++ 类型
@@ -186,12 +226,66 @@ declare function removeHook(id: HookId): boolean;
  *     .my-highlight { transition: background-color .5s quadratic-out; background-color: #2e4460; }
  *     .my-highlight #content { color: #66ccff; }
  * `)) {
- *     std.puts('样式注入失败\n');
+ *     console.log('样式注入失败，检查上面的 RCSS');
  * }
  * // 之后在 PostShowedDanmaku 里：element.setClass('my-highlight', true)
  * ```
  */
 declare function addScriptStyle(name: string, rcss: string): boolean;
+
+/* -------------------------------------------------------------------------
+ * 音频：见 subprojects/Core/public/Core/sound.hxx
+ * ---------------------------------------------------------------------- */
+
+/**
+ * 内置音效的名字，对应 C++ 侧 Sound 枚举的枚举值。
+ *
+ * 目前只有 'ERRR'（information_2.ogg）、'EXTERNAL_SERVICE_CRASH'
+ * 与 'RELOAD'（hot_reload.ogg）真正接上了音频文件，其余在 C++ 侧是空操作。
+ */
+type SoundName =
+	| 'CLICK'
+	| 'LOGIN'
+	| 'LOGOUT'
+	| 'INFO'
+	| 'ERRR'
+	| 'EXTERNAL_SERVICE_CRASH'
+	| 'RELOAD';
+
+/**
+ * 播放 assets 目录下的一个音频文件。
+ *
+ * 路径是**相对 assets 目录**的。脚本自带的音频一般放在 assets/scripts/ 下，
+ * 因此写成 'scripts/my-sound.ogg'。
+ *
+ * 支持 ogg / wav / flac / mp3（按文件内容识别，与扩展名无关）。同一个路径只在
+ * 首次播放时读盘并解码，之后重复播放复用缓存，因此可以在高频回调里调用。
+ * 多个声音叠加混音，不会互相打断——弹幕密集时需要节流请自行在脚本里做。
+ *
+ * 注意它**会抛异常**（文件缺失、解码失败、音频设备不可用时），并且这个异常会
+ * 冒泡成脚本侧的 TypeError。音效通常只是附属效果，建议按需要 try/catch：
+ *
+ * @example
+ * ```js
+ * try {
+ *     playOgg('scripts/danmaku-highlight.ogg');
+ * } catch (error) {
+ *     console.log(`音效播放失败：${error.message}`);
+ * }
+ * ```
+ */
+declare function playOgg(oggName: string): void;
+
+/**
+ * 播放宿主内置的音效，用 SoundName 指定。
+ * 名字写错会抛异常（脚本侧的 TypeError）。
+ *
+ * @example
+ * ```js
+ * playSound('RELOAD');
+ * ```
+ */
+declare function playSound(sound: SoundName): void;
 
 /* -------------------------------------------------------------------------
  * QuickJS 自带模块（只声明常用部分）
@@ -200,10 +294,16 @@ declare function addScriptStyle(name: string, rcss: string): boolean;
 /**
  * std 模块：标准输出与文件 I/O。宿主只注册了 'std' 与 'os' 两个模块。
  *
+ * 日常输出直接用全局的 console.log / print 即可；std 的用处是它们没覆盖的部分：
+ * 写**标准错误**（std.err.puts）、printf 风格格式化（std.printf / std.sprintf）、
+ * 读写文件与环境变量。
+ *
  * @example
  * ```js
  * import * as std from 'std';
- * std.puts('hello\n');
+ * std.puts('hello\n');                 // 等价于 console.log('hello')
+ * std.err.puts('这条走标准错误\n');
+ * std.printf('%d 条弹幕\n', count);
  * ```
  */
 declare module 'std' {

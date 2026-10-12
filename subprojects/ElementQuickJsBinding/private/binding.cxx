@@ -110,8 +110,8 @@ struct Binding::Detail
 		: ctxToBindingMapLease{ ctxToBindingMap, ctx.ctx, &binding } { }
 };
 
-Binding::Binding(metapp::MetaRepo &metaRepo, qjs::Runtime &rt, qjs::Context &ctx)
-	: metaRepo{ &metaRepo }, rt{ &rt }, ctx{ &ctx },
+Binding::Binding(qjs::Runtime &rt, qjs::Context &ctx)
+	: rt{ &rt }, ctx{ &ctx },
 	  detail{ stdx::pimpl::make_unique<Detail>(*this, ctx) }  { }
 
 
@@ -797,6 +797,18 @@ JSValue Binding::cpp2JSAuto(metapp::Variant cppVal,
 	auto nonReferenceType = metapp::getNonReferenceMetaType(cppVal);
 	if (nonReferenceType->isVoid())
 		return JS_UNDEFINED;
+
+	// Enums are marshalled by name: every enum metatype carries a string
+	// representation (see metapp_enum_metatype.hxx), so returning an enum to
+	// the script yields its name. Should a metatype lack that representation
+	// the enum falls back to its integral value.
+	if (nonReferenceType->getTypeKind() == metapp::tkEnum) {
+		if (cppVal.canCast<std::string>()) {
+			const auto name = cppVal.cast<std::string>().get<std::string>();
+			return JS_NewStringLen(ctx->ctx, name.data(), name.size());
+		}
+		return JS_NewInt64(ctx->ctx, cppVal.cast<long long>().get<long long>());
+	}
 
 	if (nonReferenceType->isArithmetic()) {
 		if (nonReferenceType->getTypeKind() == metapp::tkBool)

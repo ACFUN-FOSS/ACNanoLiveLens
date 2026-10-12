@@ -14,6 +14,7 @@ C++ 值转换为 JavaScript 值的方式和规则
 
   * 对于数值类型（如 ``int``, ``float``, ``char`` 等），翻译为 JavaScript ``number``。
   * 对于 ``std::string``, ``char *``，翻译为 JavaScript ``string``。
+  * 对于枚举类型 ``enum``，翻译为 JavaScript ``string``，即该枚举值在 C++ 中的名字（例如 ``Sound::RELOAD`` 翻译为 ``'RELOAD'``）。反向转换（JavaScript ``string`` → C++ 枚举值）同样按名字进行，未知名视为转换失败。这一层由 ElementQuickJsBinding 统一提供，枚举类型不需要任何注册代码；枚举与整数之间的互转是 ``metapp`` 的默认行为，不受影响。
   * 对于任何时间长度类型（如 ``std::chrono::duration`` 等），翻译为 JavaScript ``number``。
   * 对于任何时间点类型（如 ``std::chrono::time_point`` 等），翻译为 JavaScript ``Date``。
   * 对于一切容器，均翻译为 JavaScript ``Array``，其构成元素为 C++ 容器中的元素经过 ``cpp2Js`` 转换后的结果。

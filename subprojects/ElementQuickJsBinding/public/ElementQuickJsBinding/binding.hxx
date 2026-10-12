@@ -6,6 +6,10 @@
 // metatype declarations that must be visible in every TU instantiating
 // their metapp metatypes (ODR), so the binding can treat them as views.
 #include "ElementQuickJsBinding/metapp_view_metatypes.hxx"
+// Enums are marshalled by name (a JS string like 'RELOAD' <-> the enumerator)
+// for every enum type, without any per-enum binding code. Also an ODR-level
+// declaration, hence included here.
+#include "ElementQuickJsBinding/metapp_enum_metatype.hxx"
 #include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
 #include <EatiEssentials/memory/memory.hxx>
@@ -155,8 +159,6 @@ struct TypeInfo
 class Binding
 {
 private:
-	gsl::not_null<metapp::MetaRepo *> metaRepo;
-
 	gsl::not_null<qjs::Runtime *const> rt;
 	gsl::not_null<qjs::Context *const> ctx;
 	std::vector<TypeInfo> regedTypes;
@@ -166,7 +168,7 @@ private:
 	
 public:
 	ESSM::LifetimeInformant lifetimeInformant;
-	Binding(metapp::MetaRepo &metaRepo LIFETIMEBOUND, qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
+	Binding(qjs::Runtime &rt LIFETIMEBOUND, qjs::Context &ctx LIFETIMEBOUND);
 
 	TypeInfo &findTypeInfoOfEJSObj(JSValue jsvalue);
 	bool checkEJSObjLifetime(JSValue jsvalue);

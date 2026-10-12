@@ -159,7 +159,7 @@ public:
 			uiState_.mainWinRootEleEventMan_.on("add-danmaku-btn", "click", [this](auto &&_) {
 			addDanmaku({
 				"sender",
-				"contentcontent contentcontent contentcontent contentcontent contentcontent contentcontent",
+				"contentcontent contentcontent contentcontent contentcontent contentcontent contentcontent ACFun",
 				std::chrono::system_clock::now()
 			});
 		});
@@ -526,23 +526,10 @@ public:
 	std::chrono::steady_clock::time_point liveStatusRequestDeadline_{};
 };
 
-template<>
-struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo> : metapp::DeclareMetaTypeBase<DanmakuMonitorWin::DanmakuGuiInfo>
-{
-	static void setup() {
-		App::getGlobalMetaRepo().registerType<DanmakuMonitorWin::DanmakuGuiInfo>("DanmakuGuiInfo");
-	}
-	static const metapp::MetaClass *getMetaClass() {
-		static const metapp::MetaClass metaClass {
-			metapp::getMetaType<DanmakuMonitorWin::DanmakuGuiInfo>(),
-			[](metapp::MetaClass &mc) {
-				mc.registerVariable("danmakuItemAppearAnimContainerEle", &DanmakuMonitorWin::DanmakuGuiInfo::danmakuItemAppearAnimContainerEle);
-				mc.registerVariable("danmakuEle", &DanmakuMonitorWin::DanmakuGuiInfo::danmakuEle);
-			}
-		};
-		return &metaClass;
-	}
-};
+// DanmakuGuiInfo 的 metapp 元类声明在 src/js_bindings.hxx（脚本可见内容的唯一入口）。
+// 这里曾经另有一份完全相同的声明，属于同一个特化在两个翻译单元里各写一遍：
+// 类定义相同时不报错，但 getMetaClass() 里的静态局部会被链接器合并，
+// 一旦两份实现出现差异就会随机取到其中一份。故只保留 js_bindings.hxx 中的那一份。
 
 // void DanmakuMonitorWin::setupJsBinding(qjs::Context &ctx) {
 // 	auto metaType = metapp::getMetaType<DanmakuMonitorWin::DanmakuGuiInfo>();

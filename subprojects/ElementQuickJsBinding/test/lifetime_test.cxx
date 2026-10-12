@@ -6,7 +6,7 @@ int main() {
     qjs::Context ctx{ rt };
     initJs(rt, ctx);
 
-    Binding binding{ metaRepo, rt, ctx };
+    Binding binding{ rt, ctx };
 
     try {
         binding.regTypeStatic<TestStruct>();

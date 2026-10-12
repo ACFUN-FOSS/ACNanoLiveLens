@@ -12,6 +12,11 @@ add_library(element_qjs_binding
 )
 
 # 链接依赖
+# reflectcpp is a public dependency: metapp_enum_metatype.hxx (a public
+# header) uses rfl::string_to_enum / rfl::enum_to_string for the enum <->
+# script string marshalling.
+find_package(reflectcpp CONFIG REQUIRED)
+
 target_link_libraries(element_qjs_binding
     PRIVATE
     Microsoft.GSL::GSL
@@ -21,6 +26,7 @@ target_link_libraries(element_qjs_binding
     PUBLIC
 	EatiEssentials
 	cpp_pimpl_helper
+	reflectcpp::reflectcpp
 )
 
 # 导出头文件
@@ -81,6 +87,18 @@ target_link_libraries(element_qjs_binding__regType_test
  )
 
  target_link_libraries(element_qjs_binding__global_function_test
+     PRIVATE
+     element_qjs_binding
+     quickjspp
+     metapp::metapp
+ )
+
+ add_executable(element_qjs_binding__enum_test
+     test/enum_test.cxx
+     test/test_common.hxx
+ )
+
+ target_link_libraries(element_qjs_binding__enum_test
      PRIVATE
      element_qjs_binding
      quickjspp

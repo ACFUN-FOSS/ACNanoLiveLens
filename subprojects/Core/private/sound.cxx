@@ -14,7 +14,7 @@ void initSound() {
     soloud();
 }
 
-static void playOgg(std::string_view oggName) {
+void playOgg(std::string_view oggName) {
     static std::unordered_map<std::string, Soloudpp::Wav> oggNameToWav;
 
     std::string oggNameStr{ oggName };

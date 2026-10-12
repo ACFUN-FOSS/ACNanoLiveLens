@@ -23,8 +23,6 @@ struct State
 void initState(State &&state);
 State &getState();
 
-metapp::MetaRepo &getGlobalMetaRepo();
-
 void die(int code);
 
 }

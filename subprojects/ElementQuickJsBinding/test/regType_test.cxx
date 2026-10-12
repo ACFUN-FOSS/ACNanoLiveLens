@@ -2,7 +2,6 @@
 #include <quickjspp.hpp>
 #include <metapp/allmetatypes.h>
 #include <metapp/interfaces/metaclass.h>
-#include <metapp/metarepo.h>
 #include <EatiEssentials/assert.hxx>
 #include "ElementQuickJsBinding/binding.hxx"
 
@@ -20,18 +19,15 @@ public:
 	ESSM::LifetimeInformant lifetimeInformant;
 };
 
-metapp::MetaRepo metaRepo;
-
 template<>
 struct metapp::DeclareMetaType<LifetimeAwareTestClass> : metapp::DeclareMetaTypeBase<LifetimeAwareTestClass>
 {
-	static void setup() {
-		metaRepo.registerType<LifetimeAwareTestClass>("LifetimeAwareTestClass");
-	}
 	static const metapp::MetaClass *getMetaClass() {
 		static const metapp::MetaClass metaClass {
 			metapp::getMetaType<LifetimeAwareTestClass>(),
-			[](metapp::MetaClass &) { }
+			[](metapp::MetaClass &mc) {
+				mc.registerType<LifetimeAwareTestClass>("LifetimeAwareTestClass");
+			}
 		};
 		return &metaClass;
 	}
@@ -40,7 +36,7 @@ struct metapp::DeclareMetaType<LifetimeAwareTestClass> : metapp::DeclareMetaType
 int main() {
 	qjs::Runtime rt;
 	qjs::Context ctx{ rt };
-	Binding binding{ metaRepo, rt, ctx };
+	Binding binding{ rt, ctx };
 
 	try {
 		binding.regTypeStatic<LifetimeAwareTestClass>();

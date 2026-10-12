@@ -11,20 +11,18 @@ def generate_class_reflection(cls: ReflectedClass) -> str:
     """为指定类生成完整的 metapp 反射注册代码"""
     lines = []
     indent = '    '
-    lines.append(f'#include "appstate.hxx"')
 
     lines.append(f'template <>')
     lines.append(f'struct metapp::DeclareMetaType<{cls.qualified_name}> : metapp::DeclareMetaTypeBase<{cls.qualified_name}>')
     lines.append('{')
-    lines.append(f'{indent}static void setup() {{')
-    lines.append(f'{indent}{indent}getGlobalMetaRepo().registerType<{cls.qualified_name}>( "{cls.short_name}" );')
-    lines.append(f'{indent}}}')
-    
     lines.append(f'{indent}static const metapp::MetaClass *getMetaClass() {{')
     lines.append(f'{indent}{indent}static const metapp::MetaClass metaClass(')
     lines.append(f'{indent}{indent}{indent}metapp::getMetaType<{cls.qualified_name}>(),')
     lines.append(f'{indent}{indent}{indent}[](metapp::MetaClass &mc) {{')
-    
+    # 类型名必须登记在 MetaClass 自己的回调里：绑定层取类型名走 MetaClass::getType，
+    # 它只查 MetaClass 自身的 typeData，登记在别处的名字取不到（会退化成空串）。
+    lines.append(f'{indent}{indent}{indent}{indent}mc.registerType<{cls.qualified_name}>("{cls.short_name}");')
+    lines.append('')
     for ctor in cls.constructors:
         args_str = ', '.join(ctor.args)
         func_type = f'{cls.qualified_name} ({args_str})' if args_str else f'{cls.qualified_name} ()'

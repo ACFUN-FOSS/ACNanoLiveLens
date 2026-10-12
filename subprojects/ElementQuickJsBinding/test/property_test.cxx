@@ -36,13 +36,11 @@ struct PropertyOwner
 template<>
 struct metapp::DeclareMetaType<PropertyInner> : metapp::DeclareMetaTypeBase<PropertyInner>
 {
-	static void setup() {
-		metaRepo.registerType<PropertyInner>("PropertyInner");
-	}
 	static const metapp::MetaClass *getMetaClass() {
 		static const metapp::MetaClass metaClass{
 			metapp::getMetaType<PropertyInner>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerType<PropertyInner>("PropertyInner");
 				mc.registerVariable("label", &PropertyInner::label);
 				mc.registerVariable("value", &PropertyInner::value);
 			}
@@ -54,13 +52,11 @@ struct metapp::DeclareMetaType<PropertyInner> : metapp::DeclareMetaTypeBase<Prop
 template<>
 struct metapp::DeclareMetaType<PropertyOwner> : metapp::DeclareMetaTypeBase<PropertyOwner>
 {
-	static void setup() {
-		metaRepo.registerType<PropertyOwner>("PropertyOwner");
-	}
 	static const metapp::MetaClass *getMetaClass() {
 		static const metapp::MetaClass metaClass{
 			metapp::getMetaType<PropertyOwner>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerType<PropertyOwner>("PropertyOwner");
 				mc.registerVariable("name", &PropertyOwner::name);
 				mc.registerVariable("age", &PropertyOwner::age);
 				mc.registerVariable("serial", &PropertyOwner::serial);
@@ -87,7 +83,7 @@ int main() {
 	qjs::Context ctx{ rt };
 	initJs(rt, ctx);
 
-	Binding binding{ metaRepo, rt, ctx };
+	Binding binding{ rt, ctx };
 	binding.regTypeStatic<PropertyOwner>();
 	binding.regTypeStatic<PropertyInner>();
 

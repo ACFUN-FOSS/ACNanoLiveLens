@@ -1,7 +1,6 @@
 #ifndef NANOLIVELENS_JS_BINDINGS_HXX
 #define NANOLIVELENS_JS_BINDINGS_HXX
 
-#include "appstate.hxx"
 #include "danmaku_monitor_win.hxx"
 
 #include <ElementQuickJsBinding/binding.hxx>
@@ -37,6 +36,15 @@ void setupAll(ElementEngine::QJSBinding::Binding &binding);
 // ---------------------------------------------------------------------------
 // 元类声明
 // ---------------------------------------------------------------------------
+//
+// 通则：类型名要登记在自己 MetaClass 的回调里（mc.registerType<T>("名字")）。
+// binding.cxx 的 getTypeName 走的是 MetaClass::getType，它只查该 MetaClass 自身的
+// typeData；名字登记在别处会查不到，结果是类型名取到空串——JS 侧的 class name 与
+// 转换失败时的报错都会退化成地址。
+//
+// 枚举例外：绑定层已经为**所有**枚举统一提供了「字符串 ↔ 枚举」，见
+// ElementQuickJsBinding/metapp_enum_metatype.hxx —— 枚举值在脚本侧就是它的名字
+// （playSound('RELOAD')），类型名也会自动带上。因此这里不需要为枚举写任何东西。
 
 // 弹幕信息。按值语义传给脚本（移植体），脚本可自行持有其副本，
 // 不会因为弹幕被清理而失效。
@@ -44,15 +52,12 @@ template<>
 struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuInfo>
 	: metapp::DeclareMetaTypeBase<DanmakuMonitorWin::DanmakuInfo>
 {
-	static void setup() {
-		App::getGlobalMetaRepo().registerType<DanmakuMonitorWin::DanmakuInfo>("DanmakuInfo");
-	}
-
 	static const metapp::MetaClass *getMetaClass() {
 		using DanmakuInfo = DanmakuMonitorWin::DanmakuInfo;
 		static const metapp::MetaClass metaClass{
 			metapp::getMetaType<DanmakuInfo>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerType<DanmakuInfo>("DanmakuInfo");
 				mc.registerVariable("sender", &DanmakuInfo::sender);
 				mc.registerVariable("content", &DanmakuInfo::content);
 				mc.registerCallable("timestampMs", &DanmakuInfo::timestampMs);
@@ -69,15 +74,12 @@ template<>
 struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo>
 	: metapp::DeclareMetaTypeBase<DanmakuMonitorWin::DanmakuGuiInfo>
 {
-	static void setup() {
-		App::getGlobalMetaRepo().registerType<DanmakuMonitorWin::DanmakuGuiInfo>("DanmakuGuiInfo");
-	}
-
 	static const metapp::MetaClass *getMetaClass() {
 		using DanmakuGuiInfo = DanmakuMonitorWin::DanmakuGuiInfo;
 		static const metapp::MetaClass metaClass{
 			metapp::getMetaType<DanmakuGuiInfo>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerType<DanmakuGuiInfo>("DanmakuGuiInfo");
 				mc.registerVariable("danmakuItemAppearAnimContainerEle",
 					&DanmakuGuiInfo::danmakuItemAppearAnimContainerEle);
 				mc.registerVariable("danmakuEle", &DanmakuGuiInfo::danmakuEle);
@@ -97,15 +99,12 @@ template<>
 struct metapp::DeclareMetaType<Rml::Element>
 	: metapp::DeclareMetaTypeBase<Rml::Element>
 {
-	static void setup() {
-		App::getGlobalMetaRepo().registerType<Rml::Element>("RmlUIEle");
-	}
-
 	static const metapp::MetaClass *getMetaClass() {
 		using Ele = Rml::Element;
 		static const metapp::MetaClass metaClass{
 			metapp::getMetaType<Ele>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerType<Ele>("RmlUIEle");
 				mc.registerCallable("getTagName", &Ele::GetTagName);
 				mc.registerCallable("getId", &Ele::GetId);
 				mc.registerCallable("setClass", &Ele::SetClass);

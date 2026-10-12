@@ -29,7 +29,7 @@ int main() {
 	qjs::Context ctx{ rt };
 	initJs(rt, ctx);
 
-	Binding binding{ metaRepo, rt, ctx };
+	Binding binding{ rt, ctx };
 
 	// JS 函数 → std::function<void(int)> 的桥接，以及时间点的翻译。
 	// 注意：std::function<void(std::string)> 有意不注册，用于验证「未注册桥接

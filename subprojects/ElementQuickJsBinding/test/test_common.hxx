@@ -14,7 +14,6 @@
 #include <metapp/interfaces/metaclass.h>
 #include <EatiEssentials/assert.hxx>
 #include "ElementQuickJsBinding/binding.hxx"
-#include "metapp/metarepo.h"
 
 using namespace ElementEngine::QJSBinding;
 using namespace Essentials::Memory;
@@ -182,18 +181,18 @@ struct TestStruct
     TestStruct &operator=(TestStruct &&other) noexcept = default;
 };
 
-metapp::MetaRepo metaRepo;
-
 template<>
 struct metapp::DeclareMetaType<TestStruct> : metapp::DeclareMetaTypeBase<TestStruct>
 {
-	static void setup() {
-		metaRepo.registerType<TestStruct>("TestStruct");
-	}
 	static const metapp::MetaClass *getMetaClass() {
 		static const metapp::MetaClass metaClass {
 			metapp::getMetaType<TestStruct>(),
 			[](metapp::MetaClass &mc) {
+				// The type name must be registered on the MetaClass itself:
+				// Binding::getTypeName reads it through MetaClass::getType,
+				// which only consults this MetaClass's own type data. That
+				// name becomes the JS class name.
+				mc.registerType<TestStruct>("TestStruct");
 				mc.registerVariable("name", &TestStruct::name);
 				mc.registerVariable("age", &TestStruct::age);
 				mc.registerCallable("foo", &TestStruct::foo);
@@ -220,13 +219,11 @@ struct metapp::DeclareMetaType<TestStruct> : metapp::DeclareMetaTypeBase<TestStr
 template<>
 struct metapp::DeclareMetaType<TestStruct2> : metapp::DeclareMetaTypeBase<TestStruct2>
 {
-	static void setup() {
-		metaRepo.registerType<TestStruct2>("TestStruct2");
-	}
 	static const metapp::MetaClass *getMetaClass() {
 		static const metapp::MetaClass metaClass {
 			metapp::getMetaType<TestStruct2>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerType<TestStruct2>("TestStruct2");
 				mc.registerVariable("name", &TestStruct2::name);
 				mc.registerVariable("age", &TestStruct2::age);
 				mc.registerCallable("bar", &TestStruct2::bar);
@@ -240,13 +237,11 @@ struct metapp::DeclareMetaType<TestStruct2> : metapp::DeclareMetaTypeBase<TestSt
 template<>
 struct metapp::DeclareMetaType<CannotMove> : metapp::DeclareMetaTypeBase<CannotMove>
 {
-	static void setup() {
-		metaRepo.registerType<CannotMove>("CannotMove");
-	}
 	static const metapp::MetaClass *getMetaClass() {
 		static const metapp::MetaClass metaClass{
 			metapp::getMetaType<CannotMove>(),
 			[](metapp::MetaClass &mc) {
+				mc.registerType<CannotMove>("CannotMove");
 				mc.registerVariable("value", &CannotMove::value);
 				mc.registerCallable("bar", &CannotMove::bar);
 			}

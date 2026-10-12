@@ -3,6 +3,8 @@
 #include "js_hook.hxx"
 #include "script_style.hxx"
 
+#include "Core/sound.hxx"
+
 #include <quickjspp.hpp>
 
 #include <any>
@@ -12,6 +14,7 @@
 #include <format>
 #include <functional>
 #include <stdexcept>
+#include <string>
 
 using ElementEngine::QJSBinding::Binding;
 using ElementEngine::QJSBinding::Translator;
@@ -134,6 +137,16 @@ void setupAll(Binding &b) {
 		std::function<bool(std::string, std::string)>{
 			[](std::string name, std::string rcss) { return ScriptStyle::add(name, rcss); }
 		});
+
+	// 6. 音频。
+	//    playOgg：播放 assets 目录下的音频文件，路径相对 assets 目录
+	//    （脚本自带的音频放在 scripts/ 下，写成 'scripts/xxx.ogg'）。
+	//    playSound：播放内置音效，脚本用名字指定（'ERRR' / 'RELOAD' / ...），
+	//    字符串到 Sound 的转换由 Sound 的元类负责（见 js_bindings.hxx）。
+	//    两个函数都是自由函数，参数已经能被 metapp 从 JS 值转换过来，
+	//    因此直接注册即可，不需要转发用的 lambda。
+	b.regGlobalFunction("playOgg", &playOgg);
+	b.regGlobalFunction("playSound", &playSound);
 }
 
 }

@@ -13,11 +13,6 @@ State &getState() {
     return *globalState;
 }
 
-metapp::MetaRepo &getGlobalMetaRepo() {
-	static metapp::MetaRepo metaRepo;
-	return metaRepo;
-}
-
 void die(int code) {
 	std::println(
 		"=========="

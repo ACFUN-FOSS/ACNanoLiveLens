@@ -61,7 +61,13 @@ void JsEngine::init() {
 	js_init_module_std(ctx_->ctx, "std");
 	js_init_module_os(ctx_->ctx, "os");
 
-	binding_.emplace(App::getGlobalMetaRepo(), rt_, *ctx_);
+	// 装上 QuickJS 自带的那套全局辅助：console.log、print 与 __loadScript。
+	// 这就是 qjs 命令行自己走的入口（quickjs-libc.c 里紧跟 init_handlers 调用它），
+	// 因此脚本里 console.log 的行为与 QuickJS 官方一致，不必自己造一份。
+	// argc 传 -1 表示不创建 scriptArgs 全局变量（宿主没有命令行参数可传）。
+	js_std_add_helpers(ctx_->ctx, -1, nullptr);
+
+	binding_.emplace(rt_, *ctx_);
 	// 全部绑定细节集中在 src/js_bindings.cxx（元类声明在 js_bindings.hxx）。
 	JsBindings::setupAll(*binding_);
 }

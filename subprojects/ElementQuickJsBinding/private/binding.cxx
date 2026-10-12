@@ -2,10 +2,11 @@
 #include "ElementQuickJsBinding/ejs_obj.hxx"
 #include <EatiEssentials/container_and_view_and_ranges/container_and_view_and_range.hxx>
 #include <EatiEssentials/container_and_view_and_ranges/container_lease.hxx>
-#include "metapp/interfaces/metaclass.h"
-#include "metapp/interfaces/metamappable.h"
-#include "pimpl.hpp"
-#include "quickjs/quickjs.h"
+#include <metapp/interfaces/metaaccessible.h>
+#include <metapp/interfaces/metaclass.h>
+#include <metapp/interfaces/metamappable.h>
+#include <pimpl.hpp>
+#include <quickjs/quickjs.h>
 #include <cassert>
 #include <charconv>
 #include <format>
@@ -943,6 +944,26 @@ JSClassID Binding::getOrMakeMapClass(const metapp::MetaType &type) {
 	return classID;
 }
 
+// Magic getters and setters are invoked through the getter_magic/setter_magic
+// slots of a JSCFunctionType, while JS_NewCFunction2's parameter type is the
+// generic JSCFunction *. Route the creation through these two helpers to keep
+// the casts in one place.
+static JSValue makeMagicGetterFunction(JSContext &ctx,
+	JSValue (*getter)(JSContext *, JSValueConst, int) noexcept,
+	const char *name, int magic)
+{
+	return JS_NewCFunction2(&ctx, reinterpret_cast<JSCFunction *>(getter),
+		name, 0, JS_CFUNC_getter_magic, magic);
+}
+
+static JSValue makeMagicSetterFunction(JSContext &ctx,
+	JSValue (*setter)(JSContext *, JSValueConst, JSValueConst, int) noexcept,
+	const char *name, int magic)
+{
+	return JS_NewCFunction2(&ctx, reinterpret_cast<JSCFunction *>(setter),
+		name, 0, JS_CFUNC_setter_magic, magic);
+}
+
 void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 
 	if (std::ranges::find_if(regedTypes, [&](auto &typeInfo){
@@ -1075,7 +1096,135 @@ void Binding::regType(TypeInfoCreatingData &&typeInfoCd) {
 	}
 
 	// 1.2. Build proxy properties and add into the prototype
-	// TODO
+	// Every variable registered in the meta class is exposed on the prototype
+	// as an accessor property with the same name as in C++:
+	//   * reading reads the member of the associated C++ object and converts it
+	//     with cpp2JSAuto, so members read as references (member containers,
+	//     objects of registered types) become twins/views inheriting the
+	//     subject's lifetime info;
+	//   * writing marshals the JS value towards the declared member type with
+	//     js2CppAs and assigns it into the associated C++ object. const members
+	//     are read-only and reject writes with a TypeError.
+	struct JsTwinPropertyData
+	{
+		gsl::not_null<const metapp::Variant *const> variable;
+		gsl::not_null<const metapp::MetaType *const> valueType;
+		std::string name;
+		bool readOnly;
+	};
+	static std::map<int, JsTwinPropertyData> jsProxyPropertiesData;
+	static int jsProxyPropertyNewestMagicNum = 0;
+
+	// Reads the member of the associated C++ object.
+	static auto proxyPropertyGetter = [](JSContext *ctx, JSValueConst this_val,
+		int magic) noexcept -> JSValue {
+			try {
+				auto propertyDataIt = jsProxyPropertiesData.find(magic);
+				assert(propertyDataIt != jsProxyPropertiesData.end() && "Cannot find JsTwinPropertyData with magicNum");
+				auto &propertyData = propertyDataIt->second;
+
+				auto bindingFoundInMap = ctxToBindingMap.find(ctx);
+				assert(bindingFoundInMap != ctxToBindingMap.end() && "No Binding is associated with this QuickJS context.");
+				auto &binding = *bindingFoundInMap->second;
+
+				if (!binding.checkEJSObjLifetime(this_val))
+					return JS_EXCEPTION;
+
+				metapp::Variant subject = binding.getCppObjRefByEJSObj(this_val);
+				auto memberValue = metapp::accessibleGet(*propertyData.variable, subject);
+
+				// A member read as a reference is converted into a twin/view
+				// that inherits the subject's lifetime info, so it dies together
+				// with the subject instead of dangling.
+				auto subjectOpaque = getEJSObjOpaque(this_val);
+				return binding.cpp2JSAuto(std::move(memberValue),
+					subjectOpaque
+						? subjectOpaque->lifetimeInfoOfCppObj
+						: Rc<LifetimeInformant::LifetimeInfo>{ });
+			} catch (const std::exception &ex) {
+				return throwJsTypeError(*ctx, ex);
+			}
+	};
+
+	// Writes the member of the associated C++ object.
+	static auto proxyPropertySetter = [](JSContext *ctx, JSValueConst this_val,
+		JSValueConst val, int magic) noexcept -> JSValue {
+			try {
+				auto propertyDataIt = jsProxyPropertiesData.find(magic);
+				assert(propertyDataIt != jsProxyPropertiesData.end() && "Cannot find JsTwinPropertyData with magicNum");
+				auto &propertyData = propertyDataIt->second;
+
+				auto bindingFoundInMap = ctxToBindingMap.find(ctx);
+				assert(bindingFoundInMap != ctxToBindingMap.end() && "No Binding is associated with this QuickJS context.");
+				auto &binding = *bindingFoundInMap->second;
+
+				if (!binding.checkEJSObjLifetime(this_val))
+					return JS_EXCEPTION;
+
+				if (propertyData.readOnly) {
+					JS_ThrowTypeError(ctx,
+						"Attempt to write the read-only (const) member variable \"%s\".",
+						propertyData.name.c_str());
+					return JS_EXCEPTION;
+				}
+
+				metapp::Variant subject = binding.getCppObjRefByEJSObj(this_val);
+				auto valueVar = binding.js2CppAs(*propertyData.valueType, val);
+				// Throws (converted into a JS TypeError below) when the value
+				// cannot be assigned to the member.
+				metapp::accessibleSet(*propertyData.variable, subject, valueVar);
+				return JS_UNDEFINED;
+			} catch (const std::exception &ex) {
+				return throwJsTypeError(*ctx, ex);
+			}
+	};
+
+	for (auto &cppVarItem : metaClass.getVariableView()) {
+		auto &variable = cppVarItem.asVariable();
+		const std::string &varName = cppVarItem.getName();
+
+		int propMagicNum = ++jsProxyPropertyNewestMagicNum;
+		jsProxyPropertiesData.insert({
+			propMagicNum,
+			JsTwinPropertyData{
+				.variable = &variable,
+				.valueType = metapp::accessibleGetValueType(variable),
+				.name = varName,
+				.readOnly = metapp::accessibleIsReadOnly(variable)
+			}
+		});
+
+		JSValue jsGetter = makeMagicGetterFunction(*ctx->ctx,
+			+proxyPropertyGetter, varName.c_str(), propMagicNum);
+		JSValue jsSetter = makeMagicSetterFunction(*ctx->ctx,
+			+proxyPropertySetter, varName.c_str(), propMagicNum);
+		if (JS_IsException(jsGetter) || JS_IsException(jsSetter)) {
+			JS_FreeValue(ctx->ctx, jsGetter);
+			JS_FreeValue(ctx->ctx, jsSetter);
+			throw std::runtime_error{
+				std::format("创建属性 {} 的访问器失败。", varName)
+			};
+		}
+
+		JSAtom propAtom = JS_NewAtom(ctx->ctx, varName.c_str());
+		if (propAtom == JS_ATOM_NULL) {
+			JS_FreeValue(ctx->ctx, jsGetter);
+			JS_FreeValue(ctx->ctx, jsSetter);
+			throw std::runtime_error{
+				std::format("创建属性 {} 的名称失败。", varName)
+			};
+		}
+
+		// JS_DefinePropertyGetSet takes ownership of the getter and the setter.
+		int defineResult = JS_DefinePropertyGetSet(ctx->ctx, proto.v, propAtom,
+			jsGetter, jsSetter, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+		JS_FreeAtom(ctx->ctx, propAtom);
+		if (defineResult < 0) {
+			throw std::runtime_error{
+				std::format("注册属性 {} 失败。", varName)
+			};
+		}
+	}
 
 	// 2. Build a class for C++ type
 	std::string className{ getTypeName(*typeInfo.type) };

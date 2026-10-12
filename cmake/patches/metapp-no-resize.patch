@@ -1,0 +1,23 @@
+diff --git a/include/metapp/interfaces/bases/metaindexablebase.h b/include/metapp/interfaces/bases/metaindexablebase.h
+index 241041e..f9f6c1d 100644
+--- a/include/metapp/interfaces/bases/metaindexablebase.h
++++ b/include/metapp/interfaces/bases/metaindexablebase.h
+@@ -35,11 +35,15 @@ struct ResizeHelper
+ {
+ 	using ContainerType = T;
+ 
+-	static constexpr bool resizable = true;
++	// ACNanoLiveLens patch: no consumer in this project resizes a container
++	// through MetaIndexable, and instantiating ContainerType::resize() forces
++	// the element type to be default-constructible (e.g. std::vector<TestStruct2>
++	// is not), which would break MetaIndexable for such containers. Keep the
++	// capability honest by reporting non-resizable and making resize a no-op.
++	static constexpr bool resizable = false;
+ 
+-	static void resize(const Variant & indexable, const std::size_t size)
++	static void resize(const Variant & /*indexable*/, const std::size_t /*size*/)
+ 	{
+-		indexable.get<ContainerType &>().resize(size);
+ 	}
+ };
+ 

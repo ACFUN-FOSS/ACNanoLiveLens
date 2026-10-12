@@ -97,6 +97,13 @@ FetchContent_Declare(
   metapp
   GIT_REPOSITORY https://github.com/wqking/metapp.git
   GIT_TAG        origin/master
+  # Local patch: make MetaIndexable::resize non-resizable/no-op so that
+  # containers of non-default-constructible element types still expose a
+  # MetaIndexable (see cmake/patches/metapp-no-resize.patch). Applied once,
+  # during the download stage.
+  PATCH_COMMAND  ${CMAKE_COMMAND}
+                 "-DPATCH_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/metapp-no-resize.patch"
+                 -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/apply_metapp_patch.cmake"
 )
 FetchContent_MakeAvailable(metapp)
 unset(CMAKE_POLICY_VERSION_MINIMUM)

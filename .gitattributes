@@ -1,0 +1,4 @@
+# Patches are fed to `git apply` by FetchContent's PATCH_COMMAND. They must be
+# checked out with LF endings, otherwise the CRLF-ified context lines no longer
+# match the target files and the patch fails to apply.
+cmake/patches/*.patch text eol=lf

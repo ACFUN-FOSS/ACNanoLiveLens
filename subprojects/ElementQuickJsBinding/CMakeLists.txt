@@ -62,3 +62,15 @@ target_link_libraries(element_qjs_binding__regType_test
      quickjspp
      metapp::metapp
  )
+
+ add_executable(element_qjs_binding__property_test
+     test/property_test.cxx
+     test/test_common.hxx
+ )
+
+ target_link_libraries(element_qjs_binding__property_test
+     PRIVATE
+     element_qjs_binding
+     quickjspp
+     metapp::metapp
+ )

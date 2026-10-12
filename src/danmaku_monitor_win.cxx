@@ -10,6 +10,9 @@
 
 #include "utils.hxx"
 
+#include <deque>
+#include <vector>
+
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
 using namespace Essentials::IO;
@@ -228,18 +231,22 @@ public:
 
 
 		//danmakuItemAppearAnimContainerEle_.SetClass("show", true);
-		pendingAnimDanmaku.emplace(&danmakuItemAppearAnimContainerEle_, &danmakuItem_);
-		danmakuInGui_.emplace_back(
-			DanmakuGuiInfo{
-				&danmakuItemAppearAnimContainerEle_,
-				&danmakuItem_
-			},
-			danmaku
-		);
+		const DanmakuGuiInfo guiInfo{
+			&danmakuItemAppearAnimContainerEle_,
+			&danmakuItem_
+		};
 
-		// PostShowedDanmaku：弹幕元素已创建并插入列表，脚本可以在此操作它的元素
-		//（孪生体，只在本次调用有效——元素会随弹幕清理或 DOM 重建而销毁）。
-		JsHook::triggerPostShowedDanmaku(danmaku, danmakuItem_);
+		danmakuInGui_.emplace_back(guiInfo, danmaku);
+
+		// 出场动画与 PostShowedDanmaku 都推迟到后续帧（见 pendingAnimDanmaku_ 的说明）：
+		// 元素此刻还没有「上一次样式定义」，这一帧给它加类不会播放动画，
+		// 因此连通知脚本也一并推迟到真正出场的那一帧。
+		pendingAnimDanmaku_.push_back(PendingAnimDanmaku{
+			.containerEle = &danmakuItemAppearAnimContainerEle_,
+			.danmakuEle = &danmakuItem_,
+			.danmakuInfo = danmaku,
+			.createdFrame = frameIndex_
+		});
 
 		// {
 		// 	auto jsTwinObj = makeJsTwinObject(*App::getState().jsCtx, UNWRAP(metapp::getMetaType<DanmakuGuiInfo>()), danmakuInGui_.back());
@@ -332,48 +339,67 @@ public:
 
 
   	void startPendingDanmakuContainerAnim() {
-  		if (!pendingAnimDanmaku.empty()) {
-  			// 从待处理队列中取出一个弹幕元素
-  			auto ele = pendingAnimDanmaku.top();
-  			pendingAnimDanmaku.pop();
+  		++frameIndex_;
 
-  			// 为待处理的弹幕容器添加动画
-  			// 从待处理队列中取出一个弹幕元素，为其创建动态样式并应用
-  			// 这么做是因为 RmlUI 的 transition 动画只有在添加类时才会触发
-  			// 此实现动画播放过程会导致整个页面的布局持续变化，性能较差，需要优化一下。
-  			// 生成唯一的类名并创建动态样式字符串
-  			// **已废弃这种基于动态创建样式的 height 动画，改其他方式。**
-  			// auto className = std::format("anim-{}", randomInt(0, std::numeric_limits<int>::max()));
-  			// auto newStyleSrc = std::format(
-  			// 	".{}{{"
-  			// 	"height: {}px;"
-  			// 	"}}",
-  			// 	className,
-  			// 	ele.danmakuEle->GetOffsetHeight()
-  			// );
-  			// std::cout << "newStyleSrc: " << newStyleSrc << std::endl;
+  		if (pendingAnimDanmaku_.empty())
+  			return;
+
+  		// 队首是最早入队的那条，帧号也最小：它还没跨过一帧，说明本帧才创建，
+  		// 元素还没有「上一次样式定义」（见 pendingAnimDanmaku_ 的说明），
+  		// 此刻加类不会启动过渡，等下一帧再让它出场。
+  		if (pendingAnimDanmaku_.front().createdFrame >= frameIndex_)
+  			return;
+
+  		// 从队首取出一条弹幕元素（先入先出：先加入 DOM 的先出场）
+  		const PendingAnimDanmaku pending = std::move(pendingAnimDanmaku_.front());
+  		pendingAnimDanmaku_.pop_front();
+
+  		// 为待处理的弹幕容器添加动画
+  		// 从待处理队列中取出一个弹幕元素，为其创建动态样式并应用
+  		// 这么做是因为 RmlUI 的 transition 动画只有在添加类时才会触发
+  		// 此实现动画播放过程会导致整个页面的布局持续变化，性能较差，需要优化一下。
+  		// 生成唯一的类名并创建动态样式字符串
+  		// **已废弃这种基于动态创建样式的 height 动画，改其他方式。**
+  		// auto className = std::format("anim-{}", randomInt(0, std::numeric_limits<int>::max()));
+  		// auto newStyleSrc = std::format(
+  		// 	".{}{{"
+  		// 	"height: {}px;"
+  		// 	"}}",
+  		// 	className,
+  		// 	ele.danmakuEle->GetOffsetHeight()
+  		// );
+  		// std::cout << "newStyleSrc: " << newStyleSrc << std::endl;
   	  //
-  			// // 获取文档对象
-  			// auto &document = uiState_.mainWin_.getDocument();
+  		// // 获取文档对象
+  		// auto &document = uiState_.mainWin_.getDocument();
 	    //
-  			// // 创建样式表并合并到文档的样式表容器中
-  			// auto newStyle = Rml::Factory::InstanceStyleSheetString(newStyleSrc);
-  			// auto &sheet = UNWRAP(document.GetStyleSheetContainer());
+  		// // 创建样式表并合并到文档的样式表容器中
+  		// auto newStyle = Rml::Factory::InstanceStyleSheetString(newStyleSrc);
+  		// auto &sheet = UNWRAP(document.GetStyleSheetContainer());
   	  //
-  			// auto newFullStyle = sheet.CombineStyleSheetContainer(*newStyle);
-  			// document.SetStyleSheetContainer(newFullStyle);
+  		// auto newFullStyle = sheet.CombineStyleSheetContainer(*newStyle);
+  		// document.SetStyleSheetContainer(newFullStyle);
   	  //
-  			// // 将动态样式类应用到弹幕容器元素
-  			// ele.danmakuItemAppearAnimContainerEle->SetClass(className, true);
+  		// // 将动态样式类应用到弹幕容器元素
+  		// ele.danmakuItemAppearAnimContainerEle->SetClass(className, true);
 
-  			// 激活放大动画
-  			ele.danmakuItemAppearAnimContainerEle->SetClass("show", true);
-  		}
+  		// 激活放大动画
+  		pending.containerEle->SetClass("show", true);
+
+  		// PostShowedDanmaku：元素此刻才真正开始出场——它是应用过程中**第一个**
+  		// 「元素已有上一次样式定义」的时刻，因此也是脚本唯一能给元素加带过渡/动画的类
+  		// 并看到动画的时机（在 addDanmaku 里加类，类会落入元素的首次定义，只会立刻生效）。
+  		// 此刻与上面的 .show 落在同一次样式更新里，两者的过渡会一起启动。
+  		// 传给脚本的是孪生体，只在本次调用有效——元素会随弹幕清理或 DOM 重建而销毁。
+  		JsHook::triggerPostShowedDanmaku(pending.danmakuInfo, *pending.danmakuEle);
   	}
 
 
 
 	void clearDanmaku() {
+		// 队列里保存的是元素裸指针，而下面对每个元素都被 RemoveChild 立刻销毁，
+		// 必须一并清空，否则出场动画会在已释放的元素上调用 SetClass。
+		pendingAnimDanmaku_.clear();
 
 		for (auto &danmakuInGui : danmakuInGui_) {
 			danmakuList_->RemoveChild(
@@ -396,6 +422,13 @@ public:
 		JsHook::triggerOnDanmakuDrop(oldest.danmakuInfo, *oldest.guiInfo.danmakuEle);
 
 		const float removedHeight = static_cast<float>(removedEle->GetOffsetHeight());
+
+		// 该弹幕若还排在出场动画队列里，一并移除：RemoveChild 的返回值被丢弃即立刻销毁元素，
+		// 队列里留着的裸指针会变成悬垂指针，下一帧就会在已释放的元素上调用 SetClass。
+		// （它被淘汰得比出场还早，因此不会再有 PostShowedDanmaku。）
+		std::erase_if(pendingAnimDanmaku_, [&removedEle](const PendingAnimDanmaku &pending) {
+			return pending.containerEle == removedEle.get();
+		});
 
 		danmakuList_->RemoveChild(oldest.guiInfo.danmakuItemAppearAnimContainerEle);
 		danmakuInGui_.pop_front();
@@ -446,7 +479,34 @@ public:
 
 	UiWinBizLogicObjContext<DanmakuMonitorWin> ctx_;
 
-	std::stack<DanmakuGuiInfo> pendingAnimDanmaku;
+	// 等待播放「出场动画」的弹幕队列（先入先出：按插入 DOM 的顺序依次出场，
+	// 每次 startPendingDanmakuContainerAnim() 只让队首的一条出场，
+	// 于是动画自上而下逐条展开，而不是最新的一条抢先播完、上面的旧弹幕一直停在缩小态）。
+	//
+	// 为什么插入 DOM 时不直接播放动画：RmlUi 只在元素的**上一次样式定义**存在时才会启动过渡——
+	// ElementStyle::UpdateDefinition() 里的调用条件是两个定义都非空：
+	//     if (definition && new_definition) TransitionPropertyChanges(...);
+	// 刚创建的元素当帧还没有「上一次定义」，此时给它加类只会立刻生效、不会播放动画。
+	// 所以元素先以缩小状态入场，等到后续帧再加 .show：那一帧元素已有上一次定义，
+	// 过渡才会真正播放。**脚本要在元素上加带 transition/animation 的类，也只能等到这一帧**，
+	// 否则类会被写进元素的首次定义里，同样不播放动画。
+	struct PendingAnimDanmaku
+	{
+		// 要加 .show 的出场动画容器元素。
+		gsl::not_null<Rml::Element *> containerEle;
+		// 传给脚本的弹幕元素（孪生体的来源）。
+		gsl::not_null<Rml::Element *> danmakuEle;
+		DanmakuInfo danmakuInfo;
+		// 入队时的帧号：出场动画至少推迟一帧，保证元素已经历过一次样式更新。
+		int createdFrame = 0;
+	};
+
+	// 用 deque 而非 vector：需要 O(1) 地从队首取出并弹出（pop_front），
+	// 而淘汰最旧的弹幕时要能从中段删除任意一项（std::erase_if）。
+	std::deque<PendingAnimDanmaku> pendingAnimDanmaku_;
+	// 帧计数器，由 startPendingDanmakuContainerAnim() 每帧递增。
+	int frameIndex_ = 0;
+
 	std::deque<DanmakuInGui> danmakuInGui_;
 
     ElementDynRef danmakuList_;

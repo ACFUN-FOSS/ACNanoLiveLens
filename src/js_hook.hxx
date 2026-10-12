@@ -51,14 +51,25 @@ using PostLoginCallback = std::function<void()>;
 
 // OnReceivedDanmaku：收到弹幕但尚未被弹幕监视窗口处理时触发。
 // 参数：danmakuInfo（弹幕信息）、time（触发时间）。
+// 此时弹幕元素尚未创建，适合做统计、过滤、持久化等与界面无关的工作。
 using ReceivedDanmakuCallback = std::function<void(DanmakuMonitorWin::DanmakuInfo danmakuInfo, TimePoint time)>;
 
-// PostShowedDanmaku：弹幕已被弹幕监视窗口处理并创建了元素时触发。
+// PostShowedDanmaku：弹幕元素真正开始出场（出场动画启动）时触发。
 // 参数：danmakuInfo（弹幕信息）、danmakuEle（该弹幕的容器元素）。
+//
+// 这是脚本给弹幕元素加**带过渡/动画的类**的唯一有效时机。RmlUi 只在元素的
+// 「上一次样式定义」存在时才启动过渡（ElementStyle::UpdateDefinition 要求新旧定义
+// 同时非空），而元素插入 DOM 的当帧还没有上一次定义——此刻加类，类会落入元素的
+// 首次定义，属性只会立刻生效、不会播放动画。因此本钩子被推迟到元素已经历过一次
+// 样式更新之后触发，与出场动画的 .show 落在同一次样式更新里。
+//
+// 若只关心「弹幕已入库/已计数」，用 OnReceivedDanmaku 即可；本钩子会晚若干帧。
 using ShowedDanmakuCallback = std::function<void(DanmakuMonitorWin::DanmakuInfo danmakuInfo, Rml::Element &danmakuEle)>;
 
 // OnDanmakuDrop：弹幕因过于久远触发自动清理、其元素与结构体即将被销毁时触发。
 // 参数：danmakuInfo（弹幕信息）、danmakuEle（该弹幕的容器元素）。
+// 注意弹幕量很大时，一条弹幕可能在轮到它出场之前就被清理，此时它不会有
+// PostShowedDanmaku，但会有 OnDanmakuDrop。
 using DanmakuDropCallback = ShowedDanmakuCallback;
 
 // PostHotreloadStyle：样式（RCSS）热重载执行完毕时触发。无参数。

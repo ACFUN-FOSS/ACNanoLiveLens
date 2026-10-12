@@ -176,9 +176,11 @@ add_executable(nanolivelens
 	src/msg_box.cxx
 	src/login_win.cxx
 
-	# JavaScript scripting (JsTwinObject 桥接 + 钩子系统)
+	# JavaScript scripting (JsTwinObject 桥接 + 钩子系统 + 脚本样式注入)
 	src/js_hook.cxx
 	src/js_engine.cxx
+	src/js_bindings.cxx
+	src/script_style.cxx
  )
 target_include_directories(nanolivelens PRIVATE src)
 target_precompile_headers(nanolivelens PRIVATE src/stdafx.h)

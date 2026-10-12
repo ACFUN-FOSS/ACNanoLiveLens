@@ -2,6 +2,7 @@
 #include "appstate.hxx"
 #include "js_engine.hxx"
 #include "js_hook.hxx"
+#include "script_style.hxx"
 #include "platform/crash_handler.hxx"
 #include "rmlui_sys.hxx"
 #include "rmluipp.hxx"
@@ -23,6 +24,10 @@ using namespace Essentials::IO;
 static bool ctrlCPressed = false;
 
 static void runUiFrame(WinManager &winMan, coro::manual_executor &mainThreadExecutor) {
+	// 脚本注入的 RCSS 与文档对账：文档首次加载、F6 重载样式、Ctrl+R 重建文档、
+	// F5 重载脚本都会换掉文档的样式容器，由这里补挂回去（幂等，无变化时只是几次比较）。
+	ScriptStyle::syncAll();
+
 	mainThreadExecutor.loop_once();
 	winMan.updateAll();
 	winMan.renderAll();

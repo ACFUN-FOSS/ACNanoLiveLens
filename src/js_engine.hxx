@@ -18,6 +18,9 @@
 //   * 把 JsHook 的 addXxxHook 注册成脚本侧的全局函数（钩子系统的脚本入口）；
 //   * 以模块语义加载用户脚本，并求值。
 //
+// 本类只管运行时与脚本加载；**具体暴露了什么**（哪些类型、翻译器、函数桥接签名、
+// 全局函数）全部集中在 src/js_bindings.hxx / js_bindings.cxx。
+//
 // 引擎只在主线程上使用：QuickJS 的上下文与 JSValue 都不是线程安全的，而钩子的
 // 所有触发点（窗口更新、热重载、弹幕收发）本来就在主线程上。
 class JsEngine
@@ -62,9 +65,6 @@ public:
 	[[nodiscard]] ElementEngine::QJSBinding::Binding &binding() LIFETIMEBOUND;
 
 private:
-	// 注册可以暴露给脚本的全部 C++ 类型、时间点翻译器、JS 函数桥接与钩子注册函数。
-	void setupAllJsBinding();
-
 	// 求值入口：evalFlags 为 JS_EVAL_TYPE_*。成功时把结果写入 resultOut 并返回 true；
 	// 失败时打印错误、消费挂起的 JS 异常并返回 false。
 	bool runCode(std::string_view code, std::string_view filename, int evalFlags, JSValue *resultOut);

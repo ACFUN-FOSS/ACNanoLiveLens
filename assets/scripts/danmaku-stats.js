@@ -42,6 +42,8 @@ addOnReceivedDanmakuHook((danmakuInfo, time) => {
 	}
 });
 
+// 弹幕元素真正开始出场时触发。它比 OnReceivedDanmaku 晚若干帧——
+// 应用要等到元素已经历过一次样式更新（此时加类才会播放动画）才通知脚本。
 addPostShowedDanmakuHook((danmakuInfo) => {
 	shownCount++;
 });

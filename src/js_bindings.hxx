@@ -1,21 +1,42 @@
-#ifndef NANOLIVELENS_JS_METATYPES_HXX
-#define NANOLIVELENS_JS_METATYPES_HXX
+#ifndef NANOLIVELENS_JS_BINDINGS_HXX
+#define NANOLIVELENS_JS_BINDINGS_HXX
 
 #include "appstate.hxx"
 #include "danmaku_monitor_win.hxx"
 
+#include <ElementQuickJsBinding/binding.hxx>
 #include <RmlUi/Core/Element.h>
 #include <metapp/interfaces/metaclass.h>
 #include <metapp/metatype.h>
 
-// 暴露给 JavaScript 的 C++ 类型的 metapp 元类型声明。
+// ============================================================================
+// 本应用暴露给 JavaScript 的全部绑定。
 //
-// JsTwinObject 桥接完全由 metapp 的元类信息驱动：要让一个类型能被脚本使用，
-// 只需在此处特化 DeclareMetaType（声明成员变量与成员方法），并在
-// JsEngine::init() 中通过 regTypeStatic<T>() 注册，无需手写任何 JS 绑定代码。
+// 这是「想让脚本看见什么」的唯一入口。新增或修改脚本可见的 C++ 类型、成员变量、
+// 成员方法、翻译器、JS 函数桥接签名、全局函数，都只改本文件与 js_bindings.cxx；
+// js_engine.cxx 只负责运行时 / 上下文 / 脚本加载，不含任何绑定细节。
 //
-// 注意：这些特化必须对所有可能实例化 getMetaType<T>() 的翻译单元可见（ODR），
+// 绑定分两层：
+//   1. metapp 元类声明（本文件下半部分）：声明「类型长什么样」——有哪些成员变量与
+//      成员方法。JsTwinObject 桥接完全由这些元信息驱动，无需手写任何 JS 绑定代码。
+//   2. 注册（js_bindings.cxx 的 setupAll）：把这些类型、翻译器、桥接签名与全局函数
+//      装进 Binding。
+//
+// 注意：元类特化必须对所有可能实例化 getMetaType<T>() 的翻译单元可见（ODR），
 // 因此定义在头文件中，而不是某个 .cxx 里。
+// ============================================================================
+
+namespace JsBindings {
+
+// 把本应用的全部 JS 绑定注册到 binding 上。
+// 每次重建 JS 上下文（init() 与 hotReload()）都必须调用一次。
+void setupAll(ElementEngine::QJSBinding::Binding &binding);
+
+}
+
+// ---------------------------------------------------------------------------
+// 元类声明
+// ---------------------------------------------------------------------------
 
 // 弹幕信息。按值语义传给脚本（移植体），脚本可自行持有其副本，
 // 不会因为弹幕被清理而失效。
@@ -108,4 +129,4 @@ struct metapp::DeclareMetaType<Rml::Element>
 	}
 };
 
-#endif // NANOLIVELENS_JS_METATYPES_HXX
+#endif // NANOLIVELENS_JS_BINDINGS_HXX

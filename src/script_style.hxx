@@ -1,8 +1,6 @@
 #ifndef NANOLIVELENS_SCRIPT_STYLE_HXX
 #define NANOLIVELENS_SCRIPT_STYLE_HXX
 
-#include <string_view>
-
 namespace Rml { class ElementDocument; }
 
 // 脚本注入 RCSS 样式的注册表。脚本侧的入口是全局函数 addScriptStyle。

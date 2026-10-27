@@ -1,9 +1,6 @@
 #ifndef NANOLIVELENS_CORE_RFL_CUSTOM_TYPE_HXX
 #define NANOLIVELENS_CORE_RFL_CUSTOM_TYPE_HXX
 
-#include <chrono>
-#include <rfl.hpp>
-
 namespace rfl {
 
 template <>

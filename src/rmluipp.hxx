@@ -1,6 +1,5 @@
 #ifndef NANOLIVELENS_RMLUIPP_HXX
 #define NANOLIVELENS_RMLUIPP_HXX
-#include "RmlUi_Platform_GLFW.h"
 #include "RmlUIWin/window_manager.hxx"
 
 class ElementNotFoundErr : public std::runtime_error

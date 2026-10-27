@@ -1,12 +1,5 @@
 #include "js_hook.hxx"
 
-#include <algorithm>
-#include <exception>
-#include <print>
-#include <string_view>
-#include <utility>
-#include <vector>
-
 namespace JsHook {
 
 namespace {

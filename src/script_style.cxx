@@ -1,16 +1,5 @@
 #include "script_style.hxx"
 
-#include <RmlUi/Core.h>
-#include <RmlUi/Core/ElementDocument.h>
-#include <RmlUi/Core/StreamMemory.h>
-#include <RmlUi/Core/StyleSheetContainer.h>
-
-#include <algorithm>
-#include <print>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 namespace ScriptStyle {
 namespace {
 

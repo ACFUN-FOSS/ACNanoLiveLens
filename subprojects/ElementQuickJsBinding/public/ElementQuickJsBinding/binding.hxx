@@ -10,6 +10,10 @@
 // for every enum type, without any per-enum binding code. Also an ODR-level
 // declaration, hence included here.
 #include "ElementQuickJsBinding/metapp_enum_metatype.hxx"
+// Chrono values are marshalled structurally, also without any registration:
+// every std::chrono::time_point becomes a JS Date, every duration a JS number
+// counting milliseconds. Same ODR-level declaration.
+#include "ElementQuickJsBinding/metapp_chrono_metatypes.hxx"
 #include <quickjspp.hpp>
 #include <quickjs/quickjs.h>
 #include <EatiEssentials/memory/memory.hxx>

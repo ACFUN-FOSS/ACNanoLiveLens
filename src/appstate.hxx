@@ -3,8 +3,6 @@
 #include "RmlUIWin/window_manager.hxx"
 #include "rmlui_sys.hxx"
 
-#include <functional>
-
 namespace App {
 
 struct State

@@ -1,7 +1,4 @@
 #include "Core/assert.hxx"
-#include <EatiEssentials/assert.hxx>
-#include <cstdlib>
-#include <iostream>
 
 namespace {
 

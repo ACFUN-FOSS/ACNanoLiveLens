@@ -14,9 +14,7 @@
 
 //NOLINTBEGIN
 #pragma pack(push, before_imagehlp, 8)
-#include <format>
 #include <imagehlp.h>
-#include <sstream>
 #pragma pack(pop, before_imagehlp)
 
 struct module_data {

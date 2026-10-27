@@ -75,10 +75,13 @@ declare class DanmakuInfo {
 	sender: string;
 	/** 弹幕正文。 */
 	content: string;
-	/** 发送时间的时间戳（毫秒，Unix epoch）。 */
-	timestampMs(): number;
-	/** 发送时间，格式为 HH:MM:SS。 */
-	timestampText(): string;
+	/**
+	 * 发送时间。
+	 *
+	 * C++ 的 `std::chrono::time_point` 由宿主统一翻译为 JS `Date`；写回时同样
+	 * 接受一个 `Date`。
+	 */
+	timestamp: Date;
 }
 
 /**

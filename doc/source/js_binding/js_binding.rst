@@ -15,8 +15,8 @@ C++ 值转换为 JavaScript 值的方式和规则
   * 对于数值类型（如 ``int``, ``float``, ``char`` 等），翻译为 JavaScript ``number``。
   * 对于 ``std::string``, ``char *``，翻译为 JavaScript ``string``。
   * 对于枚举类型 ``enum``，翻译为 JavaScript ``string``，即该枚举值在 C++ 中的名字（例如 ``Sound::RELOAD`` 翻译为 ``'RELOAD'``）。反向转换（JavaScript ``string`` → C++ 枚举值）同样按名字进行，未知名视为转换失败。这一层由 ElementQuickJsBinding 统一提供，枚举类型不需要任何注册代码；枚举与整数之间的互转是 ``metapp`` 的默认行为，不受影响。
-  * 对于任何时间长度类型（如 ``std::chrono::duration`` 等），翻译为 JavaScript ``number``。
-  * 对于任何时间点类型（如 ``std::chrono::time_point`` 等），翻译为 JavaScript ``Date``。
+  * 对于任何时间长度类型（如 ``std::chrono::duration`` 等），翻译为 JavaScript ``number``，其值为毫秒数（亚毫秒精度不会被截断）。
+  * 对于任何时间点类型（如 ``std::chrono::time_point`` 等），翻译为 JavaScript ``Date``，其值为该时间点距自身纪元的毫秒数。反向转换（JavaScript ``Date`` → C++ 时间点）同样成立；传入非 ``Date`` 的值视为转换失败。这一层由 ElementQuickJsBinding 统一提供，时间点与时间长度类型不需要任何注册代码。
   * 对于一切容器，均翻译为 JavaScript ``Array``，其构成元素为 C++ 容器中的元素经过 ``cpp2Js`` 转换后的结果。
   * 对于用户自定义的结构体或类：
 
@@ -32,6 +32,12 @@ C++ 值转换为 JavaScript 值的方式和规则
 「翻译」这个词的隐喻是：就像把中文翻译成英文，原文和译文是两种不同的东西，但表达的是同一个意思。如 C++ 的 std::chrono::milliseconds(500) 会翻译为 JS 的 500 —— 这是两个完全不同的对象，但它们表达的是同一个时间长度。
 
 翻译主要用于纯数据类型，我们希望 a) 某种对象到 JavaScript 的转换不需要经由 EJSObj 这一中间介质；b) JavaScript JS 中有不同于 C++ 的表示。
+
+时间点与时间长度是绑定层内置的翻译：任何 ``std::chrono::time_point`` 在脚本里都是 ``Date``，任何 ``std::chrono::duration`` 都是毫秒数，包括**已注册类型的成员**——某个类里的 ``time_point`` 成员可以直接登记为属性，脚本读到的就是 ``Date``，不需要（也不应该）为它额外提供 ``timestampMs()`` 之类的辅助访问器。反向转换由声明类型决定：目标类型是 ``time_point`` 时接受 ``Date``，是 ``duration`` 时接受 ``number``。
+
+.. note::
+
+   内置之后，翻译不再依赖取值时是「按值」还是「按引用」：成员变量读取得到的是引用语义的 ``Variant``，但它同样会被翻译，而不会被当作孪生处理（时间点这类纯数据类型没有孪生体）。
 
 概念: *可翻译*
 ------------------

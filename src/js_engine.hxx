@@ -3,14 +3,8 @@
 
 #include "js_hook.hxx"
 
-#include <EatiEssentials/memory/memsafety.hxx>
+// 例外：ElementQuickJsBinding 是模板库性质，其头文件允许直接 include（不进 PCH）。
 #include <ElementQuickJsBinding/binding.hxx>
-#include <quickjspp.hpp>
-
-#include <cstddef>
-#include <filesystem>
-#include <optional>
-#include <string_view>
 
 // 内嵌的 JavaScript 脚本引擎，即「脚本扩展模块」的宿主。它负责：
 //   * QuickJS 运行时（Runtime）与上下文（Context）的生命周期；

@@ -206,6 +206,75 @@ metapp::Variant Binding::js2Cpp(JSValue jsVal) {
 	throw std::invalid_argument{ "Unsupported JS value type." };
 }
 
+// ---------------------------------------------------------------------------
+// Chrono: milliseconds <-> JS Date / JS number
+//
+// Which C++ types are chrono types is decided by the metatype declarations in
+// metapp_chrono_metatypes.hxx (read back through getChronoKind); only the two
+// representations the script sees are built here. Milliseconds is the canonical
+// unit because that is what a JS Date and JS timers count.
+// ---------------------------------------------------------------------------
+
+// A JS Date from a count of milliseconds since the epoch.
+static JSValue makeJsDate(qjs::Context &ctx, const std::int64_t milliseconds) {
+	const JSValue dateCtor = JS_GetPropertyStr(ctx.ctx, ctx.global().v, "Date");
+	JSValue args[]{ JS_NewInt64(ctx.ctx, milliseconds) };
+	const JSValue date = JS_CallConstructor(ctx.ctx, dateCtor, 1, args);
+	JS_FreeValue(ctx.ctx, dateCtor);
+	JS_FreeValue(ctx.ctx, args[0]);
+	return date;
+}
+
+// Reads a JS Date back as milliseconds since the epoch. Rejecting everything
+// else is deliberate: a time point was translated into a Date, so a script
+// handing a time point (back) to C++ must hand back a Date.
+static std::int64_t readJsDateMilliseconds(qjs::Context &ctx, JSValue jsVal) {
+	const auto fail = [](const char *reason) -> std::invalid_argument {
+		return std::invalid_argument{ std::format("期望一个 Date：{}", reason) };
+	};
+
+	if (JS_IsUndefined(jsVal) || JS_IsNull(jsVal))
+		throw fail("收到 null 或 undefined");
+
+	const JSValue getTime = JS_GetPropertyStr(ctx.ctx, jsVal, "getTime");
+	if (!JS_IsFunction(ctx.ctx, getTime)) {
+		JS_FreeValue(ctx.ctx, getTime);
+		throw fail("收到的值没有 getTime() 方法");
+	}
+
+	const JSValue millisecondsVal = JS_Call(ctx.ctx, getTime, jsVal, 0, nullptr);
+	JS_FreeValue(ctx.ctx, getTime);
+	if (JS_IsException(millisecondsVal)) {
+		// Consume the pending exception so it doesn't leak into the caller's
+		// error message.
+		JS_FreeValue(ctx.ctx, JS_GetException(ctx.ctx));
+		JS_FreeValue(ctx.ctx, millisecondsVal);
+		throw fail("调用 getTime() 抛出了异常");
+	}
+
+	double milliseconds = 0;
+	const int toFloatResult = JS_ToFloat64(ctx.ctx, &milliseconds, millisecondsVal);
+	JS_FreeValue(ctx.ctx, millisecondsVal);
+	if (toFloatResult < 0)
+		throw fail("getTime() 的返回值不是数值");
+	if (std::isnan(milliseconds))
+		throw fail("时间点无效（NaN）");
+
+	return static_cast<std::int64_t>(milliseconds);
+}
+
+// Reads a JS number as milliseconds. A duration has no JS type of its own, so
+// its translation is a plain number and a fraction is meaningful.
+static double readJsNumberMilliseconds(qjs::Context &ctx, JSValue jsVal) {
+	if (!JS_IsNumber(jsVal))
+		throw std::invalid_argument{ "期望一个毫秒数的 number。" };
+
+	double milliseconds = 0;
+	if (JS_ToFloat64(ctx.ctx, &milliseconds, jsVal) < 0 || std::isnan(milliseconds))
+		throw std::invalid_argument{ "毫秒数无效。" };
+	return milliseconds;
+}
+
 metapp::Variant Binding::js2CppAs(const metapp::MetaType &targetType, JSValue jsVal) {
 	// A JS function may be bridged into a C++ callable type
 	// (std::function<R(Args...)> registered via regTypeStatic). Functions are
@@ -214,6 +283,17 @@ metapp::Variant Binding::js2CppAs(const metapp::MetaType &targetType, JSValue js
 	if (auto *typeInfo = findTypeInfoByCppType(regedTypes, targetType);
 		typeInfo && typeInfo->isJsFunctionBridgeType()) {
 		return typeInfo->makeFromJsFunction(ctx->ctx, jsVal);
+	}
+
+	// A chrono target type accepts what its translation produced: a JS Date for
+	// a time point, a JS number of milliseconds for a duration. The concrete
+	// clock/period is restored by the type's own castFrom (see
+	// metapp_chrono_metatypes.hxx), so this only has to pick the input form.
+	if (ChronoKind chronoKind{ }; getChronoKind(*metapp::getNonReferenceMetaType(&targetType), chronoKind)) {
+		const double milliseconds = chronoKind == ChronoKind::timePoint
+			? static_cast<double>(readJsDateMilliseconds(*ctx, jsVal))
+			: readJsNumberMilliseconds(*ctx, jsVal);
+		return metapp::Variant{ milliseconds }.cast(&targetType);
 	}
 
 	// A translatable target type accepts the JS representation its translator
@@ -776,6 +856,12 @@ JSValue Binding::cpp2JSTranslate(metapp::Variant cppValRef) {
 	if (!isRefVariant(cppValRef))
 		throw std::invalid_argument{ "cppValRef is not a reference variant." };
 
+	// Chrono types carry their translation in the type itself (see
+	// metapp_chrono_metatypes.hxx): there is no registered TypeInfo to look up,
+	// so cpp2JSAuto, which knows those types structurally, does the work.
+	if (ChronoKind chronoKind{ }; getChronoKind(getRawType(cppValRef), chronoKind))
+		return cpp2JSAuto(std::move(cppValRef));
+
 	auto &typeInfo = findRegedTypeInfoByCppType(regedTypes, getRawType(cppValRef));
 	if (!typeInfo.translator) 
 		throw std::invalid_argument{
@@ -829,6 +915,37 @@ JSValue Binding::cpp2JSAuto(metapp::Variant cppVal,
 	auto &rawType = getRawType(cppVal);
 	auto *typeInfo = findTypeInfoByCppType(regedTypes, rawType);
 
+	// Chrono values are translated (see metapp_chrono_metatypes.hxx): a time
+	// point becomes a JS Date, a duration a number of milliseconds. They are
+	// pure data types with no JS counterpart of their own, so every form the
+	// value may arrive in is translated -- by value, as a reference (a member
+	// read) or through a pointer -- and a registered translator, if any, never
+	// gets a say.
+	if (ChronoKind chronoKind{ }; getChronoKind(rawType, chronoKind)) {
+		const auto chronoVal = metapp::getNonReferenceMetaType(cppVal)->isPointer()
+			? metapp::depointer(cppVal)
+			: cppVal;
+		if (chronoVal.isEmpty())
+			return JS_NULL;
+		if (chronoKind == ChronoKind::timePoint)
+			return makeJsDate(*ctx, chronoVal.cast<std::int64_t>().get<std::int64_t>());
+		// A duration keeps its sub-millisecond fraction: it is a plain number,
+		// not a Date.
+		return JS_NewFloat64(ctx->ctx, chronoVal.cast<double>().get<double>());
+	}
+
+	// An explicitly registered translation comes next, before the structural
+	// container handling and the twin path: a translatable type is a pure data
+	// type, hence it is translated however the value arrived -- including as a
+	// reference, which is what a member read produces.
+	if (typeInfo && typeInfo->translator) {
+		auto cppObjRef = isReferenceOrPointerVariant(cppVal)
+			? makeRefFromReferenceOrPointerVariant(cppVal)
+			: makeRefVariantOfVariant(cppVal);
+		return typeInfo->translator->translateToJS(*ctx,
+			typeInfo->translator->makeTranslateInput(cppObjRef));
+	}
+
 	// Container-like types without explicit registration are handled
 	// structurally: sequential containers (MetaIndexable) and associative
 	// containers (MetaMappable). Reference/pointer forms become non-owning
@@ -875,14 +992,6 @@ JSValue Binding::cpp2JSAuto(metapp::Variant cppVal,
 			opaque->lifetimeInfoOfCppObj = lifetimeInfo;
 		}
 		return jsObj;
-	}
-
-	if (typeInfo && typeInfo->translator) {
-		auto cppObjRef = isReferenceOrPointerVariant(cppVal)
-			? makeRefFromReferenceOrPointerVariant(cppVal)
-			: makeRefVariantOfVariant(cppVal);
-		return typeInfo->translator->translateToJS(*ctx,
-			typeInfo->translator->makeTranslateInput(cppObjRef));
 	}
 
 	return cpp2JSTransplant(std::move(cppVal));

@@ -11,21 +11,12 @@ public:
     {
         std::string sender;
         std::string content;
+        // 直接暴露为属性即可：脚本读到的是 JS Date（时间点的转换由
+        // ElementQuickJsBinding 统一提供，见 metapp_chrono_metatypes.hxx），
+        // 不需要任何辅助访问器。
         std::chrono::system_clock::time_point timestamp;
-
-        // 以下两个辅助访问器只为脚本侧使用（见 src/js_bindings.hxx）：
-        // 时间点本身无法直接映射到 JS 值，故以毫秒数与格式化文本两种形式暴露。
-        std::int64_t timestampMs() const {
-            return std::chrono::duration_cast<std::chrono::milliseconds>(
-                timestamp.time_since_epoch()).count();
-        }
-
-        std::string timestampText() const {
-            return std::format("{:%H:%M:%S}", timestamp);
-        }
     };
 
-	METAPP_REFLECT
 	struct DanmakuGuiInfo
 	{
 		gsl::not_null<Rml::Element *const> danmakuItemAppearAnimContainerEle;

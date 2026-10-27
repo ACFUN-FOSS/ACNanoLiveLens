@@ -1,8 +1,6 @@
 #ifndef NANOLIVELENS_CORE_WS_HXX
 #define NANOLIVELENS_CORE_WS_HXX
 
-#include <memory>
-
 struct WsData {
 	std::string event;
 	std::string payload;

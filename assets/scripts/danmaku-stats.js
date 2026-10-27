@@ -10,6 +10,12 @@
 
 const log = (message) => console.log(`[统计] ${message}`);
 
+// 把 Date 格式化为 HH:MM:SS。
+const formatTime = (date) => {
+	const pad = (value) => String(value).padStart(2, '0');
+	return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
+
 let receivedCount = 0;
 let shownCount = 0;
 let droppedCount = 0;
@@ -28,9 +34,10 @@ addOnReceivedDanmakuHook((danmakuInfo, time) => {
 	receivedCount++;
 
 	// danmakuInfo 是脚本自己的副本（移植体）：可以放心保存到回调之外。
-	// timestampMs() / timestampText() 是 DanmakuInfo 暴露的两个辅助方法。
+	// timestamp 是 JS 的 Date（宿主把任何 C++ 时间点都翻译成 Date），
+	// 要毫秒数就用 getTime()。
 	if (receivedCount <= 3) {
-		log(`收到弹幕 #${receivedCount}：${danmakuInfo.timestampText()} ` +
+		log(`收到弹幕 #${receivedCount}：${formatTime(danmakuInfo.timestamp)} ` +
 			`${danmakuInfo.sender}: ${danmakuInfo.content}`);
 	}
 	// 每 20 条弹幕打印一次统计。

@@ -3,12 +3,6 @@
 
 #include "danmaku_monitor_win.hxx"
 
-#include <RmlUi/Core/Element.h>
-
-#include <chrono>
-#include <cstddef>
-#include <functional>
-
 // JS 钩子系统。
 //
 // 借鉴 LuaTeX 的设计哲学：与其提供完整的插件接口、文件结构与打包安装机制，
@@ -29,8 +23,10 @@
 //（C++ 侧）都只是普通的 std::function 操作，因此本文件不依赖脚本引擎本身。
 namespace JsHook {
 
-// 传给脚本的时间点。JsEngine 把它注册成「可翻译」类型（见文档「转换方法：翻译」），
-// 脚本侧收到的是 JavaScript 的 Date。
+// 传给脚本的时间点。任何 std::chrono::time_point 都由 ElementQuickJsBinding
+// 自动翻译为 JavaScript 的 Date（见文档「转换方法：翻译」与
+// ElementQuickJsBinding/metapp_chrono_metatypes.hxx），因此这里只是一个别名，
+// 不需要注册也不需要辅助访问器。
 using TimePoint = std::chrono::system_clock::time_point;
 
 // 回调标识，用于 removeHook。从 1 开始，0 保留为无效值。

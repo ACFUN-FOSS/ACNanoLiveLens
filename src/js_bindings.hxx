@@ -3,10 +3,8 @@
 
 #include "danmaku_monitor_win.hxx"
 
+// 例外：ElementQuickJsBinding 是模板库性质，其头文件允许直接 include（不进 PCH）。
 #include <ElementQuickJsBinding/binding.hxx>
-#include <RmlUi/Core/Element.h>
-#include <metapp/interfaces/metaclass.h>
-#include <metapp/metatype.h>
 
 // ============================================================================
 // 本应用暴露给 JavaScript 的全部绑定。
@@ -60,16 +58,18 @@ struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuInfo>
 				mc.registerType<DanmakuInfo>("DanmakuInfo");
 				mc.registerVariable("sender", &DanmakuInfo::sender);
 				mc.registerVariable("content", &DanmakuInfo::content);
-				mc.registerCallable("timestampMs", &DanmakuInfo::timestampMs);
-				mc.registerCallable("timestampText", &DanmakuInfo::timestampText);
+				// 时间点成员按原样登记：脚本读到的是 JS Date，写回时接受 Date。
+				// 时间点与时间长度由绑定层统一转换（见
+				// ElementQuickJsBinding/metapp_chrono_metatypes.hxx），因此不需要
+				// 为它提供 timestampMs()/timestampText() 之类的辅助访问器。
+				mc.registerVariable("timestamp", &DanmakuInfo::timestamp);
 			}
 		};
 		return &metaClass;
 	}
 };
 
-// 弹幕在界面中的 GUI 信息。包含两个 UI 元素的引用，读取时返回继承
-// 关联对象生命周期的孪生体（见文档「转换方法：孪生（Twining）」）。
+// 弹幕在界面中的 GUI 信息。包含两个 UI 元素的引用。
 template<>
 struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo>
 	: metapp::DeclareMetaTypeBase<DanmakuMonitorWin::DanmakuGuiInfo>
@@ -91,10 +91,9 @@ struct metapp::DeclareMetaType<DanmakuMonitorWin::DanmakuGuiInfo>
 
 // RmlUi 元素。
 //
-// 脚本拿到的元素总是孪生体（元素不可移动，也绝不能复制/移植到 JS VM 里），
-// 因此这里只暴露一组安全的成员方法：读写样式类、属性与内容、查询尺寸与滚动位置。
+// 脚本拿到的元素总是孪生体（元素不可移动，也不能复制/移植到 JS VM 里），
 // 返回指针的查询接口（GetElementById / QuerySelector）有意不暴露：它们在查找
-// 失败时返回空指针，而空指针无法安全地转换为 JS 侧的孪生体。
+// 失败时返回空指针，而空指针无法安全地转换为 JS 侧的孪生体。需要额外包装。
 template<>
 struct metapp::DeclareMetaType<Rml::Element>
 	: metapp::DeclareMetaTypeBase<Rml::Element>

@@ -1,12 +1,6 @@
 #include "Core/assert.hxx"
 #include "EmergUI/emerg_ui.hxx"
 #include "EmergUI/crash_dlg.hxx"
-#include <EatiEssentials/assert.hxx>
-#include <boost/stacktrace.hpp>
-#include <cstdlib>
-#include <format>
-#include <sstream>
-#include <string_view>
 
 namespace {
 

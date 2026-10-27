@@ -10,9 +10,6 @@
 
 #include "utils.hxx"
 
-#include <deque>
-#include <vector>
-
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
 using namespace Essentials::IO;

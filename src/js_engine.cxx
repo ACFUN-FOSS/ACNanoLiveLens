@@ -5,16 +5,6 @@
 #include "js_hook.hxx"
 #include "script_style.hxx"
 
-#include <EatiEssentials/io.hxx>
-#include <quickjs/quickjs-libc.h>
-
-#include <algorithm>
-#include <chrono>
-#include <print>
-#include <stdexcept>
-#include <string>
-#include <vector>
-
 using ElementEngine::QJSBinding::Binding;
 
 JsEngine::JsEngine()

@@ -5,74 +5,7 @@
 
 #include "Core/sound.hxx"
 
-#include <quickjspp.hpp>
-
-#include <any>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <format>
-#include <functional>
-#include <stdexcept>
-#include <string>
-
 using ElementEngine::QJSBinding::Binding;
-using ElementEngine::QJSBinding::Translator;
-
-namespace {
-
-// --- 时间点的翻译：C++ 的 time_point ↔ 脚本的 Date ---
-
-JSValue makeJsDate(qjs::Context &ctx, const JsHook::TimePoint timePoint) {
-	const auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(
-		timePoint.time_since_epoch()).count();
-
-	JSValue dateCtor = JS_GetPropertyStr(ctx.ctx, ctx.global().v, "Date");
-	JSValue args[]{ JS_NewInt64(ctx.ctx, milliseconds) };
-	JSValue date = JS_CallConstructor(ctx.ctx, dateCtor, 1, args);
-	JS_FreeValue(ctx.ctx, dateCtor);
-	JS_FreeValue(ctx.ctx, args[0]);
-	return date;
-}
-
-// detranslate 必须校验输入并在不符合要求时抛出异常（见文档「转换方法：翻译」）。
-JsHook::TimePoint readJsDate(qjs::Context &ctx, JSValue jsVal) {
-	const auto fail = [](const char *reason) {
-		throw std::invalid_argument{ std::format("期望一个 Date：{}", reason) };
-	};
-
-	if (JS_IsUndefined(jsVal) || JS_IsNull(jsVal))
-		fail("收到 null 或 undefined");
-
-	JSValue getTime = JS_GetPropertyStr(ctx.ctx, jsVal, "getTime");
-	if (!JS_IsFunction(ctx.ctx, getTime)) {
-		JS_FreeValue(ctx.ctx, getTime);
-		fail("收到的值没有 getTime() 方法");
-	}
-
-	JSValue millisecondsVal = JS_Call(ctx.ctx, getTime, jsVal, 0, nullptr);
-	JS_FreeValue(ctx.ctx, getTime);
-	if (JS_IsException(millisecondsVal)) {
-		// 消费掉挂起的异常，避免它泄漏到调用方的错误信息里。
-		JS_FreeValue(ctx.ctx, JS_GetException(ctx.ctx));
-		JS_FreeValue(ctx.ctx, millisecondsVal);
-		fail("调用 getTime() 抛出了异常");
-	}
-
-	double milliseconds = 0;
-	const int toFloatResult = JS_ToFloat64(ctx.ctx, &milliseconds, millisecondsVal);
-	JS_FreeValue(ctx.ctx, millisecondsVal);
-	if (toFloatResult < 0)
-		fail("getTime() 的返回值不是数值");
-	if (std::isnan(milliseconds))
-		fail("时间点无效（NaN）");
-
-	return JsHook::TimePoint{
-		std::chrono::milliseconds{ static_cast<std::int64_t>(milliseconds) }
-	};
-}
-
-}
 
 namespace JsBindings {
 
@@ -84,23 +17,10 @@ void setupAll(Binding &b) {
 	b.regTypeStatic<DanmakuMonitorWin::DanmakuGuiInfo>();
 	b.regTypeStatic<Rml::Element>();
 
-	// 2. 时间点 → Date。time_point 没有 metapp 的 TypeKind，因此显式提供 translator。
-	b.regType({
-		.type = metapp::getMetaType<JsHook::TimePoint>(),
-		.shareLifetimeInfoFunc = { },
-		.moveable = true,
-		.translator = Translator{
-			.makeTranslateInput = [](const metapp::Variant &cppVal) -> std::any {
-				return cppVal.cast<JsHook::TimePoint>().get<JsHook::TimePoint>();
-			},
-			.translateToJS = [](qjs::Context &ctx, const std::any &cppVal) -> JSValue {
-				return makeJsDate(ctx, std::any_cast<JsHook::TimePoint>(cppVal));
-			},
-			.detranslate = [](qjs::Context &ctx, JSValue jsVal) -> metapp::Variant {
-				return metapp::Variant{ readJsDate(ctx, jsVal) };
-			}
-		}
-	});
+	// 2. 时间点与时间长度不需要注册：任何 std::chrono::time_point 都会被翻译为
+	//    JS Date，任何 std::chrono::duration 都会被翻译为毫秒数（见
+	//    ElementQuickJsBinding/metapp_chrono_metatypes.hxx）。DanmakuInfo 的
+	//    timestamp 成员、以及钩子回调里的 TimePoint 形参都因此自动得到 Date。
 
 	// 3. JS 函数桥接：脚本函数只有在对应签名被注册之后才能作为实参传给 C++。
 	//    注意同一签名只能注册一次——PostLogin、PostHotreloadStyle 与 PostHotreloadFull

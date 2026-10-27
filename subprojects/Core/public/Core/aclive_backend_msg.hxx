@@ -1,15 +1,6 @@
 #ifndef NANOLIVELENS_CORE_ACLIVE_BACKEND_MSG_HXX
 #define NANOLIVELENS_CORE_ACLIVE_BACKEND_MSG_HXX
 
-#include <chrono>
-#include <cstdint>
-#include <optional>
-#include <string>
-#include <type_traits>
-#include <variant>
-#include <vector>
-#include <rfl.hpp>
-
 struct EmptyData
 {
 	rfl::ExtraFields<rfl::Generic> extraFields;

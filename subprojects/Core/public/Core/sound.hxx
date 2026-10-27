@@ -1,8 +1,6 @@
 #ifndef NANOLIVELENS_CORE_SOUND_HXX
 #define NANOLIVELENS_CORE_SOUND_HXX
 
-#include <string_view>
-
 enum class Sound
 {
     CLICK,

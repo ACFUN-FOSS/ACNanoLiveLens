@@ -15,8 +15,6 @@
 #include "msg_box.hxx"
 #include "uiwin_bizlogic_obj_async_op_scope.hxx"
 
-#include <chrono>
-
 using namespace RmlUIWin;
 using namespace Essentials::Memory;
 using namespace Essentials::IO;

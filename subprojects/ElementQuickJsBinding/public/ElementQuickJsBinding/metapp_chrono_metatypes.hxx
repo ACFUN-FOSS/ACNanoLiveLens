@@ -111,7 +111,7 @@ public:
 
 	static bool cast(Variant * result, const Variant * fromVar, const MetaType * toMetaType) {
 		if (getNonReferenceMetaType(toMetaType)->isArithmetic()) {
-			const auto & value = *(const T *)fromVar->getAddress();
+			const auto & value = *static_cast<const T *>(fromVar->getAddress());
 			const auto milliseconds = ejsChrono::toMilliseconds(value.time_since_epoch());
 			if (result != nullptr) {
 				*result = getNonReferenceMetaType(toMetaType)->isIntegral()
@@ -150,7 +150,7 @@ public:
 
 	static bool cast(Variant * result, const Variant * fromVar, const MetaType * toMetaType) {
 		if (getNonReferenceMetaType(toMetaType)->isArithmetic()) {
-			const auto & value = *(const T *)fromVar->getAddress();
+			const auto & value = *static_cast<const T *>(fromVar->getAddress());
 			const auto milliseconds = ejsChrono::toMilliseconds(value);
 			if (result != nullptr) {
 				*result = getNonReferenceMetaType(toMetaType)->isIntegral()
